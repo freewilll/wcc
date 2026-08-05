@@ -15,6 +15,10 @@ long double gld, *gpld;
 struct s1 { int i; long double ld; };
 struct s2 { long double ld; int i; };
 
+struct s {
+    long double ld1, ld2;
+} gs;
+
 void assert_ld_string(long double ld, char *expected, char *message) {
     char *buffer = malloc(100);
 
@@ -26,7 +30,8 @@ void assert_ld_string(long double ld, char *expected, char *message) {
 }
 
 void test_assignment() {
-    long double ld1, ld2;
+    long double ld1, ld2, ld3;
+    &ld3; // Force onto the stack
 
     char *buffer = malloc(100);
 
@@ -37,15 +42,44 @@ void test_assignment() {
     gld = ld1;
     assert_ld_string(gld, "1.10000", "Long double assignment local-global");
 
+    ld3 = 1.3;
+    ld2 = ld3;
+    assert_ld_string(ld2, "1.30000", "Long double assignment stack-local");
+
+    gld = ld3;
+    assert_ld_string(gld, "1.30000", "Long double assignment stack-global");
+
     gld = 1.2;
     ld1 = gld;
     assert_ld_string(ld1, "1.20000", "Long double assignment global-local");
+
+    gld = 1.4;
+    ld3 = gld;
+    assert_ld_string(ld3, "1.40000", "Long double assignment global-stack");
 
     gld = 1.3;
     ld1 = ld2 = gld;
     sprintf(buffer, "%5.5Lf %5.5Lf", ld1, ld2);
     assert_int(0, strcmp(buffer, "1.30000 1.30000"), "Long double assignment global-local-local");
+
+    // assigment to a local struct
+    struct s {
+        long double ld1, ld2;
+    } s;
+
+    s.ld1 = 1.1;
+    s.ld2 = 1.2;
+    assert_ld_string(s.ld1, "1.10000", "Long double assignment to local struct 1");
+    assert_ld_string(s.ld2, "1.20000", "Long double assignment to local struct 2");
+
+    // Assignment to a global
+    gs.ld1 = 1.3;
+    gs.ld2 = 1.4;
+    assert_ld_string(gs.ld1, "1.30000", "Long double assignment to global struct 1");
+    assert_ld_string(gs.ld2, "1.40000", "Long double assignment to global struct 2");
 }
+
+#ifdef __x86_64__
 
 void test_arithmetic() {
     long double ld1, ld2, ld3;
@@ -597,6 +631,8 @@ void test___builtin_inff() {
     assert_int(0x7fff,              ((short *) &ld)[4], "__builtin_inff converted to long double 2");
 }
 
+#endif
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -604,6 +640,7 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     test_assignment();
+    #ifdef __x86_64__
     test_arithmetic();
     test_comparison_assignment();
     test_comparison_conditional_jump();
@@ -619,6 +656,7 @@ int main(int argc, char **argv) {
     test_function_call_argument_conversions();
     test___builtin_nanf();
     test___builtin_inff();
+    #endif
 
     finalize();
 }

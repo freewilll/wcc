@@ -59,7 +59,6 @@ struct sd2  { double      c1; double d1;      };
 struct sld1 { long double c1;                 };
 struct sld2 { long double c1; long double l1; };
 
-#ifdef __x86_64__
 struct cc  { char c1; char        c2; };
 struct cs  { char c1; short       s1; };
 struct ci  { char c1; int         i1; };
@@ -69,17 +68,15 @@ struct cd  { char c1; double      d1; };
 struct cld { char c1; long double ld1; };
 struct cla { char c1; long        l1[10]; };
 
-#endif
 struct ccc  { char c1; char         c2;     char c3; };
 struct csc  { char c1; short        c2;     char c3; };
 struct cic  { char c1; int          c2;     char c3; };
 struct clc  { char c1; long         c2;     char c3; };
-#ifdef __x86_64__
+
 struct cfc  { char c1; float        c2;     char c3; };
 struct cdc  { char c1; double       c2;     char c3; };
 struct cldc { char c1; long double  c2;     char c3; };
 struct clac { char c1; long         c2[10]; char c3; };
-#endif
 
 struct sab2 {
     struct t {
@@ -202,8 +199,6 @@ struct st {
 
 union u {int a; int b; signed char c0, c1, c2, c3;};
 
-#ifdef __x86_64__
-
 struct ds {
     char c;
     short s;
@@ -222,8 +217,6 @@ struct sld {
     short s;
     long double ld;
 };
-
-#endif
 
 // This tests a big stack in aarch64. This ensures
 // - a big stack is allocated correctly
@@ -700,15 +693,13 @@ void test_chocolate_factory_struct() {
     assert_long(-1,         cfs->ul, "ucfgs l");
 }
 
-#ifdef __x86_64__
-
 void test_struct_offset_pointer_indirects() {
     // The generated code should have things like movw 16(%rbx), %ax
 
-    char c, *pc;
-    short s, *ps;
-    int i, *pi;
-    long l, *pl;
+    signed char c, *pc;
+    signed short s, *ps;
+    signed int i, *pi;
+    signed long l, *pl;
 
     unsigned char uc, *puc;
     unsigned short us, *pus;
@@ -749,8 +740,6 @@ void test_struct_offset_pointer_indirects() {
     assert_long(0xffffffff, ui, "opi ui"); assert_long(-1, pui, "opi pui");
     assert_long(-1,         ul, "opi ul"); assert_long(-1, pul, "opi pul");
 }
-
-#endif
 
 int test_sub_struct() {
     struct nss1 * nss1;
@@ -963,8 +952,6 @@ int test_declaration_without_definition() {
     };
 }
 
-#ifdef __x86_64__
-
 int test_copy() {
     struct { char  i;         } s011, s012; s011.i = 1;                         s012 = s011; assert_int(0, memcmp(&s011, &s012, sizeof(s011)), "Struct copy 1");
     struct { short i;         } s021, s022; s021.i = 1;                         s022 = s021; assert_int(0, memcmp(&s021, &s022, sizeof(s021)), "Struct copy 2");
@@ -1064,8 +1051,6 @@ int test_copy() {
     assert_int(7, st2a[1].st1.i[6], "memcpy struct with offset in array 7");
     assert_int(8, st2a[1].st1.i[7], "memcpy struct with offset in array 8");
 }
-
-#endif
 
 int test_pointers() {
     // Pointer to global struct
@@ -1480,9 +1465,7 @@ int main(int argc, char **argv) {
     test_function_with_a_pointer_to_a_struct_argument();
     test_struct_casting();
     test_chocolate_factory_struct();
-#ifdef __x86_64__
     test_struct_offset_pointer_indirects();
-#endif
     test_sub_struct();
     test_unions();
     test_nested_structs_and_unions();
@@ -1492,9 +1475,7 @@ int main(int argc, char **argv) {
 #endif
     test_scoped_struct_tags();
     test_declaration_without_definition();
-#ifdef __x86_64__
     test_copy();
-#endif
     test_pointers();
     test_arithmetic_with_local_struct_members();
     test_bit_field_sizes();

@@ -91,12 +91,12 @@ int match_value_to_rule_src(Value *v, int src) {
     if (v->is_constant) {
         int vtt = v->type->type;
 
-        if (vtt == TYPE_LONG_DOUBLE)
-            return src == CLD;
-        else if (vtt == TYPE_FLOAT)
+        if (vtt == TYPE_FLOAT)
             return src == CO3;
         else if (vtt == TYPE_DOUBLE)
             return src == CO4;
+        else if (vtt == TYPE_LONG_DOUBLE)
+            return src == CO5;
         else {
             // Integer constant
 
@@ -570,7 +570,7 @@ static void add_long_double_move_rules(void)  {
     // ----------------------------------------------------------------------------------
 
     // Long double constant -> memory
-    r = add_rule(MLD5, IR_MOVE, CLD,  0, 3);
+    r = add_rule(MLD5, IR_MOVE, CO5,  0, 3);
     add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movabsq %v1L, %%r10"); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq %%r10, %vdL");
     add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movabsq %v1H, %%r10"); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq %%r10, %vdH");
 
@@ -755,7 +755,7 @@ static void add_indirect_rules(void) {
     add_op(r, X86_OP_MOVC,         DST, SV2,  0, "movq %v1q, %vdH");
 
     // Move of a constant to a pointer in a register
-    r = add_rule(RP5, IR_MOVE_TO_PTR, RP5, CLD, 5);
+    r = add_rule(RP5, IR_MOVE_TO_PTR, RP5, CO5, 5);
     add_allocate_register_in_slot(r, 1, TYPE_LONG);                   // SV1: register for value
     add_op(r, X86_OP_MOVC,       SV1, SRC2, 0,   "movq %v1L, %vdq");       // Move low byte
     add_op(r, X86_OP_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, %v1o(%v1q)"); // Move high byte
@@ -1390,18 +1390,18 @@ static void add_long_double_operation_rules(void) {
     char *fstore = "fstpt %vdL";
 
     add_long_double_operation_rule(            IR_ADD, X86_OP_FADD, 15, MLD5, MLD5, MLD5, ll, ll, fadd, fstore); // Add
-    add_long_double_commutative_operation_rule(IR_ADD, X86_OP_FADD, 15, MLD5, MLD5, CLD,  ll, lc, fadd, fstore);
+    add_long_double_commutative_operation_rule(IR_ADD, X86_OP_FADD, 15, MLD5, MLD5, CO5,  ll, lc, fadd, fstore);
 
     add_long_double_operation_rule(            IR_SUB, X86_OP_FSUB, 15, MLD5, MLD5, MLD5, ll, ll, fsub, fstore); // Subtract
-    add_long_double_operation_rule(            IR_SUB, X86_OP_FSUB, 15, MLD5, MLD5, CLD, ll, lc, fsub, fstore);
-    add_long_double_operation_rule(            IR_SUB, X86_OP_FSUB, 15, MLD5, CLD,  MLD5, lc, ll, fsub, fstore);
+    add_long_double_operation_rule(            IR_SUB, X86_OP_FSUB, 15, MLD5, MLD5, CO5, ll, lc, fsub, fstore);
+    add_long_double_operation_rule(            IR_SUB, X86_OP_FSUB, 15, MLD5, CO5,  MLD5, lc, ll, fsub, fstore);
 
     add_long_double_operation_rule(            IR_MUL, X86_OP_FMUL, 15, MLD5, MLD5, MLD5, ll, ll, fmul, fstore); // Multiply
-    add_long_double_commutative_operation_rule(IR_MUL, X86_OP_FMUL, 15, MLD5, MLD5, CLD,  ll, lc, fmul, fstore);
+    add_long_double_commutative_operation_rule(IR_MUL, X86_OP_FMUL, 15, MLD5, MLD5, CO5,  ll, lc, fmul, fstore);
 
     add_long_double_operation_rule(            IR_DIV, X86_OP_FDIV, 40, MLD5, MLD5, MLD5, ll, ll, fdiv, fstore); // Divide
-    add_long_double_operation_rule(            IR_DIV, X86_OP_FDIV, 40, MLD5, MLD5, CLD,  ll, lc, fdiv, fstore);
-    add_long_double_operation_rule(            IR_DIV, X86_OP_FDIV, 40, MLD5, CLD,  MLD5, lc, ll, fdiv, fstore);
+    add_long_double_operation_rule(            IR_DIV, X86_OP_FDIV, 40, MLD5, MLD5, CO5,  ll, lc, fdiv, fstore);
+    add_long_double_operation_rule(            IR_DIV, X86_OP_FDIV, 40, MLD5, CO5,  MLD5, lc, ll, fdiv, fstore);
 }
 
 static void add_sse_operation_rule(int operation, int x86_operation, int cost, int dst, int src1, int src2, char *mov_template, char *op_template) {
@@ -1550,7 +1550,7 @@ void define_rules(void) {
     r = add_rule(CSTV1, 0, CSTV1, 0, 0);
     r = add_rule(CSTV2, 0, CSTV2, 0, 0);
     r = add_rule(CSTV3, 0, CSTV3, 0, 0);
-    r = add_rule(CLD,   0, CLD,   0, 0);
+    r = add_rule(CO5,   0, CO5,   0, 0);
     r = add_rule(XR,    0, XR,    0, 0); fin_rule(r);
     r = add_rule(XM,    0, XM,    0, 0); fin_rule(r);
     r = add_rule(MLD5,  0, MLD5,  0, 0);
@@ -1690,7 +1690,7 @@ void define_rules(void) {
     fin_rule(r);
 
     // Long double constant arg
-    r = add_rule(0, IR_ARG, CI4, CLD, 2);
+    r = add_rule(0, IR_ARG, CI4, CO5, 2);
     add_op(r, X86_OP_MOV, SRC2,  SRC2, 0,    "movabsq %v1H, %%r10");
     add_op(r, X86_OP_ARG, 0,     SRC1, SRC1, "pushq %%r10");
     add_op(r, X86_OP_MOV, SRC2,  SRC2, 0,    "movabsq %v1L, %%r10");
@@ -1727,7 +1727,7 @@ void define_rules(void) {
     r = add_rule(0, IR_ARG, CI4, RPF, 2);                                                               add_int_function_call_arg_op(r);
 
     // Long double return rules
-    r = add_rule(0, IR_LOAD_LONG_DOUBLE, CLD,  0, 1); add_op(r, X86_OP_MOVC, DST, SRC1, 0, "fldt %v1C");
+    r = add_rule(0, IR_LOAD_LONG_DOUBLE, CO5,  0, 1); add_op(r, X86_OP_MOVC, DST, SRC1, 0, "fldt %v1C");
     r = add_rule(0, IR_LOAD_LONG_DOUBLE, MLD5, 0, 1); add_op(r, X86_OP_MOVC, DST, SRC1, 0, "fldt %v1L");
 
     // Function pointers
@@ -1803,8 +1803,8 @@ void define_rules(void) {
     add_int_comparison_rules(&ntc, 0, MPV, CI3, "cmpq $%v2q, %v1q"); add_int_comparison_rules(&ntc, 0, MPV, CU3, "cmpq $%v2q, %v1q");
 
     add_long_double_comp_rules(&ntc, MLD5, MLD5, ll, ll);
-    add_long_double_comp_rules(&ntc, MLD5, CLD,  ll, lc);
-    add_long_double_comp_rules(&ntc, CLD,  MLD5, lc, ll);
+    add_long_double_comp_rules(&ntc, MLD5, CO5,  ll, lc);
+    add_long_double_comp_rules(&ntc, CO5,  MLD5, lc, ll);
 
     // Operations
     add_commutative_operation_rules("add%s",  IR_ADD,  X86_OP_ADD,  10);

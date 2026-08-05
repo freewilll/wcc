@@ -318,19 +318,23 @@ static void output_x86_operation(Tac *tac, int function_pc) {
 }
 
 // Add push statements for callee saved registers
-static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_registers) {
-    for (int i = 0; saved_registers[i] != -1; i++) {
+static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, SizedSavedRegisters *ssr) {
+    List *size4 = ssr->saved_registers[4]; // x86_64 only has 8-byte saved registers
+    for (int i = 0; i < size4->length; i++) {
+        int preg = (int) (long) size4->elements[i];
         cur_stack_push_count++;
-        ir = insert_target_instruction(ir, X86_OP_PUSH, new_preg_value(saved_registers[i]), 0, 0, "push %vdq");
+        ir = insert_target_instruction(ir, X86_OP_PUSH, new_preg_value(preg), 0, 0, "push %vdq");
     }
 
     return ir;
 }
 
-static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
-    for (int i = physical_register_count - 1; i >= 0; i--)
-        if (saved_registers[i] != -1)
-            ir = insert_target_instruction(ir, X86_OP_POP, new_preg_value(saved_registers[i]), 0, 0, "popq %vdq");
+static Tac *insert_end_of_function(Tac *ir, SizedSavedRegisters *ssr) {
+    List *size4 = ssr->saved_registers[4]; // x86_64 only has 8-byte saved registers
+    for (int i = size4->length - 1; i >= 0; i--) {
+        int preg = (int) (long) size4->elements[i];
+        ir = insert_target_instruction(ir, X86_OP_POP, new_preg_value(preg), 0, 0, "popq %vdq");
+    }
 
     ir = insert_target_instruction(ir, X86_OP_LEAVE, 0, 0, 0, "leaveq");
     return insert_target_instruction(ir, X86_OP_RET_FROM_FUNC, 0, 0, 0, "retq");
@@ -363,8 +367,8 @@ void add_final_instructions(Function *function) {
         cur_stack_push_count += stack_size / 8;
     }
 
-    int *saved_registers = make_saved_registers(function, PC_INT);
-    ir = insert_push_callee_saved_registers(ir, function->ir, saved_registers);
+    SizedSavedRegisters *ssr = make_saved_registers(function, PC_INT);
+    ir = insert_push_callee_saved_registers(ir, function->ir, ssr);
 
     while (ir) {
         added_end_of_function = 0;
@@ -479,7 +483,7 @@ void add_final_instructions(Function *function) {
             }
 
             case IR_RETURN:
-                ir = insert_end_of_function(ir, saved_registers);
+                ir = insert_end_of_function(ir, ssr);
                 added_end_of_function = 1;
         }
 
@@ -495,9 +499,9 @@ void add_final_instructions(Function *function) {
         ir = insert_target_instruction(ir, X86_OP_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
 
     if (!added_end_of_function)
-        insert_end_of_function(ir, saved_registers);
+        insert_end_of_function(ir, ssr);
 
-    wfree(saved_registers);
+    free_sized_saved_registers(ssr);
 }
 
 // Merge any consecutive add/sub stack operations that aren't involved in jmp instructions.
@@ -696,6 +700,33 @@ void output_debug_sections(char *input_filename) {
     fprintf(output_file, "\n.Lline_table_start:\n");
 
     wfree(cwd);
+}
+
+static void output_floating_point_literals(void) {
+    // Output floating point literals
+    if (floating_point_literal_count > 0) {
+        for (int i = 0; i < floating_point_literal_count; i++) {
+            // The zero and & is to be compatible with gcc
+            fprintf(output_file, ".LFP%d:\n", i);
+
+            if (floating_point_literals[i].type == TYPE_FLOAT) {
+                float fl = floating_point_literals[i].f;
+                fprintf(output_file, "    .long   %d\n", *((int *) &fl));
+            }
+            else if (floating_point_literals[i].type == TYPE_DOUBLE) {
+                double d = floating_point_literals[i].d;
+                fprintf(output_file, "    .long   %d\n", *((int *) &d));
+                fprintf(output_file, "    .long   %d\n", *((int *) &d + 1));
+            }
+            else {
+                long double ld = floating_point_literals[i].ld;
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[0]);
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[1]);
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[2] & 0xffff);
+                fprintf(output_file, "    .long   0\n");
+            }
+        }
+    }
 }
 
 // Output code for the translation unit

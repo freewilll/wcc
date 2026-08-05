@@ -9,13 +9,13 @@ static int cur_function_stack_size;                 // The stack size of the cur
 static int cur_function_has_function_calls;         // If the current function makes any function calls
 static int cur_function_stack_space_for_x29_x30;    // Amount of stack space allocated for x29 and x30
 
-static void append_register_name(char *buffer, int preg, int is_32bit) {
+static void append_register_name(char *buffer, int preg, int size) {
     if (preg >= REG_R00 && preg <= REG_R30) {
-        *buffer++ = is_32bit_to_aarch64_integer_register_size(is_32bit);
+        *buffer++ = size_to_aarch64_integer_register_size(size);
         sprintf(buffer, "%d", preg);
     }
     else if (preg >= REG_V00 && preg <= REG_V31) {
-        *buffer++ = is_32bit_to_aarch64_floating_point_register_size(is_32bit);
+        *buffer++ = size_to_aarch64_floating_point_register_size(size);
         sprintf(buffer, "%d", preg - REG_V00);
     }
     else if (preg == REG_SP)
@@ -165,15 +165,19 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
             else if (t[0] == 'd') v = tac->dst;
             else panic("Indecipherable placeholder \"%s\"", tac->target_template);
 
-            int is_32bit = 0;
+            int size = 4;
 
             switch (t[1]) {
                 case 'w':
                 case 'S':
-                    t++; is_32bit = 1; break;
+                    t++; size = 3; break;
                 case 'x':
                 case 'D':
-                    t++; is_32bit = 0; break;
+                    t++; size = 4; break;
+                case 'Q':
+                    t++; size = 5; break;
+                case 'V':
+                    t++; size = PSEUDO_SIZE_V; break;
             }
 
             if (!v) panic("Unexpectedly got a null value while the template %s is expecting it", tac->target_template);
@@ -186,9 +190,9 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                 while (*buffer) buffer++;
 
                 if (is_floating_point_type(v->type))
-                    *buffer++ = is_32bit_to_aarch64_floating_point_register_size(is_32bit);
+                    *buffer++ = size_to_aarch64_floating_point_register_size(size);
                 else
-                    *buffer++ = is_32bit_to_aarch64_integer_register_size(is_32bit);
+                    *buffer++ = size_to_aarch64_integer_register_size(size);
 
                 if (v->offset) {
                     while (*buffer) buffer++;
@@ -196,7 +200,7 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                 }
             }
             else if (expect_preg && v->preg != -1) {
-                append_register_name(buffer, v->preg, is_32bit);
+                append_register_name(buffer, v->preg, size);
 
                 if (v->offset) {
                     while (*buffer) buffer++;
@@ -262,46 +266,77 @@ static void output_aarch64_operation(Tac *tac, int function_pc) {
 }
 
 // Add push statements for callee saved registers.
-// Loop over pairs of saved registers, so that the stack is always aligned on 16 bytes.
-static Tac *insert_push_callee_saved_registers(Tac *ir, int *saved_registers) {
-    int i = 0;
-    while (1) {
-        int saved_register1 = saved_registers[i];
-        if (saved_register1 == -1) break;
-        int saved_register2 = saved_registers[i + 1];
+static Tac *insert_push_callee_saved_registers(Tac *ir, SizedSavedRegisters *ssr) {
+    // Push 8-byte registers
+    // Loop over pairs of saved registers, so that the stack is always aligned on 16 bytes.
+    List *size4 = ssr->saved_registers[4];
 
-        if (saved_register2 != -1) {
-            ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, 0,
-                new_preg_value(saved_register1), new_preg_value(saved_register2), "stp %v1x, %v2x, [sp, #-16]!");
-        }
-        else {
-            ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, 0,
-                new_preg_value(saved_register1), new_preg_value(saved_register2), "str %v1x, [sp, #-16]!");
-        }
+    // Push pairs of 8-bit registers
+    int count = size4->length / 2;
+    for (int i = 0; i < count; i++) {
+        int saved_register1 = (int) (long) size4->elements[i * 2];
+        int saved_register2 = (int) (long) size4->elements[i * 2 + 1];
 
-        i += 2;
+        ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, 0,
+            new_preg_value(saved_register1),
+            new_preg_value(saved_register2),
+            "stp %v1x, %v2x, [sp, #-16]!");
+    }
+
+    // If the list is odd, push the last odd element
+    if (size4->length & 1) {
+        int saved_register = (int) (long) size4->elements[size4->length - 1];
+        ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, 0,
+            new_preg_value(saved_register), 0,
+            "str %v1x, [sp, #-16]!");
+    }
+
+    // Push 16-byte registers, used for long doubles
+    List *size5 = ssr->saved_registers[5];
+    count = size5->length;
+    for (int i = 0; i < count; i++) {
+        int saved_register = (int) (long) size5->elements[i];
+        ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, 0,
+            new_preg_value(saved_register), 0,
+            "str %v1Q, [sp, #-16]!");
     }
 
     return ir;
 }
 
-static Tac *insert_pop_callee_saved_registers(Tac *ir, int *saved_registers) {
-    int i = (physical_register_count + 2) & (~1);
-    while (i >= 0) {
-        int saved_register1 = saved_registers[i];
-        int saved_register2 = saved_registers[i + 1];
-        if (saved_register1 != -1 || saved_register2 != -1) {
-            if (saved_register2 != -1) {
-                ir = insert_target_instruction(ir, AARCH64_OP_POP_DOUBLE_WORD, 0,
-                    new_preg_value(saved_register1), new_preg_value(saved_register2), "ldp %v1x, %v2x, [sp], #16");
-            }
-            else {
-                ir = insert_target_instruction(ir, AARCH64_OP_POP_DOUBLE_WORD, 0,
-                    new_preg_value(saved_register1), new_preg_value(saved_register2), "ldr %v1x, [sp], #16");
-            }
+// Add pop statements for callee saved registers.
+// Loop over pairs of saved registers, so that the stack is always aligned on 16 bytes.
+static Tac *insert_pop_callee_saved_registers(Tac *ir, SizedSavedRegisters *ssr) {
+    // Pop 16-byte registers, used for long doubles
+    List *size5 = ssr->saved_registers[5];
+    int count = size5->length;
+    for (int i = count - 1; i >= 0; i--) {
+        int saved_register = (int) (long) size5->elements[i];
+        ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, 0,
+            new_preg_value(saved_register), 0,
+            "ldr %v1Q, [sp], #16");
+    }
+
+    // Pop 8-byte registers
+    // Pop a single 8-byte register if the count is odd
+    List *size4 = ssr->saved_registers[4];
+    // If the list is odd, push the last odd element
+    if (size4->length & 1) {
+        int saved_register = (int) (long) size4->elements[size4->length - 1];
+        ir = insert_target_instruction(ir, AARCH64_OP_POP_DOUBLE_WORD, 0,
+            new_preg_value(saved_register), 0, "ldr %v1x, [sp], #16");
         }
 
-        i -= 2;
+    // Pop pairs of 8-bit registers
+    count = size4->length / 2;
+    for (int i = count - 1; i >= 0; i--) {
+        int saved_register1 = (int) (long) size4->elements[i * 2];
+        int saved_register2 = (int) (long) size4->elements[i * 2 + 1];
+
+        ir = insert_target_instruction(ir, AARCH64_OP_POP_DOUBLE_WORD, 0,
+            new_preg_value(saved_register1),
+            new_preg_value(saved_register2),
+            "ldp %v1x, %v2x, [sp], #16");
     }
 
     return ir;
@@ -322,7 +357,7 @@ static Tac *insert_function_prologue(Function *function, Tac *ir) {
     return ir;
 }
 
-static Tac *insert_end_of_function(Function *function, Tac *ir, int *saved_registers_int, int *saved_registers_fp) {
+static Tac *insert_end_of_function(Function *function, Tac *ir, SizedSavedRegisters *ssr_int, SizedSavedRegisters *ssr_fp) {
     if (cur_function_stack_size) {
         // Reclaim the function' local's stack space
         Value *v1 = new_integral_constant(TYPE_LONG, cur_function_stack_size);
@@ -335,8 +370,8 @@ static Tac *insert_end_of_function(Function *function, Tac *ir, int *saved_regis
         ir = insert_target_instruction(ir, AARCH64_OP_LDP, 0, 0, 0, "ldp x29, x30, [sp], 16");
 
     // Restore callee saved registers
-    ir = insert_pop_callee_saved_registers(ir, saved_registers_fp);
-    ir = insert_pop_callee_saved_registers(ir, saved_registers_int);
+    ir = insert_pop_callee_saved_registers(ir, ssr_fp);
+    ir = insert_pop_callee_saved_registers(ir, ssr_int);
 
     // Add the return instruction
     ir = insert_target_instruction(ir, AARCH64_OP_RET_FROM_FUNC, 0, 0, 0, "ret");
@@ -391,8 +426,9 @@ void add_final_instructions(Function *function) {
     // Saved called saved registers.
     // int and FP registers are loaded/saved in separate blocks since they
     // can't be loaded/saved together with a pair load (ldp).
-    int *saved_registers_int = make_saved_registers(function, PC_INT);
-    int *saved_registers_fp = make_saved_registers(function, PC_FP);
+    SizedSavedRegisters *saved_registers_int = make_saved_registers(function, PC_INT);
+    SizedSavedRegisters *saved_registers_fp = make_saved_registers(function, PC_FP);
+
     ir = insert_push_callee_saved_registers(ir, saved_registers_int);
     ir = insert_push_callee_saved_registers(ir, saved_registers_fp);
 
@@ -452,8 +488,8 @@ void add_final_instructions(Function *function) {
     if (!added_end_of_function)
         insert_end_of_function(function, ir, saved_registers_int, saved_registers_fp);
 
-    wfree(saved_registers_int);
-    wfree(saved_registers_fp);
+    free_sized_saved_registers(saved_registers_int);
+    free_sized_saved_registers(saved_registers_fp);
 }
 
 void optimize_final_instructions(Function *function) {} // TODO aarch64
@@ -476,6 +512,33 @@ static void output_function_body_code(Symbol *symbol) {
 // Output data for a defined object symbol
 void output_defined_object_symbol(Symbol *symbol) {
     panic("TODO aarch64 output_defined_object_symbol for %s\n", symbol->identifier);
+}
+
+static void output_floating_point_literals(void) {
+    // Output floating point literals
+    if (floating_point_literal_count > 0) {
+        for (int i = 0; i < floating_point_literal_count; i++) {
+            // The zero and & is to be compatible with gcc
+            fprintf(output_file, ".LFP%d:\n", i);
+
+            if (floating_point_literals[i].type == TYPE_FLOAT) {
+                float fl = floating_point_literals[i].f;
+                fprintf(output_file, "    .long   %d\n", *((int *) &fl));
+            }
+            else if (floating_point_literals[i].type == TYPE_DOUBLE) {
+                double d = floating_point_literals[i].d;
+                fprintf(output_file, "    .long   %d\n", *((int *) &d));
+                fprintf(output_file, "    .long   %d\n", *((int *) &d + 1));
+            }
+            else {
+                long double ld = floating_point_literals[i].ld;
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[0]);
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[1]);
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[2]);
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[3]);
+            }
+        }
+    }
 }
 
 // TODO aarch64 check completeness

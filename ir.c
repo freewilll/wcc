@@ -608,11 +608,15 @@ static void assign_local_to_register(Value *v, int vreg) {
     v->vreg = vreg;
 }
 
-// Set on_stack to one if the value is a long double, struct/union or array
+// Set on_stack to one if the value is a struct/union or array
+#define SET_ON_STACK(v, on_stack) \
+    if ((v->type->type) == TYPE_STRUCT_OR_UNION || (v->type->type) == TYPE_ARRAY) \
+        (on_stack)[-(v)->local_index] = 1
+
 static void set_on_stack(Value *v, char *on_stack) {
     int type = v->type->type;
 
-    if (type == TYPE_LONG_DOUBLE || type == TYPE_STRUCT_OR_UNION || type == TYPE_ARRAY)
+    if (type == TYPE_STRUCT_OR_UNION || type == TYPE_ARRAY)
         on_stack[-v->local_index] = 1;
 }
 
@@ -628,9 +632,9 @@ void allocate_value_vregs(Function *function) {
         if (tac->operation.id == IR_ADDRESS_OF && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
 
         // Keep long doubles, struct/unions and arrays on the stack
-        if (tac->dst  && tac->dst ->type && tac->dst ->local_index < 0) set_on_stack(tac->dst,  on_stack);
-        if (tac->src1 && tac->src1->type && tac->src1->local_index < 0) set_on_stack(tac->src1, on_stack);
-        if (tac->src2 && tac->src2->type && tac->src2->local_index < 0) set_on_stack(tac->src2, on_stack);
+        if (tac->dst  && tac->dst ->type && tac->dst ->local_index < 0) SET_ON_STACK(tac->dst,  on_stack);
+        if (tac->src1 && tac->src1->type && tac->src1->local_index < 0) SET_ON_STACK(tac->src1, on_stack);
+        if (tac->src2 && tac->src2->type && tac->src2->local_index < 0) SET_ON_STACK(tac->src2, on_stack);
     }
 
     for (int i = 1; i <= function->local_symbol_count; i++) {
@@ -670,6 +674,8 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
 
 // Long double rvalues never live in registers, ensure all of them are on the stack
 void move_long_doubles_to_the_stack(Function *function) {
+    if (!long_doubles_are_in_the_stack) return;
+
     make_vreg_count(function, 0);
     int *local_indexes = wcalloc(function->vreg_count + 1, sizeof(int));
 

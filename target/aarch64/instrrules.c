@@ -52,6 +52,10 @@ int uncached_non_terminal_for_value(Value *v) {
     else if (is_global && v->type->type == TYPE_ARRAY)                        result =  MGSA;
 
     // Pointers
+    else if (is_local  && is_pointer && v->type->target->type == TYPE_FLOAT)       result =  RP3;
+    else if (is_local  && is_pointer && v->type->target->type == TYPE_DOUBLE)      result =  RP4;
+    else if (is_local  && is_pointer && v->type->target->type == TYPE_LONG_DOUBLE) result =  RP5;
+
     else if (is_in_stack && is_pointer)                                       result =  MSPV;
     else if (is_global && is_pointer)                                         result =  MGPV;
     else if (is_local  && is_pointer)                                         result =  RP1 + value_ptr_target_target_size(v) - 1;
@@ -66,7 +70,9 @@ int uncached_non_terminal_for_value(Value *v) {
     else if (is_in_stack && v->type->type == TYPE_DOUBLE)                     result =  MSO4;
     else if (is_global   && v->type->type == TYPE_DOUBLE)                     result =  MGO4;
     else if (is_local    && v->type->type == TYPE_DOUBLE)                     result =  RO4;
-    else if (!is_local   && v->type->type == TYPE_LONG_DOUBLE)                result =  MLD5;
+    else if (is_in_stack && v->type->type == TYPE_LONG_DOUBLE)                result =  MSO5;
+    else if (is_global   && v->type->type == TYPE_LONG_DOUBLE)                result =  MGO5;
+    else if (is_local    && v->type->type == TYPE_LONG_DOUBLE)                result =  RO5;
 
     // Integers
     else if (is_in_stack && !v->type->is_unsigned)                            result =  MSI1 + v->target_size - 1;
@@ -92,12 +98,12 @@ int match_value_to_rule_src(Value *v, int src) {
         int vtt = v->type->type;
         int is_unsigned = v->type->is_unsigned;
 
-        if (vtt == TYPE_LONG_DOUBLE)
-            return src == CLD;
-        else if (vtt == TYPE_FLOAT)
+        if (vtt == TYPE_FLOAT)
             return src == CO3;
         else if (vtt == TYPE_DOUBLE)
             return src == CO4;
+        else if (vtt == TYPE_LONG_DOUBLE)
+            return src == CO5;
         else {
             // Integer constant
 
@@ -658,6 +664,7 @@ static void add_pointer_rules() {
     add_load_stack_address_rule(XRP, XMS);
     add_load_stack_address_rule(RP3, MSO3);
     add_load_stack_address_rule(RP4, MSO4);
+    add_load_stack_address_rule(RP5, MSO5);
     add_load_stack_address_rule(XRP, MSPV);
     add_load_stack_address_rule(RP1, MSSA);
     add_load_stack_address_rule(RP2, MSSA);
@@ -724,7 +731,8 @@ static void add_pointer_rules() {
     r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RI3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2x, [%v1x]");
 }
 
-static void add_float_and_double_move_rules(void) {
+// Floating point moves, for singles, doubles and long doubles
+static void add_floating_point_move_rules(void) {
     #define ADD_TRUNC_BYTE  add_convert_move_op(r, AARCH64_OP_BAND, SRC1, SRC1, 0, "and %vdw, %v1w, 255")
     #define ADD_TRUNC_SHORT add_convert_move_op(r, AARCH64_OP_BAND, SRC1, SRC1, 0, "and %vdw, %v1w, 65535")
 
@@ -735,14 +743,17 @@ static void add_float_and_double_move_rules(void) {
     r = add_rule(RO3, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvt %vdS, %v1D");
     r = add_rule(RO4, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvt %vdD, %v1S");
     r = add_rule(RO4, IR_MOVE, RO4, 0, 1); add_op(             r, AARCH64_OP_MOV, DST, SRC1, 0, "fmov %vdD, %v1D");
+    r = add_rule(RO5, IR_MOVE, RO5, 0, 1); add_op(             r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdV.16b, %v1V.16b");
 
     // Register -> stack
     r = add_rule(MSO3, IR_MOVE, RO3, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2S, [%v1x]");
     r = add_rule(MSO4, IR_MOVE, RO4, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2D, [%v1x]");
+    r = add_rule(MSO5, IR_MOVE, RO5, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2Q, [%v1x]");
 
     // Register -> global
     r = add_rule(MGO3, IR_MOVE, RO3, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2S, [%v1x]");
     r = add_rule(MGO4, IR_MOVE, RO4, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2D, [%v1x]");
+    r = add_rule(MGO5, IR_MOVE, RO5, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2Q, [%v1x]");
 
     // floating point in register -> integer in register
     r = add_rule(RI1, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzs %vdw, %v1S");
@@ -861,10 +872,13 @@ void define_rules(void) {
     r = add_rule(MGPV,     0, MGPV,     0, 0);
     r = add_rule(RO3,      0, RO3,      0, 0);
     r = add_rule(RO4,      0, RO4,      0, 0);
+    r = add_rule(RO5,      0, RO5,      0, 0);
     r = add_rule(MSO3,     0, MSO3,     0, 0);
     r = add_rule(MSO4,     0, MSO4,     0, 0);
+    r = add_rule(MSO5,     0, MSO5,     0, 0);
     r = add_rule(MGO3,     0, MGO3,     0, 0);
     r = add_rule(MGO4,     0, MGO4,     0, 0);
+    r = add_rule(MGO5,     0, MGO5,     0, 0);
     r = add_rule(STL,      0, STL,      0, 0);
     r = add_rule(FUN,      0, FUN,      0, 0);
     r = add_rule(LAB,      0, LAB,      0, 0);
@@ -890,6 +904,7 @@ void define_rules(void) {
     add_stack_memory_into_register_rule(RU4, MSU4, "ldr  %vdx, [%v1x]");
     add_stack_memory_into_register_rule(RO3, MSO3, "ldr  %vdS, [%v1x]"); // Floating point
     add_stack_memory_into_register_rule(RO4, MSO4, "ldr  %vdD, [%v1x]");
+    add_stack_memory_into_register_rule(RO5, MSO5, "ldr  %vdQ, [%v1x]");
 
     // Global -> register moves
     add_global_memory_into_register_rule(RI1, MGI1, "ldrsb %vdw, [%v1x]"); // Integers
@@ -902,15 +917,18 @@ void define_rules(void) {
     add_global_memory_into_register_rule(RU4, MGU4, "ldr  %vdx, [%v1x]");
     add_global_memory_into_register_rule(RO3, MGO3, "ldr  %vdS, [%v1x]"); // Floating point
     add_global_memory_into_register_rule(RO4, MGO4, "ldr  %vdD, [%v1x]");
+    add_global_memory_into_register_rule(RO5, MGO5, "ldr  %vdQ, [%v1x]");
 
     // Register -> memory move rules
     add_register_memory_move_rules();
 
-    add_float_and_double_move_rules();
+    // Floating point moves, for singles, doubles and long doubles
+    add_floating_point_move_rules();
 
     // Load floating point constants into registers
     add_global_memory_into_register_rule(RO3, CO3, "ldr %vdS, [%v1x]");
     add_global_memory_into_register_rule(RO4, CO4, "ldr %vdD, [%v1x]");
+    add_global_memory_into_register_rule(RO5, CO5, "ldr %vdQ, [%v1x]");
 
     add_pointer_rules();
 
@@ -964,6 +982,7 @@ void define_rules(void) {
     r = add_rule(XRP, IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(RO3, IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(RO4, IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
+    r = add_rule(RO5, IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
 
     // Jump rules
     r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, AARCH64_OP_B, 0, SRC1, 0, "b %v1"); fin_rule(r);

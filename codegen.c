@@ -186,34 +186,52 @@ void output_object_symbols(void) {
     }
 }
 
-// Allocate and make an array of callee saved physical registers used by the function.
-int *make_saved_registers(Function *function, int preg_class) {
-    // Make a sparse array of booleans
+#define ADD_SAVED_REGISTER(v) \
+    if (v && v->preg != -1 && v->preg_class == preg_class && callee_saved_registers[v->preg]) { \
+        if (saved_registers[v->preg] < v->target_size) saved_registers[v->preg] = v->target_size; \
+    }
+
+// Make a list of saved registers, keyed by size, for sizes 4 and 5.
+// This is used in aarch64 since long doubles are kept in registers
+// and are 16 bytes wide.
+SizedSavedRegisters *make_saved_registers(Function *function, int preg_class) {
+    // Make a sparse array of sizes
     int *saved_registers = wcalloc(sizeof(int), physical_register_count);
 
     Tac *tac = function->ir;
 
     while (tac) {
-        if (tac->dst  && tac->dst ->preg != -1 && tac->dst ->preg_class == preg_class && callee_saved_registers[tac->dst ->preg]) saved_registers[tac->dst ->preg] = 1;
-        if (tac->src1 && tac->src1->preg != -1 && tac->src1->preg_class == preg_class && callee_saved_registers[tac->src1->preg]) saved_registers[tac->src1->preg] = 1;
-        if (tac->src2 && tac->src2->preg != -1 && tac->src2->preg_class == preg_class && callee_saved_registers[tac->src2->preg]) saved_registers[tac->src2->preg] = 1;
+        ADD_SAVED_REGISTER(tac->dst);
+        ADD_SAVED_REGISTER(tac->src1);
+        ADD_SAVED_REGISTER(tac->src2);
         tac = tac->next;
     }
 
-    // Make a -1 terminated list of all the saved registers.
-    // An extra padding has been added for convenience, since some archs require
-    // two pushes at a time.
-    const int padding = 16;
-    int *saved_registers_list = wmalloc(sizeof(int) * (physical_register_count + padding));
-    for (int i = 0; i < physical_register_count + padding; i++) saved_registers_list[i] = -1;
+    // Allocate memory for sizes 4 and 5, the rest are unused
+    SizedSavedRegisters *ssr = wmalloc(sizeof(SizedSavedRegisters));
+    ssr->saved_registers[4] = new_list(256);
+    ssr->saved_registers[5] = new_list(256);
 
-    int saved_register_count = 0;
-    for (int i = 0; i < physical_register_count; i++)
-        if (saved_registers[i]) saved_registers_list[saved_register_count++] = i;
+    for (int i = 0; i < physical_register_count; i++) {
+        if (!saved_registers[i]) continue;
+
+        int size = saved_registers[i];
+        if (size <= 0 || size > 5) panic("Illegal saved register size %d", size);
+        if (size < 4) size = 4; // Round size up to 8 bytes
+
+        List *l = (List *) ssr->saved_registers[size];
+        append_to_list(l, (void *) (long) i);
+    }
 
     wfree(saved_registers);
 
-    return saved_registers_list;
+    return ssr;
+}
+
+void free_sized_saved_registers(SizedSavedRegisters *ssr) {
+    free_list(ssr->saved_registers[4]);
+    free_list(ssr->saved_registers[5]);
+    wfree(ssr);
 }
 
 static void process_stack_offset(Value *value, int *stack_alignments, int *stack_sizes) {
@@ -323,33 +341,6 @@ int add_long_double_literal(Value *value) {
     floating_point_literals[floating_point_literal_count].ld = value->fp_value;
     floating_point_literals[floating_point_literal_count].type = TYPE_LONG_DOUBLE;
     return floating_point_literal_count++;
-}
-
-void output_floating_point_literals(void) {
-    // Output floating point literals
-    if (floating_point_literal_count > 0) {
-        for (int i = 0; i < floating_point_literal_count; i++) {
-            // The zero and & is to be compatible with gcc
-            fprintf(output_file, ".LFP%d:\n", i);
-
-            if (floating_point_literals[i].type == TYPE_FLOAT) {
-                float fl = floating_point_literals[i].f;
-                fprintf(output_file, "    .long   %d\n", *((int *) &fl));
-            }
-            else if (floating_point_literals[i].type == TYPE_DOUBLE) {
-                double d = floating_point_literals[i].d;
-                fprintf(output_file, "    .long   %d\n", *((int *) &d));
-                fprintf(output_file, "    .long   %d\n", *((int *) &d + 1));
-            }
-            else {
-                long double ld = floating_point_literals[i].ld;
-                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[0]);
-                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[1]);
-                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[2] & 0xffff);
-                fprintf(output_file, "    .long   0\n");
-            }
-        }
-    }
 }
 
 void init_codegen(void) {

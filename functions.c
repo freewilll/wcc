@@ -774,7 +774,7 @@ void add_function_param_moves(Function *function) {
 
         if (debug_function_param_mapping) printf("Param %d SI %d -> SI %d\n", i, i + 2, stack_index);
 
-        if (!has_address_of[i] && type->type != TYPE_LONG_DOUBLE && type->type != TYPE_STRUCT_OR_UNION) {
+        if (!has_address_of[i] && (!long_doubles_are_in_the_stack || type->type != TYPE_LONG_DOUBLE) && type->type != TYPE_STRUCT_OR_UNION) {
             Tac *tac = make_param_move_to_register_tac(function, type, i, 0);
             stack_param_vregs[stack_index - 2] = tac->dst->vreg;
             tac->src1->function_call.function_param_original_stack_index = stack_index;

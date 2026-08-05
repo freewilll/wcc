@@ -1243,9 +1243,9 @@ void free_allocate_registers(void);
     RULE_NON_TERMINAL_ITEM(CU2,   2 ) \
     RULE_NON_TERMINAL_ITEM(CU3,   3 ) \
     RULE_NON_TERMINAL_ITEM(CU4,   4 ) \
-    RULE_NON_TERMINAL_ITEM(CLD,   8 )     /* Long double constant */ \
-    RULE_NON_TERMINAL_ITEM(CO3,   3 )     /* Floating point constants */ \
+    RULE_NON_TERMINAL_ITEM(CO3,   3 )    /* Floating point constants */ \
     RULE_NON_TERMINAL_ITEM(CO4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(CO5,   5 ) \
     RULE_NON_TERMINAL_ITEM(RI1,   1 )    /* Signed registers */ \
     RULE_NON_TERMINAL_ITEM(RI2,   2 ) \
     RULE_NON_TERMINAL_ITEM(RI3,   3 ) \
@@ -1256,6 +1256,7 @@ void free_allocate_registers(void);
     RULE_NON_TERMINAL_ITEM(RU4,   4 ) \
     RULE_NON_TERMINAL_ITEM(RO3,   3 )    /* Floating point registers (O is the first letter in "float"" not already taken) */ \
     RULE_NON_TERMINAL_ITEM(RO4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(RO5,   5 ) \
     RULE_NON_TERMINAL_ITEM(MI1,   1 )    /* Memory, in stack or globals */ \
     RULE_NON_TERMINAL_ITEM(MI2,   2 ) \
     RULE_NON_TERMINAL_ITEM(MI3,   3 ) \
@@ -1282,10 +1283,12 @@ void free_allocate_registers(void);
     RULE_NON_TERMINAL_ITEM(MGU4,  4 ) \
     RULE_NON_TERMINAL_ITEM(MO3,   3 )    /* Floating point in stack or globals */ \
     RULE_NON_TERMINAL_ITEM(MO4,   4 ) \
-    RULE_NON_TERMINAL_ITEM(MSO3,   3)    /* Floating point in stack */ \
-    RULE_NON_TERMINAL_ITEM(MSO4,   4) \
-    RULE_NON_TERMINAL_ITEM(MGO3,   3)    /* Floating point in globals */ \
-    RULE_NON_TERMINAL_ITEM(MGO4,   4) \
+    RULE_NON_TERMINAL_ITEM(MSO3,  3)     /* Floating point in stack */ \
+    RULE_NON_TERMINAL_ITEM(MSO4,  4)  \
+    RULE_NON_TERMINAL_ITEM(MSO5,  5)  \
+    RULE_NON_TERMINAL_ITEM(MGO3,  3)     /* Floating point in globals */ \
+    RULE_NON_TERMINAL_ITEM(MGO4,  4)  \
+    RULE_NON_TERMINAL_ITEM(MGO5,  5)  \
     RULE_NON_TERMINAL_ITEM(RP1,   4 )     /* Address (aka pointer) in a register */ \
     RULE_NON_TERMINAL_ITEM(RP2,   4 ) \
     RULE_NON_TERMINAL_ITEM(RP3,   4 ) \
@@ -1449,12 +1452,21 @@ typedef struct floating_point_literal {
     long double ld;
 } FloatingPointLiteral;
 
+typedef struct saved_register {
+    int preg;
+    int size;
+} SavedRegister;
+
 typedef enum elf_section {
     SEC_NONE,
     SEC_TEXT,
     SEC_DATA,
     SEC_BSS,
 } ElfSection;
+
+typedef struct  {
+    List *saved_registers[6]; // A list of saved registers, keyed by size
+} SizedSavedRegisters;
 
 extern FILE *output_file; // Output file handle
 
@@ -1479,12 +1491,12 @@ void remove_nops(Function *function);
 int function_is_main(Function *function);
 int open_output_file(char *input_filename, char *output_filename);
 void output_object_symbols(void);
-int *make_saved_registers(Function *function, int preg_class);
+SizedSavedRegisters *make_saved_registers(Function *function, int preg_class);
+void free_sized_saved_registers(SizedSavedRegisters *ssr);
 void check_floating_point_literal_max(void);
 int add_float_literal(Value *value);
 int add_double_literal(Value *value);
 int add_long_double_literal(Value *value);
-void output_floating_point_literals(void);
 void init_codegen(void);
 void free_codegen(void);
 
@@ -1567,6 +1579,8 @@ extern int physical_int_register_count;
 extern int physical_fp_register_count;
 
 extern int total_function_stack_size_alignment; // The amount to align the total allocated stack for a function
+
+extern int long_doubles_are_in_the_stack;
 
 char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);

@@ -2553,7 +2553,7 @@ static void parse_va_arg() {
 
     Value *dst = new_value();
     dst->type = type;
-    if (type->type == TYPE_LONG_DOUBLE)
+    if (type->type == TYPE_LONG_DOUBLE && long_doubles_are_in_the_stack)
         dst->local_index = new_local_index();
 
     else if (type->type == TYPE_STRUCT_OR_UNION) {

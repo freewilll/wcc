@@ -49,6 +49,7 @@ WCC_TESTS=\
 	structs \
 	regressions \
 	ifdef \
+	long-doubles \
 	floats-and-doubles \
 	switch \
 	character-and-string-literals \

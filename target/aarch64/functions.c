@@ -1,7 +1,6 @@
 #include "wcc.h"
 #include "aarch64.h"
 
-
 Set *allocate_return_value_live_ranges(void) {
     return new_set(LIVE_RANGE_PREG_V07 + 1);
 }

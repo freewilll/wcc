@@ -6,6 +6,8 @@
 // Can a 64-bit constant be encoded when use in the add/sub instructions family?
 #define IS_ADD_SUB_IMMEDIATE(l) (((l) < 0x1000) || (((l) & 0xfff) == 0) && (((l) >> 12) < 0x1000))
 
+#define PSEUDO_SIZE_V 6 // A fake size to trigger outputting of a 'v' register
+
 // Physical registers
 enum {
     // Integers
@@ -185,8 +187,8 @@ extern const int clobbered_registers_in_function_call[];
 extern int clobbered_registers_in_function_call_count;
 
 char size_to_aarch64_size(int size);
-char is_32bit_to_aarch64_integer_register_size(int is_32bit);
-char is_32bit_to_aarch64_floating_point_register_size(int is_32bit);
+char size_to_aarch64_integer_register_size(int size);
+char size_to_aarch64_floating_point_register_size(int size);
 int is_logical_immediate(unsigned long l, int is_32bit);
 int is_ldr_str_immediate_offset(int size, int offset);
 Tac *process_integer_constant_move_to_register(Tac *tac);

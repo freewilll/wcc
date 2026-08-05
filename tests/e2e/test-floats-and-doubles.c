@@ -1092,7 +1092,6 @@ void test_pointers() {
     gpf = 0ul;
     gpd = 0;
     gpd = 0ul;
-
 }
 
 // The following code is the fast inverse square root implementation from Quake III Arena,

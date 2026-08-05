@@ -3,6 +3,7 @@
 
 int char_is_unsigned_by_default = 0;
 int total_function_stack_size_alignment = 8;
+int long_doubles_are_in_the_stack = 1;
 
 char size_to_x86_size(int size) {
     switch (size) {

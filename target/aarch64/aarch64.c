@@ -3,13 +3,29 @@
 
 int char_is_unsigned_by_default = 1;
 int total_function_stack_size_alignment = 16;
+int long_doubles_are_in_the_stack = 0;
 
-char is_32bit_to_aarch64_integer_register_size(int is_32bit) {
-    return is_32bit ? 'w' : 'x';
+char size_to_aarch64_integer_register_size(int size) {
+    switch (size) {
+        case 3: return 'w';
+        case 4: return 'x';
+        default: panic("Illegal aarch64 int register size %d", size);
+    }
 }
 
-char is_32bit_to_aarch64_floating_point_register_size(int is_32bit) {
-    return is_32bit ? 's' : 'd';
+char size_to_aarch64_floating_point_register_size(int size) {
+    switch (size) {
+        case 3:
+            return 's';
+        case 4:
+            return 'd';
+        case 5:
+            return 'q';
+        case PSEUDO_SIZE_V:
+            return 'v';
+        default:
+            panic("Illegal aarch64 FP register size %d", size);
+    }
 }
 
 char size_to_aarch64_size(int size) {
@@ -260,13 +276,14 @@ int is_logical_immediate(unsigned long l, int is_32bit) {
 
 // Check if an offset can be encoded as [r, offset] in a ldr or str instruction
 int is_ldr_str_immediate_offset(int size, int offset) {
-    if (size < 1 || size > 4)
+    if (size < 1 || size > 5)
         panic("Unknown size in is_ldr_str_immediate_offset: %d", size);
 
     if (size == 1                      && offset <= 4095 ) return 1;
-    if (size == 2 && (offset & 1) == 0 && offset <= 8190 ) return 1;
-    if (size == 3 && (offset & 3) == 0 && offset <= 16380) return 1;
-    if (size == 4 && (offset & 7) == 0 && offset <= 32760) return 1;
+    if (size == 2 && (offset & 1)  == 0 && offset <= 8190 ) return 1;
+    if (size == 3 && (offset & 3)  == 0 && offset <= 16380) return 1;
+    if (size == 4 && (offset & 7)  == 0 && offset <= 32760) return 1;
+    if (size == 5 && (offset & 15) == 0 && offset <= 65520) return 1;
 
     return 0;
 }
