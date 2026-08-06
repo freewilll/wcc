@@ -250,6 +250,19 @@ void test_jz_jnz() {
     i = 1; assert_int(1, nan  || i++, "long double nan  || 0 result"); assert_int(1, i, "long double nan  || 0 i");
 }
 
+#endif
+
+void test_arrays() {
+    long double ld[2];
+    ld[0] = 1.1;
+    ld[1] = 1.2;
+
+    assert_long_double(1.1f, ld[0], "Local long double array assignment and lookup 0");
+    assert_long_double(1.2f, ld[1], "Local long double array assignment and lookup 1");
+}
+
+#ifdef __x86_64__
+
 void test_pointers() {
     long double ld, *pld;
     char *buffer = malloc(100);
@@ -645,6 +658,9 @@ int main(int argc, char **argv) {
     test_comparison_assignment();
     test_comparison_conditional_jump();
     test_jz_jnz();
+    #endif
+    test_arrays();
+    #ifdef __x86_64__
     test_pointers();
     test_pointer_arithmetic();
     test_pointer_casting();

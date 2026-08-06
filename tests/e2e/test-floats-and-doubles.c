@@ -951,8 +951,6 @@ void test_comparison_conditional_jump() {
     if (nan1 <= 0.0 ) assert_int(0, 1, "nan comparison nan1 <= 0.0  true case"); else assert_int(1, 1, "nan comparison nan1 <= 0.0  false case");
 }
 
-#ifdef __x86_64__
-
 void test_jz_jnz() {
     int i;
 
@@ -982,6 +980,24 @@ void test_jz_jnz() {
     i = 1; assert_int(1, dnan  && i++, "double nan  && 1 result"); assert_int(2, i, "double nan  && 1 i");
     i = 1; assert_int(1, dnan  || i++, "double nan  || 0 result"); assert_int(1, i, "double nan  || 0 i");
 }
+
+void test_arrays() {
+    float f[2];
+    f[0] = 1.1;
+    f[1] = 1.2;
+
+    assert_float(1.1f, f[0], "Local float array assignment and lookup 0");
+    assert_float(1.2f, f[1], "Local float array assignment and lookup 1");
+
+    double d[2];
+    d[0] = 1.3;
+    d[1] = 1.4;
+
+    assert_double(1.3f, d[0], "Local double array assignment and lookup 0");
+    assert_double(1.4f, d[1], "Local double array assignment and lookup 1");
+}
+
+#ifdef __x86_64__
 
 void test_pointers() {
     float f, *pf;
@@ -1245,8 +1261,9 @@ int main(int argc, char **argv) {
     test_arithmetic();
     test_comparison_assignment();
     test_comparison_conditional_jump();
-    #ifdef __x86_64__
     test_jz_jnz();
+    test_arrays();
+    #ifdef __x86_64__
     test_pointers();
     test_test_carmacks_inverse_square_root();
     test_pointer_arithmetic();

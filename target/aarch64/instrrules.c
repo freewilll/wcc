@@ -618,9 +618,16 @@ static void add_int_indirect_rule(int dst, int src, int is_unsigned) {
 }
 
 static void add_indirect_rules(void) {
+    Rule *r;
+
     // Integers
     for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RI1 + dst, RP1 + dst, 0);
     for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RU1 + dst, RP1 + dst, 1);
+
+    // Floating point
+    r = add_rule(RO3, IR_INDIRECT, RP3, 0, 2); add_op(r, AARCH64_OP_LDR, DST, SRC1, 0, "ldr %vdS, [%v1x]");
+    r = add_rule(RO4, IR_INDIRECT, RP4, 0, 2); add_op(r, AARCH64_OP_LDR, DST, SRC1, 0, "ldr %vdD, [%v1x]");
+    r = add_rule(RO5, IR_INDIRECT, RP5, 0, 2); add_op(r, AARCH64_OP_LDR, DST, SRC1, 0, "ldr %vdQ, [%v1x]");
 
     // Pointer to pointer
     for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RP1 + dst, RP4, 1);
@@ -710,6 +717,9 @@ static void add_pointer_rules() {
     r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RU3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2w, [%v1x]");
     r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RI4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2x, [%v1x]");
     r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RU4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2x, [%v1x]");
+    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RO3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2S, [%v1x]");
+    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RO4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2D, [%v1x]");
+    r = add_rule(RP5, IR_MOVE_TO_PTR, RP5, RO5, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2Q, [%v1x]");
 
     // Stores of a constant into one of the 32 or 64 bit registers to a pointer
     r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RI3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
