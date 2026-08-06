@@ -274,6 +274,33 @@ static Tac *transform_move(Function *function, Tac *tac) {
     return tac;
 }
 
+// An address of operation for an int128 is simply a case of pretending it's a long.
+static Tac *transform_address_of(Function *function, Tac *tac) {
+    tac->dst = dup_value(tac->dst);
+    tac->dst->type->target->type = TYPE_LONG;
+    tac->src1 = dup_value(tac->src1);
+    tac->src1->type->type = TYPE_LONG;
+
+    return tac;
+}
+
+// An indirect is done with two indirect instructions, one for the low value and one for the high one.
+static Tac *transform_indirect(Function *function, Tac *tac) {
+    SplitValue split_dst = split_value(tac->dst);
+
+    Value *src1_low = tac->src1;
+    Value *src1_high = dup_value(src1_low);
+    src1_high->offset += 8;
+
+    // Nuke the current TAC for convenience
+    make_instruction_a_nop(tac);
+
+    tac = new_tac_after(tac, IR_INDIRECT, split_dst.low, src1_low, 0);
+    tac = new_tac_after(tac, IR_INDIRECT, split_dst.high, src1_high, 0);
+
+    return tac;
+}
+
 // Generic function to make an IR with left or right bitshifts, arithmetic and binary.
 static Tac *transform_bitshift(Function *function, Tac *tac, int operation) {
     int is_left = operation == IR_BSHL;
@@ -556,6 +583,12 @@ void transform_int128_instructions(Function *function) {
             case IR_MOVE:
                 tac = transform_move(function, tac);
                 break;
+            case IR_ADDRESS_OF:
+                tac = transform_address_of(function, tac);
+                break;
+            case IR_INDIRECT:
+                tac = transform_indirect(function, tac);
+                break;
             case IR_ASHR:
                 tac = transform_bitshift(function, tac, IR_ASHR);
                 break;
@@ -590,7 +623,7 @@ void transform_int128_instructions(Function *function) {
             case IR_LE: tac = transform_lt_gt_le_ge(function, tac, IR_LE); break;
             case IR_GE: tac = transform_lt_gt_le_ge(function, tac, IR_GE); break;
             default:
-                fprintf(stderr, "Unimplemented int 128 IR operation %s\n", operation_string(tac->operation.id));
+                fprintf(stderr, "Unimplemented int128 IR operation %s\n", operation_string(tac->operation.id));
                 bail_on_unimplemented_instruction(tac, "for:");
         }
     }

@@ -498,6 +498,25 @@ static void test_comparisons(void) {
     ui = MAKE_UINT128(vff, vff); uj = MAKE_UINT128(vff, vff); assert_int(1, ui <= uj, "unsigned ffff <= ffff");
 }
 
+static void test_pointers() {
+    // A pointer to an int128 in the stack
+    __int128 i = MAKE_UINT128(1, 2);
+    __int128 *pi = &i;
+    ASSERT_INT128(1, 2, *pi, "int128 address and deref");
+
+    // A pointer to an array
+    __int128 array[2] = {MAKE_UINT128(1, 2), MAKE_UINT128(3, 4)};
+    ASSERT_INT128(1, 2, array[0], "int128 array lookup 0");
+    ASSERT_INT128(3, 4, array[1], "int128 array lookup 1");
+
+    struct {
+        __int128 i, j, k;
+    } s = {MAKE_UINT128(1, 2), MAKE_UINT128(3, 4), MAKE_UINT128(5, 6)};
+    ASSERT_INT128(1, 2, s.i, "int128 in struct lookup 0");
+    ASSERT_INT128(3, 4, s.j, "int128 in struct lookup 1");
+    ASSERT_INT128(5, 6, s.k, "int128 in struct lookup 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -517,6 +536,7 @@ int main(int argc, char **argv) {
     test_subtraction();
     test_multiplication();
     test_comparisons();
+    test_pointers();
 
     finalize();
 }
