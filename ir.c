@@ -613,13 +613,6 @@ static void assign_local_to_register(Value *v, int vreg) {
     if ((v->type->type) == TYPE_STRUCT_OR_UNION || (v->type->type) == TYPE_ARRAY) \
         (on_stack)[-(v)->local_index] = 1
 
-static void set_on_stack(Value *v, char *on_stack) {
-    int type = v->type->type;
-
-    if (type == TYPE_STRUCT_OR_UNION || type == TYPE_ARRAY)
-        on_stack[-v->local_index] = 1;
-}
-
 // The parser allocates a local_index for temporaries and local variables. Allocate
 // vregs for them unless any of them is used with an & operator, or are long doubles, in
 // which case, they must be on the stack.
@@ -631,7 +624,7 @@ void allocate_value_vregs(Function *function) {
         // Keep variables that are used with the & operator on the stack
         if (tac->operation.id == IR_ADDRESS_OF && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
 
-        // Keep long doubles, struct/unions and arrays on the stack
+        // Keep struct/unions and arrays on the stack
         if (tac->dst  && tac->dst ->type && tac->dst ->local_index < 0) SET_ON_STACK(tac->dst,  on_stack);
         if (tac->src1 && tac->src1->type && tac->src1->local_index < 0) SET_ON_STACK(tac->src1, on_stack);
         if (tac->src2 && tac->src2->type && tac->src2->local_index < 0) SET_ON_STACK(tac->src2, on_stack);
@@ -709,10 +702,28 @@ void make_stack_register_count(Function *function) {
     function->stack_register_count = -min;
 }
 
+// Add declarations for int128s in registers that are in the stack.
+// They are lowered to two longs, but need to be size 16, so they
+// are represented by a a fake array with one element.
+// This ensures that the stack offset determination code uses the
+// right size and alignment (16 and 16).
+#define MAP_LOCAL_INDEX_TO_STACK_INDEX(tac, v) \
+    if ((v) && (v)->local_index < 0) { \
+        (v)->stack_index = -stack_index_map[-(v)->local_index] - 1; \
+        if ((v)->type->type == TYPE_INT128) { \
+            Type *array_type = new_type(TYPE_ARRAY); \
+            array_type->array_length = 1; \
+            array_type->target = new_type(TYPE_INT128); \
+            array_type->target->is_unsigned = (v)->type->is_unsigned; \
+            Value *declaration = dup_value(v); \
+            declaration->type = array_type; \
+            new_tac_before(tac, IR_DECL_LOCAL_COMP_OBJ, 0, declaration, 0, 1); \
+        } \
+    }
+
 // allocate a stack_index values:
 // - without a vreg,
 // - used in a & expression,
-// - are long double
 //
 // Pushed variables by the caller have local_index >= 2 and are mapped through.
 void allocate_value_stack_indexes(Function *function) {
@@ -738,12 +749,9 @@ void allocate_value_stack_indexes(Function *function) {
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Map registers forced onto the stack
-        if (tac->dst && tac->dst->local_index < 0)
-            tac->dst->stack_index = -stack_index_map[-tac->dst->local_index] - 1;
-        if (tac->src1 && tac->src1->local_index < 0)
-            tac->src1->stack_index = -stack_index_map[-tac->src1->local_index] - 1;
-        if (tac->src2 && tac->src2->local_index < 0)
-            tac->src2->stack_index = -stack_index_map[-tac->src2->local_index] - 1;
+        MAP_LOCAL_INDEX_TO_STACK_INDEX(tac, tac->dst);
+        MAP_LOCAL_INDEX_TO_STACK_INDEX(tac, tac->src1);
+        MAP_LOCAL_INDEX_TO_STACK_INDEX(tac, tac->src2);
 
         // Map function call parameters
         if (tac->dst  && tac->dst ->local_index > 0) tac->dst ->stack_index = tac->dst ->local_index;

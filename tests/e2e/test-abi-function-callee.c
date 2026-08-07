@@ -357,3 +357,18 @@ void test_bitfield_struct_fields(struct bfs *bfs) {
     assert_int(7,  bfs->i7, "Test bfs 7");
     assert_int(8,  bfs->i8, "Test bfs 8");
 }
+
+// Test an int128 that is passed in registers
+void test_int128_in_registers(__int128 i128) {
+    ASSERT_INT128(1, 2, i128, "An int128 in registers");
+}
+
+// Test an int128 that is on the stack since 5/6 registers have already been taken
+void test_int128_in_stack(int i1, int i2, int i3, int i4, int i5, __int128 i128) {
+    assert_int(   -1,   i1,   "A int128 on the stack 1");
+    assert_int(   -2,   i2,   "A int128 on the stack 2");
+    assert_int(   -3,   i3,   "A int128 on the stack 3");
+    assert_int(   -4,   i4,   "A int128 on the stack 4");
+    assert_int(   -5,   i5,   "A int128 on the stack 5");
+    ASSERT_INT128(1, 2, i128, "A int128 on the stack 6");
+}

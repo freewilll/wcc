@@ -276,6 +276,8 @@ typedef struct function {
     int *spill_cost;                                    // The estimated spill cost for each live range
     char *preferred_live_range_preg_indexes;            // Preferred physical register, when possible
     char *vreg_preg_classes;                            // Preg classes for all vregs
+    struct split_vreg **int128_register_mappings;       // A map from 128-bit registers to split 2*64-bit registers
+    int int128_register_mappings_count;                 // The amount of allocated mappings
 } Function;
 
 // Data of the a single eight byte that's part of a struct or union function parameter or arg
@@ -284,6 +286,7 @@ typedef struct function_param_location {
     int stru_offset;             // Starting offset in the case of a struct/union
     int stru_size;               // Number of bytes in the 8-byte in the case of a struct/union
     int stru_member_count;       // Amount of members in the 8-byte in the case of a struct/union
+    int i128_part;               // Low or high 8-byte of a 128-bit integer
 
     // Details of where the function param/arg goes, either in a register or the stack
     // One of int_register/fp_register/stack_offset is not -1.
@@ -1568,6 +1571,13 @@ void finish_spill_ir(Function *function);
 char *internals(void);
 
 // int128.c
+// Vreg numbers for a 128-bit vreg split into a low and high vregs
+typedef struct split_vreg {
+    int low;
+    int high;
+} SplitVreg;
+
+
 void transform_int128_instructions(Function *function);
 
 // Target specific code

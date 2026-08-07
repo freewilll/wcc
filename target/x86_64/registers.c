@@ -200,7 +200,7 @@ static int get_spill_register(Value *v, int spill_register) {
 }
 
 void add_spill_code(Function *function) {
-    if (debug_instsel_spilling) printf("\nAdding spill code\n");
+    if (debug_instsel_spilling) printf("\nAdding spill code to %s\n", function->identifier);
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (debug_instsel_spilling) print_instruction(stdout, tac, 0);

@@ -16,12 +16,14 @@ enum {
     PI = 1, // integer
     PS = 2, // float/double
     PL = 3, // long double
+    P1 = 4, // int128
 };
 
 int shortcut_to_type(int s) {
     if (s == PI) return TYPE_INT;
     else if (s == PS) return TYPE_FLOAT;
     else if (s == PL) return TYPE_LONG_DOUBLE;
+    else if (s == P1) return TYPE_INT128;
     else panic("Unknown type shortcut", s);
 }
 
@@ -29,6 +31,7 @@ char shortcut_to_char(int s) {
     if (s == PI) return 'i';
     else if (s == PS) return 's';
     else if (s == PL) return 'l';
+    else if (s == P1) return '1';
     else panic("Unknown type shortcut", s);
 }
 
@@ -306,6 +309,16 @@ void test_struct_params() {
     assert_int(1, fpa_pl(fpa, 5).count, "Location counts 1");
 }
 
+void test_int128() {
+    test_param_allocation(P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00     |          | 000 000 | ");
+    test_param_allocation(P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "0011   |          | 000 000 | ");
+    test_param_allocation(P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "0011   |          | 000 000 | ");
+    test_param_allocation(P1, P1, PI, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00112  |          | 010 000 | 3");
+    test_param_allocation(P1, P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "001122 |          | 010 000 | 3");
+    test_param_allocation(P1, P1, P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "001122 |          | 020 000 | 3 4");
+    test_param_allocation(P1, P1, P1, P1, P1, PI, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "001122 |          | 030 008 | 3 4 5");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -316,6 +329,7 @@ int main(int argc, char **argv) {
 
     test_scalar_params();
     test_struct_params();
+    test_int128();
 
     finalize();
 }

@@ -40,6 +40,8 @@ int fca6(int i1, int i2, int i3, int i4, int i5, int i6) {
     assert_int(123456, 100000 * i1 + 10000 * i2 + 1000 * i3 + 100 * i4 + 10 * i5 + i6, "function call with 6 args");
 }
 
+#ifdef __x86_64__
+
 int fca7(int i1, int i2, int i3, int i4, int i5, int i6, int i7) {
     assert_int(1234567, 1000000 * i1 + 100000 * i2 + 10000 * i3 + 1000 * i4 + 100 * i5 + 10 * i6 + i7, "function call with 7 args");
 }
@@ -449,11 +451,102 @@ int test_parameterless_functions() {
     assert_double(2.1, max_double_with_declared_doubles(1.1, 2.1), "Max with declared doubles");
 }
 
+void f0(__int128 i128)  {
+    ASSERT_INT128(1, 2, i128, "func with int128");
+}
+
+void f1(int i, __int128 i128)  {
+    assert_int(   -1, i,       "func with i, int128 1");
+    ASSERT_INT128(1,  2, i128, "func with i, int128 2");
+}
+
+void f4(int i1, int i2, int i3, int i4, __int128 i128)  {
+    assert_int(   -1,   i1,   "func with i, i, i, i, int128 1");
+    assert_int(   -2,   i2,   "func with i, i, i, i, int128 2");
+    assert_int(   -3,   i3,   "func with i, i, i, i, int128 3");
+    assert_int(   -4,   i4,   "func with i, i, i, i, int128 4");
+    ASSERT_INT128(1, 2, i128, "func with i, i, i, i, int128 5");
+}
+
+void f5(int i1, int i2, int i3, int i4, int i5, __int128 i128)  {
+    assert_int(   -1,   i1,   "func with i, i, i, i, i, int128 1");
+    assert_int(   -2,   i2,   "func with i, i, i, i, i, int128 2");
+    assert_int(   -3,   i3,   "func with i, i, i, i, i, int128 3");
+    assert_int(   -4,   i4,   "func with i, i, i, i, i, int128 4");
+    assert_int(   -5,   i5,   "func with i, i, i, i, i, int128 5");
+    ASSERT_INT128(1, 2, i128, "func with i, i, i, i, i, int128 6");
+}
+
+void two_int128s(__int128 i1, __int128 i2)  {
+    ASSERT_INT128(1, 2, i1, "func with  int128, int128 1");
+    ASSERT_INT128(3, 4, i2, "func with  int128, int128 2");
+}
+
+// Stress test pushing args to the stack
+void six_int128s(__int128 i1, __int128 i2, __int128 i3, __int128 i4, __int128 i5, __int128 i6)  {
+    ASSERT_INT128(1, 2,   i1, "func with  int128, int128 1");
+    ASSERT_INT128(3, 4,   i2, "func with  int128, int128 2");
+    ASSERT_INT128(5, 6,   i3, "func with  int128, int128 3");
+    ASSERT_INT128(7, 8,   i4, "func with  int128, int128 4");
+    ASSERT_INT128(9, 10,  i5, "func with  int128, int128 5");
+    ASSERT_INT128(11, 12, i6, "func with  int128, int128 6");
+}
+
+void f0_in_stack(__int128 i128)  {
+    &i128; // Force i128 into the stack
+    ASSERT_INT128(1, 2, i128, "func with int128");
+}
+
+void f5_in_stack(int i1, int i2, int i3, int i4, int i5, __int128 i128)  {
+    &i128; // Force i128 into the stack
+    assert_int(   -1,   i1,   "func with i, i, i, i, i, int128 1");
+    assert_int(   -2,   i2,   "func with i, i, i, i, i, int128 2");
+    assert_int(   -3,   i3,   "func with i, i, i, i, i, int128 3");
+    assert_int(   -4,   i4,   "func with i, i, i, i, i, int128 4");
+    assert_int(   -5,   i5,   "func with i, i, i, i, i, int128 5");
+    ASSERT_INT128(1, 2, i128, "func with i, i, i, i, i, int128 6");
+}
+
+void test_int128_in_registers() {
+    __int128 i = (((__int128) 1) << 64) | 2;
+    __int128 j = (((__int128) 3) << 64) | 4;
+
+    f0(i);
+    f0_in_stack(i);
+    f1(-1, i);
+    f4(-1, -2, -3, -4, i);
+    f5(-1, -2, -3, -4, -5, i);
+    f5_in_stack(-1, -2, -3, -4, -5, i);
+
+    two_int128s(i, j);
+
+    six_int128s(
+        (((__int128) 1 ) << 64) | 2,
+        (((__int128) 3 ) << 64) | 4,
+        (((__int128) 5 ) << 64) | 6,
+        (((__int128) 7 ) << 64) | 8,
+        (((__int128) 9 ) << 64) | 10,
+        (((__int128) 11) << 64) | 12
+    );
+}
+
+void test_int128_in_stack() {
+    __int128 int128_in_stack = (((__int128) 1) << 64) | 2;
+    &int128_in_stack;
+    f0(int128_in_stack);
+    f0_in_stack(int128_in_stack);
+    f5(-1, -2, -3, -4, -5, int128_in_stack);
+    f5_in_stack(-1, -2, -3, -4, -5, int128_in_stack);
+}
+
+#endif
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
     parse_args(argc, argv);
+
 
     fca0();
     fca1(1);
@@ -462,9 +555,9 @@ int main(int argc, char **argv) {
     fca4(1, 2, 3, 4);
     fca5(1, 2, 3, 4, 5);
     fca6(1, 2, 3, 4, 5, 6);
+    #ifdef __x86_64__
     fca7(1, 2, 3, 4, 5, 6, 7);
     fca8(1, 2, 3, 4, 5, 6, 7, 8);
-
     test_direct_register_use();
     test_sign_extension_pushed_params();
     test_long_double_stack_zero_offset();
@@ -475,6 +568,9 @@ int main(int argc, char **argv) {
     test_float_double_params();
     test_float_double_call_return_value();
     test_parameterless_functions();
+    test_int128_in_registers();
+    test_int128_in_stack();
+    #endif
 
     finalize();
 }

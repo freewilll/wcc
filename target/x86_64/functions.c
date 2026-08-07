@@ -946,7 +946,36 @@ int prepend_function_params(Function *function) {
 // Add a param/arg to a function and allocate registers & stack entries
 // Structs are decomposed.
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {
-    if (type->type != TYPE_STRUCT_OR_UNION) {
+    if (type->type == TYPE_INT128) {
+        // An int-128 fits into two 8 bytes
+
+        FunctionParamLocations *fpl = wcalloc(1, sizeof(FunctionParamLocations));
+        fpl->locations = wmalloc(sizeof(FunctionParamLocation) * 2);
+        fpl->count = 2;
+
+        FunctionParamAllocation *backup_fpa = wmalloc(sizeof(FunctionParamAllocation));
+        *backup_fpa = *fpa;
+
+        add_type_to_allocation(fpa, &(fpl->locations[0]), new_type(TYPE_INT), 0);
+        add_type_to_allocation(fpa, &(fpl->locations[1]), new_type(TYPE_INT), 0);
+
+        fpl->locations[0].i128_part = 0;
+        fpl->locations[1].i128_part = 1;
+
+        int in_stack = fpl->locations[0].stack_offset != -1 || fpl->locations[1].stack_offset != -1;
+        if (in_stack) {
+            *fpa = *backup_fpa;
+            add_single_stack_function_param_location(fpa, type);
+            free_function_param_locations(fpl);
+        }
+        else {
+            append_to_list(fpa->param_locations, fpl);
+        }
+
+        wfree(backup_fpa);
+    }
+
+    else if (type->type != TYPE_STRUCT_OR_UNION) {
         // Create a single location for the arg
         add_single_stack_function_param_location(fpa, type);
     }

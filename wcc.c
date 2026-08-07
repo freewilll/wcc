@@ -99,9 +99,7 @@ static CompilerPhase compiler_phases[] = {
     // The target x86_64 specific phase follows
     { convert_long_doubles_jz_and_jnz,             PH_NONE,  PH_NONE,  "Convert long double conditional jumps" },
     { transform_int128_instructions,               PH_NONE,  PH_NONE,  "Lower int128 code" },
-
-    // Function param and arg processing
-    { process_target_functions,                   PH_NONE,  PH_PARAM,  "Process target function calls, args, params and return values" },
+    { process_target_functions,                    PH_NONE,  PH_PARAM, "Process target function calls, args, params and return values" },
 
     // Misc IR conversions
     { add_PIC_load_and_saves,                      PH_NONE,  PH_NONE,  "Adding PIC loads & saves" },

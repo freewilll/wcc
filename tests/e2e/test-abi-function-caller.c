@@ -297,6 +297,12 @@ void test_bit_fields() {
     test_bitfield_struct_fields(&bfs);
 }
 
+void test_int128() {
+    __int128 i128 = (((__int128) 1) << 64) | 2;
+    test_int128_in_registers(i128);
+    test_int128_in_stack(-1, -2, -3, -4, -5, i128);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -310,6 +316,7 @@ int main(int argc, char **argv) {
     test_extern_renamed_func();
     test_extern_func();
     test_bit_fields();
+    test_int128();
 
     finalize();
 }

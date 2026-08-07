@@ -266,9 +266,9 @@ int main() {
     if (verbose) printf("Running functions param_on_stack\n");                             test_param_on_stack();
     if (verbose) printf("Running functions small_struct_in_registers_in_func_call\n");     test_small_struct_in_registers_in_func_call();
     if (verbose) printf("Running functions big_struct_in_registers\n");                    test_big_struct_in_registers_in_func_call();
-    if (verbose) printf("Running fucntions one_float\n");                                  test_one_float();
-    if (verbose) printf("Running fucntions one_double\n");                                 test_one_double();
-    if (verbose) printf("Running fucntions two_floats\n");                                 test_two_floats();
+    if (verbose) printf("Running functions one_float\n");                                  test_one_float();
+    if (verbose) printf("Running functions one_double\n");                                 test_one_double();
+    if (verbose) printf("Running functions two_floats\n");                                 test_two_floats();
 
     if (failures) {
         printf("%d tests failed\n", failures);

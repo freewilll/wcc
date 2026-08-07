@@ -296,7 +296,7 @@ static Tac *add_spill_store(Tac *tac) {
 void add_spill_code(Function *function) {
     make_aarch64_stack_offsets(function);
 
-    if (debug_instsel_spilling) printf("\nAdding spill code\n");
+    if (debug_instsel_spilling) printf("\nAdding spill code to %s\n", function->identifier);
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (debug_instsel_spilling) print_instruction(stdout, tac, 0);

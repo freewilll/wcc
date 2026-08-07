@@ -8,13 +8,6 @@ int verbose;
 int passes;
 int failures;
 
-#define MAKE_SINT128(high, low) (((signed __int128) (high)) << 64 | (low))
-#define MAKE_UINT128(high, low) (((unsigned __int128) (high)) << 64 | (low))
-
-#define ASSERT_INT128(expected_high, expected_low, got, message) \
-    assert_long(expected_high, (got) >> 64,  message " high"); \
-    assert_long(expected_low, (long) (got),   message " low")
-
 static void test_assignment_from_constant(void) {
     __int128 i;
 
@@ -97,6 +90,19 @@ static void test_stack_assignment_from_variable(void) {
     unsigned short us = 1; st.j = us; ASSERT_INT128(0, 1,  st.j, "int128 in stack assignment from unsigned short in variable");
     unsigned int   ui = 1; st.j = ui; ASSERT_INT128(0, 1,  st.j, "int128 in stack assignment from unsigned int in variable");
     unsigned long  ul = 1; st.j = ul; ASSERT_INT128(0, 1,  st.j, "int128 in stack assignment from unsigned long in variable");
+}
+
+// Test int128 on the stack
+static void test_stack_allocation(void) {
+    __int128 i1 = (((__int128) 1) << 64) | 2;
+    __int128 i2 = (((__int128) 1) << 64) | 2;
+    &i1;
+    &i2;
+
+    // Ensure &i1 and &i2 don't overlap
+    int distance = (void *) &i1 - (void *) &i2;
+    if (distance < 0) distance = -distance;
+    assert_int(1, distance >= 16, "Stack offsets of 1 and 2 are at least 16 bytes apart");
 }
 
 static void test_truncations(void) {
@@ -527,6 +533,7 @@ int main(int argc, char **argv) {
     test_stack_assignment_from_constant();
     test_assignment_from_variable();
     test_stack_assignment_from_variable();
+    test_stack_allocation();
     test_truncations();
     test_bit_shifts();
     test_binary_or();
