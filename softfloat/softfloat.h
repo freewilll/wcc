@@ -1,0 +1,77 @@
+
+#ifndef __SOFTFLOAT_H
+#define __SOFTFLOAT_H
+
+/*
+    Basic implementation of a software floating point library.
+
+    The purpose is to add software support for long doubles in aarch64 for wcc.
+    Internally, a floating point value is represented with the same signficand precision
+    as a long double (112 bits).
+
+    Although everything should work for both floats and doubles, the focus is on
+    long doubles, so floats and doubles haven't been thoroughly tested.
+*/
+
+#define SIGNIFICAND_BITS 128
+#define EXPONENT_MIDWAY 16383
+
+#define PRINT_INT128(i) printf("%016lx %016lx", (long) ((i) >> 64), (long) (i));
+
+#define GET_ENCODING_EXPONENT_MAX(encoding) ((1 << (encoding).exponent_bits) - 1)
+#define GET_ENCODING_EXPONENT_MIDWAY(encoding) ((1 << (encoding).exponent_bits - 1) - 1)
+
+// Make a bitmask for a single bit in the significand, where 0 is the MSB
+#define SBITMASK(p) ((__uint128_t) 1 << (SIGNIFICAND_BITS - (p) - 1))
+
+// Get a significant bit, where 0 is the MSB
+#define GET_SBIT(s, p) (((s) >> (SIGNIFICAND_BITS - (p) - 1)) & 1)
+
+// Set a significant bit, where 0 is the MSB
+#define SET_SBIT(s, p) (s) |= SBITMASK(p)
+
+typedef struct fp_encoding {
+    int exponent_bits;
+    int significand_bits;
+} FpEncoding;
+
+typedef enum fp_value_type {
+    TYPE_NORMAL,
+    TYPE_SUBNORMAL,
+    TYPE_INF,
+    TYPE_NAN,
+    TYPE_ZERO,
+} FPValueType;
+
+typedef struct fp_value {
+    unsigned int sign;          // 0 is positive, 1 is negative
+    int exponent;
+    __uint128_t significand;
+    FPValueType type;
+} FpValue;
+
+extern FpEncoding binary32_encoding;
+extern FpEncoding binary64_encoding;
+extern FpEncoding binary128_encoding;
+
+FpValue load_float(float f);
+FpValue load_double(double d);
+FpValue load_ld(long double ld);
+float store_float(FpValue fpv);
+double store_double(FpValue fpv);
+long double store_ld(FpValue fpv);
+
+// conversions.c
+double      convert_float_to_double (float f);
+long double convert_float_to_ld     (float f);
+float       convert_double_to_float (double d);
+long double convert_double_to_ld    (double d);
+float       convert_ld_to_float     (long double ld);
+double      convert_ld_to_double    (long double ld);
+
+// rounding.c
+void round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guard, int sticky);
+void round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits);
+void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *sticky);
+
+#endif

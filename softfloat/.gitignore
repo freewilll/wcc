@@ -1,0 +1,3 @@
+test_softfloat
+*.o
+debug.c
