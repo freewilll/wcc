@@ -1,4 +1,3 @@
-
 #ifndef __SOFTFLOAT_H
 #define __SOFTFLOAT_H
 
@@ -12,6 +11,8 @@
     Although everything should work for both floats and doubles, the focus is on
     long doubles, so floats and doubles haven't been thoroughly tested.
 */
+
+#include <stdint.h>
 
 #define SIGNIFICAND_BITS 128
 #define EXPONENT_MIDWAY 16383
@@ -68,10 +69,21 @@ float       convert_double_to_float (double d);
 long double convert_double_to_ld    (double d);
 float       convert_ld_to_float     (long double ld);
 double      convert_ld_to_double    (long double ld);
+int64_t     convert_ld_to_int64     (long double ld);
+uint64_t    convert_ld_to_uint64    (long double ld);
+long double convert_int64_to_ld     (int64_t  i);
+long double convert_uint64_to_ld    (uint64_t i);
 
 // rounding.c
 void round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guard, int sticky);
 void round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits);
 void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *sticky);
 
+// integers.c
+int64_t convert_fpv_to_int64(FpValue fpv);
+uint64_t convert_fpv_to_uint64(FpValue fpv);
+FpValue convert_int64_to_fpv(int64_t i);
+FpValue convert_uint64_to_fpv(uint64_t i);
+
 #endif
+

@@ -231,6 +231,76 @@ void test_rounding() {
     assert_int(0, fpv.significand, "Rounding up with overflow 5");
 }
 
+void test_convert_ld_to_int64() {
+    assert_long(0,              convert_ld_to_int64(0.0L),                    "ld to int64: +0.0");
+    assert_long(0,              convert_ld_to_int64(-0.0L),                   "ld to int64: -0.0");
+    assert_long(INT64_MAX,      convert_ld_to_int64(INFINITY),                "ld to int64: +inf");
+    assert_long(INT64_MIN,      convert_ld_to_int64(-INFINITY),               "ld to int64: -inf");
+    assert_long(INT64_MAX,      convert_ld_to_int64(NAN),                     "ld to int64: nan");
+    assert_long(INT64_MIN,      convert_ld_to_int64(-9223372036854775809.0L), "ld to int64: INT64_MIN - 1");
+    assert_long(INT64_MIN,      convert_ld_to_int64(-9223372036854775808.0L), "ld to int64: INT64_MIN");
+    assert_long(INT64_MIN + 1,  convert_ld_to_int64(-9223372036854775807.0L), "ld to int64: INT64_MIN + 1");
+    assert_long(-100000000,     convert_ld_to_int64(-100000000.1L),           "ld to int64: -100000000.1");
+    assert_long(-100,           convert_ld_to_int64(-100.1L),                 "ld to int64: -100.1");
+    assert_long(-10,            convert_ld_to_int64(-10.1L),                  "ld to int64: -10.1");
+    assert_long(-1,             convert_ld_to_int64(-1.1L),                   "ld to int64: -1.1");
+    assert_long(INT64_MIN,      convert_ld_to_int64(-1e100L),                 "ld to int64: -1e100");
+    assert_long(0,              convert_ld_to_int64(-0.1L),                   "ld to int64: -0.1");
+    assert_long(0,              convert_ld_to_int64(0.1L),                    "ld to int64: 0.1");
+    assert_long(1,              convert_ld_to_int64(1.1L),                    "ld to int64: 1.1");
+    assert_long(10,             convert_ld_to_int64(10.1L),                   "ld to int64: 10.1");
+    assert_long(100,            convert_ld_to_int64(100.1L),                  "ld to int64: 100.1");
+    assert_long(100000000,      convert_ld_to_int64(100000000.1L),            "ld to int64: 100000000.1");
+    assert_long(INT64_MAX - 1,  convert_ld_to_int64(9223372036854775806.0L),  "ld to int64: INT64_MAX - 1");
+    assert_long(INT64_MAX,      convert_ld_to_int64(9223372036854775807.0L),  "ld to int64: INT64_MAX");
+}
+
+void test_convert_ld_to_uint64() {
+    assert_long(0,              convert_ld_to_uint64(0.0L),                    "ld to uint64: +0.0");
+    assert_long(0,              convert_ld_to_uint64(-0.0L),                   "ld to uint64: -0.0");
+    assert_long(UINT64_MAX,     convert_ld_to_uint64(INFINITY),                "ld to uint64: +inf");
+    assert_long(0,              convert_ld_to_uint64(-INFINITY),               "ld to uint64: -inf");
+    assert_long(UINT64_MAX,     convert_ld_to_uint64(NAN),                     "ld to uint64: nan");
+    assert_long(0,              convert_ld_to_uint64(-1e100L),                 "ld to uint64: -1e100");
+    assert_long(0,              convert_ld_to_uint64(-0.1L),                   "ld to uint64: -0.1");
+    assert_long(0,              convert_ld_to_uint64(0.1L),                    "ld to uint64: 0.1");
+    assert_long(1,              convert_ld_to_uint64(1.1L),                    "ld to uint64: 1.1");
+    assert_long(10,             convert_ld_to_uint64(10.1L),                   "ld to uint64: 10.1");
+    assert_long(100,            convert_ld_to_uint64(100.1L),                  "ld to uint64: 100.1");
+    assert_long(100000000,      convert_ld_to_uint64(100000000.1L),            "ld to uint64: 100000000.1");
+    assert_long(UINT64_MAX - 1, convert_ld_to_uint64(18446744073709551614.0L), "ld to uint64: UINT64_MAX - 1");
+    assert_long(UINT64_MAX,     convert_ld_to_uint64(18446744073709551615.0L), "ld to uint64: UINT64_MAX");
+    assert_long(UINT64_MAX,     convert_ld_to_uint64(18446744073709551616.0L), "ld to uint64: UINT64_MAX + 1");
+}
+
+void test_convert_int64_to_ld() {
+    assert_long_double(-9223372036854775808.000000L,  convert_int64_to_ld(INT64_MIN),      "int64 to ld: INT64_MIN");
+    assert_long_double(-9223372036854775807.000000L,  convert_int64_to_ld(INT64_MIN + 1),  "int64 to ld: INT64_MIN - 1");
+    assert_long_double(-100000000.0,                  convert_int64_to_ld(-100000000),     "int64 to ld: -100000000.0");
+    assert_long_double(-100.0,                        convert_int64_to_ld(-100),           "int64 to ld: -100.0");
+    assert_long_double(-10.0,                         convert_int64_to_ld(-10),            "int64 to ld: -10.0");
+    assert_long_double(-1.0,                          convert_int64_to_ld(-1),             "int64 to ld: -1.0");
+    assert_long_double(0.0,                           convert_int64_to_ld(0),              "int64 to ld: 0.0");
+    assert_long_double(1.0,                           convert_int64_to_ld(1),              "int64 to ld: 1.0");
+    assert_long_double(10.0,                          convert_int64_to_ld(10),             "int64 to ld: 10.0");
+    assert_long_double(100.0,                         convert_int64_to_ld(100),            "int64 to ld: 100.0");
+    assert_long_double(100000000.0,                   convert_int64_to_ld(100000000),      "int64 to ld: 100000000.0");
+    assert_long_double(9223372036854775806.000000L,   convert_int64_to_ld(INT64_MAX - 1),  "int64 to ld: INT64_MAX - 1");
+    assert_long_double(9223372036854775807.000000L,   convert_int64_to_ld(INT64_MAX),      "int64 to ld: INT64_MAX");
+    assert_long_double(-2.0,                          convert_int64_to_ld(UINT64_MAX - 1), "int64 to ld: UINT64_MAX - 1");
+    assert_long_double(-1.0,                          convert_int64_to_ld(UINT64_MAX),     "int64 to ld: UINT64_MAX");
+}
+
+void test_convert_uint64_to_ld() {
+    assert_long_double(0.0,                     convert_uint64_to_ld(0),              "uint64 to ld: 0.0");
+    assert_long_double(1.0,                     convert_uint64_to_ld(1),              "uint64 to ld: 1.0");
+    assert_long_double(10.0,                    convert_uint64_to_ld(10),             "uint64 to ld: 10.0");
+    assert_long_double(100.0,                   convert_uint64_to_ld(100),            "uint64 to ld: 100.0");
+    assert_long_double(100000000.0,             convert_uint64_to_ld(100000000),      "uint64 to ld: 100000000.0");
+    assert_long_double(18446744073709551614.0L, convert_uint64_to_ld(UINT64_MAX - 1), "uint64 to ld: UINT64_MAX - 1");
+    assert_long_double(18446744073709551615.0L, convert_uint64_to_ld(UINT64_MAX),     "uint64 to ld: UINT64_MAX");
+}
+
 int main() {
     #ifdef __x86_64
     printf("Softfloat is not supported on x86_64\n");
@@ -247,6 +317,10 @@ int main() {
     test_convert_ld_to_double();
     test_convert_fp_to_fp_nan_and_inf();
     test_rounding();
+    test_convert_ld_to_int64();
+    test_convert_ld_to_uint64();
+    test_convert_int64_to_ld();
+    test_convert_uint64_to_ld();
 
     finish_tests();
 }

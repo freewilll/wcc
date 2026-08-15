@@ -1,9 +1,10 @@
-#include <stdio.h>
 #include <stdint.h>
 
 #include "softfloat.h"
 
 #if defined(DEBUG_LOAD) || defined(DEBUG_STORE)
+#include <stdio.h>
+
 #include "testlib.h"
 #endif
 
