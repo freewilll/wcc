@@ -1,8 +1,9 @@
 #include "softfloat.h"
-#include "testlib.h"
 
 #ifdef DEBUG_ROUNDING
 #include <stdio.h>
+
+#include "testlib.h"
 #endif
 
 void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *sticky) {
