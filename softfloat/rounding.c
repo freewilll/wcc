@@ -37,10 +37,13 @@ void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *st
 // 1|1|1 => 1   // Above half, round up
 void round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guard, int sticky) {
     #ifdef DEBUG_ROUNDING
-    // printf("Before round: g=%d s=%d    ", guard, sticky);
     printf("Before round: b=%-3d g=%d s=%d ", bits, guard, sticky);
     print_fpv(fpv);
     #endif
+
+    // Zero the unused upper bits. The rounding code assumes one bit beyond
+    // SIGNIFICAND_BITS is zero.
+    fpv->significand &= (((__uint128_t) 1) << SIGNIFICAND_BITS) - 1;
 
     // Shift the significand over so that result contains `bits` bits
     __uint128_t result = fpv->significand >> (SIGNIFICAND_BITS - bits);

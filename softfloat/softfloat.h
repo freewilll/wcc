@@ -14,7 +14,8 @@
 
 #include <stdint.h>
 
-#define SIGNIFICAND_BITS 128
+#define SIGNIFICAND_BITS 112 // The same as the amount of bits in the binary128 encoding
+#define EMPTY_HIGH_BITS (128 - SIGNIFICAND_BITS) // 128-bit integer - SIGNIFICAND_BITS
 #define EXPONENT_MIDWAY 16383
 
 #define PRINT_INT128(i) printf("%016lx %016lx", (long) ((i) >> 64), (long) (i));

@@ -219,7 +219,7 @@ void test_rounding() {
     TEST_ROUNDING(0, 1, 1, 0, 0, 1, 0); // Exact, T is odd, round up
     TEST_ROUNDING(0, 1, 1, 0, 1, 1, 0); // Inexact, above half, round up
 
-    // Edge case of a round up with the significant consisting of all ones
+    // Edge case of a round up with the significand consisting of all ones
     fpv.significand = -1; // This is 1.111111....11111 * 2^0, which is almost 2.00000
     float f = store_float(fpv);
     assert_int(0, fpv.exponent, "Rounding up with overflow 1");

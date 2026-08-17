@@ -36,9 +36,12 @@ static void convert_from_subnormal(FpEncoding encoding, FpValue *fpv) {
     if (high == 0 && low == 0) return;
 
     if (high == 0)
-        leading_bits = 64 + __builtin_clzll(low);
+        leading_bits =__builtin_clzll(low) + 64;
     else
         leading_bits = __builtin_clzll(high);
+
+    // The upper bits are unused.
+    leading_bits -= EMPTY_HIGH_BITS;
 
     int exponent_midway = GET_ENCODING_EXPONENT_MIDWAY(encoding);
 
