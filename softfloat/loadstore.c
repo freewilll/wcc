@@ -176,31 +176,31 @@ static FpValue load(FpEncoding encoding, __uint128_t raw) {
     return fpv;
 }
 
-static __uint128_t store(FpEncoding encoding, FpValue fpv) {
+static __uint128_t store(FpEncoding encoding, FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Storing                     ");
-    print_fpv(&fpv);
+    print_fpv(fpv);
     #endif
 
     __uint128_t raw = 0;
 
     // Store sign
     int non_sign_bits = (encoding.exponent_bits + encoding.significand_bits);
-    raw |= ((__uint128_t) fpv.sign << non_sign_bits);
+    raw |= ((__uint128_t) fpv->sign << non_sign_bits);
 
     // Store exponent
     int exponent_max = GET_ENCODING_EXPONENT_MAX(encoding);
     int exponent_midway = GET_ENCODING_EXPONENT_MIDWAY(encoding);
 
-    if (fpv.type == TYPE_INF || fpv.type == TYPE_NAN)
+    if (fpv->type == TYPE_INF || fpv->type == TYPE_NAN)
         raw |= ((__uint128_t) exponent_max << encoding.significand_bits);
-    else if (fpv.type != TYPE_SUBNORMAL && fpv.type != TYPE_ZERO)
-        raw |= ((__uint128_t) (fpv.exponent + exponent_midway) << encoding.significand_bits);
+    else if (fpv->type != TYPE_SUBNORMAL && fpv->type != TYPE_ZERO)
+        raw |= ((__uint128_t) (fpv->exponent + exponent_midway) << encoding.significand_bits);
 
     // Store significand
-    if (fpv.type != TYPE_INF && fpv.type != TYPE_ZERO) {
+    if (fpv->type != TYPE_INF && fpv->type != TYPE_ZERO) {
         __int128 significand_mask = (((__uint128_t) 1) << encoding.significand_bits) - 1;
-        raw |= ((fpv.significand >> (SIGNIFICAND_BITS - encoding.significand_bits)) & significand_mask);
+        raw |= ((fpv->significand >> (SIGNIFICAND_BITS - encoding.significand_bits)) & significand_mask);
     }
 
     return raw;
@@ -235,18 +235,18 @@ FpValue load_ld(long double ld) {
     return load(binary128_encoding, raw);
 }
 
-float store_float(FpValue fpv) {
+float store_float(FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Storing                     ");
-    print_fpv(&fpv);
+    print_fpv(fpv);
     #endif
 
-    convert_to_inf_if_needed(binary32_encoding, &fpv);
-    convert_to_subnormal_if_needed(binary32_encoding, &fpv);
+    convert_to_inf_if_needed(binary32_encoding, fpv);
+    convert_to_subnormal_if_needed(binary32_encoding, fpv);
 
     // Subnormals have already been rounded and don't need rounding done again.
-    if (fpv.type != TYPE_SUBNORMAL)
-        round_to_nearest_even_at_bits(binary32_encoding, &fpv, binary32_encoding.significand_bits);
+    if (fpv->type != TYPE_SUBNORMAL)
+        round_to_nearest_even_at_bits(binary32_encoding, fpv, binary32_encoding.significand_bits);
 
     __uint128_t raw = store(binary32_encoding, fpv);
 
@@ -259,18 +259,18 @@ float store_float(FpValue fpv) {
     return f;
 }
 
-double store_double(FpValue fpv) {
+double store_double(FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Storing                     ");
-    print_fpv(&fpv);
+    print_fpv(fpv);
     #endif
 
-    convert_to_inf_if_needed(binary64_encoding, &fpv);
-    convert_to_subnormal_if_needed(binary64_encoding, &fpv);
+    convert_to_inf_if_needed(binary64_encoding, fpv);
+    convert_to_subnormal_if_needed(binary64_encoding, fpv);
 
     // Subnormals have already been rounded and don't need rounding done again.
-    if (fpv.type != TYPE_SUBNORMAL)
-        round_to_nearest_even_at_bits(binary64_encoding, &fpv, binary64_encoding.significand_bits);
+    if (fpv->type != TYPE_SUBNORMAL)
+        round_to_nearest_even_at_bits(binary64_encoding, fpv, binary64_encoding.significand_bits);
 
     __uint128_t raw = store(binary64_encoding, fpv);
 
@@ -283,10 +283,10 @@ double store_double(FpValue fpv) {
     return d;
 }
 
-long double store_ld(FpValue fpv) {
+long double store_ld(FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Storing                     ");
-    print_fpv(&fpv);
+    print_fpv(fpv);
     #endif
 
     __uint128_t raw = store(binary128_encoding, fpv);

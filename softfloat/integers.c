@@ -7,31 +7,31 @@
 #include "testlib.h"
 #endif
 
-int64_t convert_fpv_to_int64(FpValue fpv) {
+int64_t convert_fpv_to_int64(FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Converting to int64         ");
-    print_fpv(&fpv);
+    print_fpv(fpv);
     #endif
 
-    if (fpv.type == TYPE_ZERO || fpv.exponent < 0)
+    if (fpv->type == TYPE_ZERO || fpv->exponent < 0)
         return 0;
-    else if (fpv.type == TYPE_INF)
-        return fpv.sign ? INT64_MIN : INT64_MAX;
-    else if (fpv.type == TYPE_NAN)
+    else if (fpv->type == TYPE_INF)
+        return fpv->sign ? INT64_MIN : INT64_MAX;
+    else if (fpv->type == TYPE_NAN)
         return INT64_MAX;
-    else if (fpv.exponent >= 63)
+    else if (fpv->exponent >= 63)
         // Overflow
-        return fpv.sign ? INT64_MIN : INT64_MAX;
+        return fpv->sign ? INT64_MIN : INT64_MAX;
 
     // Implicit else, the value is a normal number
-    __uint128_t result = fpv.significand >> 1;
+    __uint128_t result = fpv->significand >> 1;
     SET_SBIT(result, 0);
-    int shift_amount = SIGNIFICAND_BITS - fpv.exponent - 1;
+    int shift_amount = SIGNIFICAND_BITS - fpv->exponent - 1;
     if (shift_amount >= SIGNIFICAND_BITS) return 0;
     result >>=  shift_amount;
 
     // Flip the sign if it's negative
-    if (fpv.sign) result = -result;
+    if (fpv->sign) result = -result;
 
     #ifdef DEBUG_STORE
     printf("%ld\n", (int64_t) result);
@@ -40,29 +40,29 @@ int64_t convert_fpv_to_int64(FpValue fpv) {
     return result;
 }
 
-uint64_t convert_fpv_to_uint64(FpValue fpv) {
+uint64_t convert_fpv_to_uint64(FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Converting to uint64        ");
-    print_fpv(&fpv);
+    print_fpv(fpv);
     #endif
 
-    if (fpv.type == TYPE_ZERO || fpv.exponent < 0)
+    if (fpv->type == TYPE_ZERO || fpv->exponent < 0)
         return 0;
-    else if (fpv.type == TYPE_INF)
-        return fpv.sign ? 0 : UINT64_MAX;
-    else if (fpv.type == TYPE_NAN)
+    else if (fpv->type == TYPE_INF)
+        return fpv->sign ? 0 : UINT64_MAX;
+    else if (fpv->type == TYPE_NAN)
         return UINT64_MAX;
-    else if (fpv.sign)
+    else if (fpv->sign)
         // Negative numbers are rounded up to zero
         return 0;
-    else if (fpv.exponent >= 64)
+    else if (fpv->exponent >= 64)
         // Overflow
         return UINT64_MAX;
 
     // Implicit else, the value is a normal number
-    __uint128_t result = fpv.significand >> 1;
+    __uint128_t result = fpv->significand >> 1;
     SET_SBIT(result, 0);
-    int shift_amount = SIGNIFICAND_BITS - fpv.exponent - 1;
+    int shift_amount = SIGNIFICAND_BITS - fpv->exponent - 1;
     if (shift_amount >= SIGNIFICAND_BITS) return 0;
     result >>=  shift_amount;
 

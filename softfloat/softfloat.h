@@ -59,9 +59,9 @@ extern FpEncoding binary128_encoding;
 FpValue load_float(float f);
 FpValue load_double(double d);
 FpValue load_ld(long double ld);
-float store_float(FpValue fpv);
-double store_double(FpValue fpv);
-long double store_ld(FpValue fpv);
+float store_float(FpValue *fpv);
+double store_double(FpValue *fpv);
+long double store_ld(FpValue *fpv);
 
 // conversions.c
 double      convert_float_to_double (float f);
@@ -81,8 +81,8 @@ void round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits);
 void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *sticky);
 
 // integers.c
-int64_t convert_fpv_to_int64(FpValue fpv);
-uint64_t convert_fpv_to_uint64(FpValue fpv);
+int64_t convert_fpv_to_int64(FpValue *fpv);
+uint64_t convert_fpv_to_uint64(FpValue *fpv);
 FpValue convert_int64_to_fpv(int64_t i);
 FpValue convert_uint64_to_fpv(uint64_t i);
 

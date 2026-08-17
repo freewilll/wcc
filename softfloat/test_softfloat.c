@@ -17,7 +17,7 @@ void test_float_roundtrip() {
         f = v; \
         before = *((__uint32_t *) &f); \
         fpv = load_float(f); \
-        f = store_float(fpv); \
+        f = store_float(&fpv); \
         after = *((__uint32_t *) &f); \
         assert_int(1, before == after, m); \
 
@@ -46,7 +46,7 @@ void test_double_roundtrip() {
         d = v; \
         before = *((uint64_t *) &d); \
         fpv = load_double(d); \
-        d = store_double(fpv); \
+        d = store_double(&fpv); \
         after = *((uint64_t *) &d); \
         assert_long(1, before == after, m); \
 
@@ -75,7 +75,7 @@ void test_ld_roundtrip() {
         ld = v; \
         before = *((__uint128_t *) &ld); \
         fpv = load_double(ld); \
-        ld = store_double(fpv); \
+        ld = store_double(&fpv); \
         after = *((__uint128_t *) &ld); \
         assert_long(1, before == after, m); \
 
@@ -221,14 +221,15 @@ void test_rounding() {
 
     // Edge case of a round up with the significand consisting of all ones
     fpv.significand = -1; // This is 1.111111....11111 * 2^0, which is almost 2.00000
-    float f = store_float(fpv);
-    assert_int(0, fpv.exponent, "Rounding up with overflow 1");
-    assert_float(2.0, f, "Rounding up with overflow 2");
-    round_to_nearest_even_at_bits(binary32_encoding, &fpv, binary32_encoding.significand_bits);
-    f = store_float(fpv);
+    float f = store_float(&fpv);
+    assert_int(1, fpv.exponent, "Rounding up with overflow 1");
+    assert_int(1, fpv.significand == 0, "Rounding up with overflow 2");
     assert_float(2.0, f, "Rounding up with overflow 3");
-    assert_int(1, fpv.exponent, "Rounding up with overflow 4");
-    assert_int(0, fpv.significand, "Rounding up with overflow 5");
+    round_to_nearest_even_at_bits(binary32_encoding, &fpv, binary32_encoding.significand_bits);
+    f = store_float(&fpv);
+    assert_float(2.0, f, "Rounding up with overflow 4");
+    assert_int(1, fpv.exponent, "Rounding up with overflow 5");
+    assert_int(0, fpv.significand, "Rounding up with overflow 6");
 }
 
 void test_convert_ld_to_int64() {
