@@ -25,7 +25,8 @@ void test_float_roundtrip() {
     TEST_FLOAT_ROUNDTRIP(-0.0,            "Float roundtrip: -0.0");
     TEST_FLOAT_ROUNDTRIP(+INFINITY,       "Float roundtrip: +inf");
     TEST_FLOAT_ROUNDTRIP(-INFINITY,       "Float roundtrip: -inf");
-    TEST_FLOAT_ROUNDTRIP(NAN,             "Float roundtrip: nan");
+    TEST_FLOAT_ROUNDTRIP(NAN,             "Float roundtrip: +nan");
+    TEST_FLOAT_ROUNDTRIP(-NAN,            "Float roundtrip: -nan");
     TEST_FLOAT_ROUNDTRIP(-1.12345f,       "Float roundtrip: -1.12345");
     TEST_FLOAT_ROUNDTRIP(3.40282347e+38f, "Float roundtrip: max normal");
     TEST_FLOAT_ROUNDTRIP(1.17549500e-38f, "Float roundtrip: just above min normal");
@@ -54,7 +55,8 @@ void test_double_roundtrip() {
     TEST_DOUBLE_ROUNDTRIP(-0.0,                    "Double roundtrip: -0.0");
     TEST_DOUBLE_ROUNDTRIP(+INFINITY,               "Double roundtrip: +inf");
     TEST_DOUBLE_ROUNDTRIP(-INFINITY,               "Double roundtrip: -inf");
-    TEST_DOUBLE_ROUNDTRIP(NAN,                     "Double roundtrip: nan");
+    TEST_DOUBLE_ROUNDTRIP(NAN,                     "Double roundtrip: +nan");
+    TEST_DOUBLE_ROUNDTRIP(-NAN,                    "Double roundtrip: -nan");
     TEST_DOUBLE_ROUNDTRIP(-1.12345f,               "Double roundtrip: -1.12345");
     TEST_DOUBLE_ROUNDTRIP(1.7976931348623157e+308, "Double roundtrip: max normal");
     TEST_DOUBLE_ROUNDTRIP(2.2250738585073014e-308, "Double roundtrip: just above min normal");
@@ -83,7 +85,8 @@ void test_ld_roundtrip() {
     TEST_LD_ROUNDTRIP(-0.0,                                        "Long double roundtrip: -0.0");
     TEST_LD_ROUNDTRIP(+INFINITY,                                   "Long double roundtrip: +inf");
     TEST_LD_ROUNDTRIP(-INFINITY,                                   "Long double roundtrip: -inf");
-    TEST_LD_ROUNDTRIP(NAN,                                         "Long double roundtrip: nan");
+    TEST_LD_ROUNDTRIP(NAN,                                         "Long double roundtrip: +nan");
+    TEST_LD_ROUNDTRIP(-NAN,                                        "Long double roundtrip: -nan");
     TEST_LD_ROUNDTRIP(-1.12345f,                                   "Long double roundtrip: -1.12345");
     TEST_LD_ROUNDTRIP(1.1897314953572317650857593266280070e+4932L, "Long double roundtrip: max normal");
     TEST_LD_ROUNDTRIP(3.3621031431120935062626778173218526e-4932L, "Long double roundtrip: just above min normal");
@@ -122,11 +125,12 @@ void test_convert_ld_to_float() {
 
     float f;
 
-    TEST_LD_TO_FLOAT(+0.0,           "0.00000000e+00",  "Conversion of LD to float: above max normal +0.0");
-    TEST_LD_TO_FLOAT(-0.0,           "-0.00000000e+00", "Conversion of LD to float: above max normal -0.0");
-    TEST_LD_TO_FLOAT(1e+39,          "inf",             "Conversion of LD to float: above max normal +inf");
-    TEST_LD_TO_FLOAT(-1e+39,         "-inf",            "Conversion of LD to float: above max normal -inf");
-    TEST_LD_TO_FLOAT(NAN,            "nan",             "Conversion of LD to float: above max normal nan");
+    TEST_LD_TO_FLOAT(+0.0,           "0.00000000e+00",  "Conversion of LD to float: +0.0");
+    TEST_LD_TO_FLOAT(-0.0,           "-0.00000000e+00", "Conversion of LD to float: -0.0");
+    TEST_LD_TO_FLOAT(1e+39,          "inf",             "Conversion of LD to float: +inf");
+    TEST_LD_TO_FLOAT(-1e+39,         "-inf",            "Conversion of LD to float: -inf");
+    TEST_LD_TO_FLOAT(NAN,            "nan",             "Conversion of LD to float: +nan");
+    TEST_LD_TO_FLOAT(-NAN,           "-nan",            "Conversion of LD to float: -nan");
     TEST_LD_TO_FLOAT(-1.12345,       "-1.12345004e+00", "Conversion of LD to float: -1.2345");
     TEST_LD_TO_FLOAT(3.40282347e+38, "3.40282347e+38",  "Conversion of LD to float: max normal");
     TEST_LD_TO_FLOAT(1.17549500e-38, "1.17549505e-38",  "Conversion of LD to float: just above min normal");
@@ -143,11 +147,12 @@ void test_convert_ld_to_double() {
 
     double d;
 
-    TEST_LD_TO_DOUBLE(+0.0,                     "0.00000000e+00",   "Conversion of LD to double: above max normal +0.0");
-    TEST_LD_TO_DOUBLE(-0.0,                     "-0.00000000e+00",  "Conversion of LD to double: above max normal -0.0");
-    TEST_LD_TO_DOUBLE(1e+310L,                  "inf",              "Conversion of LD to double: above max normal +inf");
-    TEST_LD_TO_DOUBLE(-1e+310L,                 "-inf",             "Conversion of LD to double: above max normal -inf");
-    TEST_LD_TO_DOUBLE(NAN,                      "nan",              "Conversion of LD to double: above max normal nan");
+    TEST_LD_TO_DOUBLE(+0.0,                     "0.00000000e+00",   "Conversion of LD to double: +0.0");
+    TEST_LD_TO_DOUBLE(-0.0,                     "-0.00000000e+00",  "Conversion of LD to double: -0.0");
+    TEST_LD_TO_DOUBLE(1e+310L,                  "inf",              "Conversion of LD to double: +inf");
+    TEST_LD_TO_DOUBLE(-1e+310L,                 "-inf",             "Conversion of LD to double: -inf");
+    TEST_LD_TO_DOUBLE(NAN,                      "nan",              "Conversion of LD to double: +nan");
+    TEST_LD_TO_DOUBLE(-NAN,                     "-nan",             "Conversion of LD to double: -nan");
     TEST_LD_TO_DOUBLE(-1.12345,                 "-1.12345000e+00",  "Conversion of LD to double: -1.2345");
     TEST_LD_TO_DOUBLE(1.7976931348623157e+308L, "1.79769313e+308",  "Conversion of LD to double: max normal");
     TEST_LD_TO_DOUBLE(2.2250738585073014e-308L, "2.22507386e-308",  "Conversion of LD to double: just above min normal");
@@ -182,6 +187,13 @@ void test_convert_fp_to_fp_nan_and_inf() {
     assert_long_double(NAN, convert_double_to_ld(NAN),    "Conversion: double to LD NAN");
     assert_float(NAN,       convert_ld_to_float(NAN),     "Conversion: LD to LD NAN");
     assert_double(NAN,      convert_ld_to_double(NAN),    "Conversion: LD to double NAN");
+
+    assert_double(-NAN,      convert_float_to_double(-NAN), "Conversion: float to double -NAN");
+    assert_long_double(-NAN, convert_float_to_ld(-NAN),     "Conversion: float to LD -NAN");
+    assert_float(-NAN,       convert_double_to_float(-NAN), "Conversion: double to float -NAN");
+    assert_long_double(-NAN, convert_double_to_ld(-NAN),    "Conversion: double to LD -NAN");
+    assert_float(-NAN,       convert_ld_to_float(-NAN),     "Conversion: LD to LD -NAN");
+    assert_double(-NAN,      convert_ld_to_double(-NAN),    "Conversion: LD to double -NAN");
 }
 
 #define TEST_ROUNDING(t1, t2, g, s1, s2, et1, et2) \
@@ -237,7 +249,8 @@ void test_convert_ld_to_int64() {
     assert_long(0,              convert_ld_to_int64(-0.0L),                   "ld to int64: -0.0");
     assert_long(INT64_MAX,      convert_ld_to_int64(INFINITY),                "ld to int64: +inf");
     assert_long(INT64_MIN,      convert_ld_to_int64(-INFINITY),               "ld to int64: -inf");
-    assert_long(INT64_MAX,      convert_ld_to_int64(NAN),                     "ld to int64: nan");
+    assert_long(INT64_MAX,      convert_ld_to_int64(NAN),                     "ld to int64: +nan");
+    assert_long(0,              convert_ld_to_int64(-NAN),                    "ld to int64: -nan");
     assert_long(INT64_MIN,      convert_ld_to_int64(-9223372036854775809.0L), "ld to int64: INT64_MIN - 1");
     assert_long(INT64_MIN,      convert_ld_to_int64(-9223372036854775808.0L), "ld to int64: INT64_MIN");
     assert_long(INT64_MIN + 1,  convert_ld_to_int64(-9223372036854775807.0L), "ld to int64: INT64_MIN + 1");
@@ -262,6 +275,7 @@ void test_convert_ld_to_uint64() {
     assert_long(UINT64_MAX,     convert_ld_to_uint64(INFINITY),                "ld to uint64: +inf");
     assert_long(0,              convert_ld_to_uint64(-INFINITY),               "ld to uint64: -inf");
     assert_long(UINT64_MAX,     convert_ld_to_uint64(NAN),                     "ld to uint64: nan");
+    assert_long(0,              convert_ld_to_uint64(-NAN),                    "ld to uint64: nan");
     assert_long(0,              convert_ld_to_uint64(-1e100L),                 "ld to uint64: -1e100");
     assert_long(0,              convert_ld_to_uint64(-0.1L),                   "ld to uint64: -0.1");
     assert_long(0,              convert_ld_to_uint64(0.1L),                    "ld to uint64: 0.1");

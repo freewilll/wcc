@@ -18,7 +18,7 @@ int64_t convert_fpv_to_int64(FpValue *fpv) {
     else if (fpv->type == TYPE_INF)
         return fpv->sign ? INT64_MIN : INT64_MAX;
     else if (fpv->type == TYPE_NAN)
-        return INT64_MAX;
+        return fpv->sign ? 0 : INT64_MAX;
     else if (fpv->exponent >= 63)
         // Overflow
         return fpv->sign ? INT64_MIN : INT64_MAX;
@@ -51,7 +51,7 @@ uint64_t convert_fpv_to_uint64(FpValue *fpv) {
     else if (fpv->type == TYPE_INF)
         return fpv->sign ? 0 : UINT64_MAX;
     else if (fpv->type == TYPE_NAN)
-        return UINT64_MAX;
+        return fpv->sign ? 0 : UINT64_MAX;
     else if (fpv->sign)
         // Negative numbers are rounded up to zero
         return 0;
