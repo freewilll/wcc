@@ -6,6 +6,101 @@
 #include "softfloat.h"
 #include "testlib.h"
 
+typedef union {
+    __uint128_t i;
+    long double ld;
+} LongDoubleUnion;
+
+// Print a long double in binary and float format
+#define PRINT_LD(v) { \
+    LongDoubleUnion _u; \
+    _u.ld = v; \
+    printf("%016lx %016lx %Lg\n", (uint64_t) (_u.i >> 64), (uint64_t) _u.i, _u.ld); \
+}
+
+// Make a long double from a significand and an exponent
+#define BUILD_LD(significand, exponent) \
+    ({ \
+        LongDoubleUnion _u; \
+        _u.i = (__uint128_t)(significand) | ((__uint128_t)(EXPONENT_MIDWAY + (exponent)) << SIGNIFICAND_BITS); \
+        _u.ld; \
+    })
+
+// Assert an addition done by the compiled code and lib is bitwise identical
+#define ASSERT_LD_ADD_BINEQ_ONE_DIRECTION(a, b, m) { \
+    LongDoubleUnion u1; \
+    LongDoubleUnion u2; \
+    u1.ld = (a) + (b); \
+    u2.ld = add_ld(a, b); \
+    if (u1.i != u2.i) { \
+        printf("%016lx %016lx %Lg\n", (uint64_t) (u1.i >> 64), (uint64_t) u1.i, u1.ld); \
+        printf("%016lx %016lx %Lg\n", (uint64_t) (u2.i >> 64), (uint64_t) u2.i, u2.ld); \
+    } \
+    assert_int(1, u1.i == u2.i, m); \
+}
+
+// Check a + b and b + a
+#define ASSERT_LD_ADD_BINEQ(a, b, m) { \
+    ASSERT_LD_ADD_BINEQ_ONE_DIRECTION(a, b, m); \
+    ASSERT_LD_ADD_BINEQ_ONE_DIRECTION(a, b, m " reverse"); \
+}
+
+void test_shift_right() {
+    __uint128_t v = 0;
+    int guard = -42;
+    int sticky = -43;
+    shift_right(&v, 0, &guard, &sticky);
+    assert_int(-42, guard, "shift_right >> 0 a");
+    assert_int(-43, sticky, "shift_right >> 0 b");
+
+    // 01010101
+    v = 0x55;
+    guard = 0;
+    sticky = 0;
+    shift_right(&v, 1, &guard, &sticky);
+    assert_int(0x2a, v, "shift_right >> 1 a"); // 0101010
+    assert_int(1, guard, "shift_right >> 1 b");
+    assert_int(0, sticky, "shift_right >> 1 c");
+
+    shift_right(&v, 1, &guard, &sticky);
+    assert_int(0x15, v, "shift_right >> 2 a"); // 010101
+    assert_int(0, guard, "shift_right >> 2 b");
+    assert_int(1, sticky, "shift_right >> 2 c");
+
+    shift_right(&v, 1, &guard, &sticky);
+    assert_int(0x0a, v, "shift_right >> 3 a"); // 01010
+    assert_int(1, guard, "shift_right >> 3 b");
+    assert_int(1, sticky, "shift_right >> 3 c");
+
+    shift_right(&v, 1, &guard, &sticky);
+    assert_int(0x05, v, "shift_right >> 4 a"); // 0101
+    assert_int(0, guard, "shift_right >> 4 b");
+    assert_int(1, sticky, "shift_right >> 4 c");
+
+    // 01010101
+    v = 0x55;
+    guard = 0;
+    sticky = 0;
+    shift_right(&v, 2, &guard, &sticky);
+    assert_int(0x15, v, "shift_right >> 2 a"); // 010101
+    assert_int(0, guard, "shift_right >> 2 b");
+    assert_int(1, sticky, "shift_right >> 2 c");
+
+    shift_right(&v, 3, &guard, &sticky);
+    assert_int(0x02, v, "shift_right >> 3 a"); // 010
+    assert_int(1, guard, "shift_right >> 3 b");
+    assert_int(1, sticky, "shift_right >> 3 c");
+
+    // 1000
+    v = 0x08;
+    guard = 1;
+    sticky = 0;
+    shift_right(&v, 3, &guard, &sticky);
+    assert_int(0x01, v, "shift_right >> 3 a"); // 1
+    assert_int(0, guard, "shift_right >> 3 b");
+    assert_int(1, sticky, "shift_right >> 3 c");
+}
+
 // Test that loading and storing a float produces the exact same binary result.
 void test_float_roundtrip() {
     float f;
@@ -76,8 +171,8 @@ void test_ld_roundtrip() {
     #define TEST_LD_ROUNDTRIP(v, m) \
         ld = v; \
         before = *((__uint128_t *) &ld); \
-        fpv = load_double(ld); \
-        ld = store_double(&fpv); \
+        fpv = load_ld(ld); \
+        ld = store_ld(&fpv); \
         after = *((__uint128_t *) &ld); \
         assert_long(1, before == after, m); \
 
@@ -316,14 +411,97 @@ void test_convert_uint64_to_ld() {
     assert_long_double(18446744073709551615.0L, convert_uint64_to_ld(UINT64_MAX),     "uint64 to ld: UINT64_MAX");
 }
 
+void test_negate_ld() {
+    assert_long_double(-0,        negate_ld(0),         "negate +0");
+    assert_long_double(0,         negate_ld(-0),        "negate -0");
+    assert_long_double(-INFINITY, negate_ld(INFINITY),  "negate +inf");
+    assert_long_double(INFINITY,  negate_ld(-INFINITY), "negate -inf");
+    assert_long_double(-NAN,      negate_ld(NAN),       "negate +nan");
+    assert_long_double(NAN,       negate_ld(-NAN),      "negate -nan");
+    assert_long_double(-1,        negate_ld(1),         "negate 1");
+    assert_long_double(1,         negate_ld(-1),        "negate -1");
+}
+
+void test_add_subtract_ld() {
+    #define TEST_ADD_LD(a, b, e, m) { long double ld = add_ld(a, b); assert_ld_string(ld, e, m); }
+
+    // Zero, infinity, nan
+    TEST_ADD_LD(0.0L,   0.0L, "0.00000000e+00",  "Addition of +0.0 + +0.0");
+    TEST_ADD_LD(0.0L,  -0.0L, "0.00000000e+00",  "Addition of +0.0 + -0.0");
+    TEST_ADD_LD(-0.0L,  0.0L, "0.00000000e+00",  "Addition of -0.0 + +0.0");
+    TEST_ADD_LD(-0.0L, -0.0L, "-0.00000000e+00", "Addition of -0.0 + -0.0");
+
+    TEST_ADD_LD( 0.0L,  INFINITY,  "inf", "Addition of +0.0 + +inf");
+    TEST_ADD_LD( 0.0L, -INFINITY, "-inf", "Addition of +0.0 + -inf");
+    TEST_ADD_LD(-0.0L,  INFINITY,  "inf", "Addition of -0.0 + +inf");
+    TEST_ADD_LD(-0.0L, -INFINITY, "-inf", "Addition of -0.0 + -inf");
+
+    TEST_ADD_LD( INFINITY,  0.0L,  "inf", "Addition of +inf + +0.0");
+    TEST_ADD_LD(-INFINITY,  0.0L, "-inf", "Addition of -inf + +0.0");
+    TEST_ADD_LD( INFINITY, -0.0L,  "inf", "Addition of +inf + -0.0");
+    TEST_ADD_LD(-INFINITY, -0.0L, "-inf", "Addition of -inf + -0.0");
+
+    TEST_ADD_LD( 0.0L,  NAN,  "nan", "Addition of +0.0 + +nan");
+    TEST_ADD_LD( 0.0L, -NAN, "-nan", "Addition of +0.0 + -nan");
+    TEST_ADD_LD(-0.0L,  NAN,  "nan", "Addition of -0.0 + +nan");
+    TEST_ADD_LD(-0.0L, -NAN, "-nan", "Addition of -0.0 + -nan");
+
+    TEST_ADD_LD( NAN,  0.0L,  "nan", "Addition of +nan + +0.0");
+    TEST_ADD_LD(-NAN,  0.0L, "-nan", "Addition of -nan + +0.0");
+    TEST_ADD_LD( NAN, -0.0L,  "nan", "Addition of +nan + -0.0");
+    TEST_ADD_LD(-NAN, -0.0L, "-nan", "Addition of -nan + -0.0");
+
+    TEST_ADD_LD( 1.0L,  1.5L,  "2.50000000e+00", "Addition of  1.0 +  1.5");
+    TEST_ADD_LD( 1.1L,  1.5L,  "2.60000000e+00", "Addition of  1.1 +  1.5");
+    TEST_ADD_LD( 1.0L,  2.0L,  "3.00000000e+00", "Addition of  1.0 +  2.0");
+    TEST_ADD_LD( 2.0L,  1.0L,  "3.00000000e+00", "Addition of  2.0 +  1.0");
+    TEST_ADD_LD(-2.0L, -1.0L, "-3.00000000e+00", "Addition of -2.0 + -1.0");
+
+    TEST_ADD_LD(10.12345L, 100.11111L, "1.10234560e+02", "Addition of 10.12345 + 100.11111");
+    TEST_ADD_LD(1.0e1L,    1.0e9L,     "1.00000001e+09", "Addition of 1.0e1 + 1.0e9");
+
+    // Create a bunch of convenient constants
+    long double TWO_EXP_MIN_112 = BUILD_LD(0, -112); // 2^-112
+    long double TWO_EXP_MIN_113 = BUILD_LD(0, -113); // 2^-113
+    long double TWO_EXP_MIN_114 = BUILD_LD(0, -114); // 2^-114
+    long double TWO_EXP_MIN_225 = BUILD_LD(0, -225); // 2^-225
+    long double TWO_EXP_MIN_226 = BUILD_LD(0, -226); // 2^-226
+    long double SMALLEST_NORMAL = BUILD_LD(0 , 1 - EXPONENT_MIDWAY);
+    long double LARGEST_NORMAL = BUILD_LD(((__uint128_t) 1 << 112) - 1, EXPONENT_MIDWAY);
+    long double LARGEST_SUBNORMAL = BUILD_LD(((__uint128_t) 1 << 112) - 1, -EXPONENT_MIDWAY);
+    long double SMALLEST_SUBNORMAL = BUILD_LD(1, -EXPONENT_MIDWAY);
+
+    // Rounding tests
+    ASSERT_LD_ADD_BINEQ(2 - TWO_EXP_MIN_112, TWO_EXP_MIN_112, "(2 - 2^-112) +  2^-112");
+    ASSERT_LD_ADD_BINEQ(1, TWO_EXP_MIN_112, "1 + 2^-112");
+    ASSERT_LD_ADD_BINEQ(1, TWO_EXP_MIN_113, "1 + 2^-113"); // T=0, g=1, s=0, rounds down
+    ASSERT_LD_ADD_BINEQ(1 + TWO_EXP_MIN_112, TWO_EXP_MIN_113, "(1 + 2^-112) + 2^-113"); // T=1, g=1, s=0, rounds up
+    ASSERT_LD_ADD_BINEQ(1, TWO_EXP_MIN_113 + TWO_EXP_MIN_114, "1 + (2^-113 + 2^-114)"); // T=0, g=1, s=1, rounds up
+    ASSERT_LD_ADD_BINEQ(1, TWO_EXP_MIN_113 + TWO_EXP_MIN_225, "1 + (2^-113 + 2^-225)"); // T=0, g=1, s=1, rounds up
+    ASSERT_LD_ADD_BINEQ(1, TWO_EXP_MIN_113 - TWO_EXP_MIN_226, "1 + (2^-113 - 2^-226)"); // T=0, g=0, s=1, no bits participate due to the large shift
+    ASSERT_LD_ADD_BINEQ(2 - TWO_EXP_MIN_112, 2 - TWO_EXP_MIN_112, "(2 - 2^-112) + (2 - 2^-112)"); // Overflow and normalization
+
+    // Subnormals
+    ASSERT_LD_ADD_BINEQ(SMALLEST_NORMAL, SMALLEST_SUBNORMAL, "smallest normal + smallest subnormal");
+    ASSERT_LD_ADD_BINEQ(SMALLEST_SUBNORMAL, SMALLEST_SUBNORMAL, "smallest subnormal + smallest subnormal");
+    ASSERT_LD_ADD_BINEQ(LARGEST_SUBNORMAL, SMALLEST_SUBNORMAL, "largest subnormal + smallest subnormal");
+
+    // Infinity
+    ASSERT_LD_ADD_BINEQ(LARGEST_NORMAL, BUILD_LD(0, EXPONENT_MIDWAY - 112), "largest normal + just enough = infinity"); // Infinity
+    ASSERT_LD_ADD_BINEQ(LARGEST_NORMAL, LARGEST_NORMAL, "largest normal + largest normal = infinity");
+    ASSERT_LD_ADD_BINEQ(-LARGEST_NORMAL, -LARGEST_NORMAL, "-largest normal + -largest normal = -infinity");
+}
+
 int main() {
     #ifdef __x86_64
     printf("Softfloat is not supported on x86_64\n");
     exit(1);
     #endif
 
+    test_shift_right();
     test_float_roundtrip();
     test_double_roundtrip();
+    test_ld_roundtrip();
     test_convert_float_to_double();
     test_convert_float_to_ld();
     test_convert_double_to_float();
@@ -336,6 +514,8 @@ int main() {
     test_convert_ld_to_uint64();
     test_convert_int64_to_ld();
     test_convert_uint64_to_ld();
+    test_negate_ld();
+    test_add_subtract_ld();
 
     finish_tests();
 }

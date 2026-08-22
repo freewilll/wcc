@@ -66,7 +66,8 @@ static void convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv) {
 
     int exponent_midway = GET_ENCODING_EXPONENT_MIDWAY(encoding);
 
-    // The shift_amount doesn't include the implicit leading 1 before the decimal point
+    // The shift_amount doesn't include the implicit leading 1 before the decimal point.
+    // shift_amount may be zero.
     int shift_amount = -exponent_midway - fpv->exponent;
 
     // The -1 in the comparison is because shift_amount doesn't include the implicit 1,
@@ -93,6 +94,7 @@ static void convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv) {
     // Make the guard and sticky bits from the shift amount.
     int guard;
     int sticky;
+
     make_guard_and_sticky_bits(fpv, encoding.significand_bits - shift_amount, &guard, &sticky);
 
     #ifdef DEBUG_STORE
@@ -107,7 +109,7 @@ static void convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv) {
     fpv->significand |= (__uint128_t) 1 << (SIGNIFICAND_BITS - 1);
 
     // Shift the bits over
-    fpv->significand >>= shift_amount;
+    if (shift_amount) fpv->significand >>= shift_amount;
 
     fpv->type = TYPE_SUBNORMAL;
 
@@ -127,7 +129,7 @@ static void convert_to_inf_if_needed(FpEncoding encoding, FpValue *fpv) {
     int exponent_max = GET_ENCODING_EXPONENT_MAX(encoding);
     int exponent_midway = GET_ENCODING_EXPONENT_MIDWAY(encoding);
 
-    if (fpv->type != TYPE_SUBNORMAL && fpv->exponent + exponent_midway > exponent_max) {
+    if (fpv->type != TYPE_SUBNORMAL && fpv->exponent + exponent_midway >= exponent_max) {
         fpv->type = TYPE_INF;
         fpv->exponent = 0;
 
@@ -288,6 +290,9 @@ long double store_ld(FpValue *fpv) {
     printf("Storing                     ");
     print_fpv(fpv);
     #endif
+
+    convert_to_inf_if_needed(binary128_encoding, fpv);
+    convert_to_subnormal_if_needed(binary128_encoding, fpv);
 
     __uint128_t raw = store(binary128_encoding, fpv);
     long double ld = *((long double *) &raw);

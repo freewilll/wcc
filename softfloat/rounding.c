@@ -6,9 +6,29 @@
 #include "testlib.h"
 #endif
 
+// Shift right and update guard and sticky bits
+void shift_right(__uint128_t *value, int shift_amount, int *guard, int *sticky) {
+    if (!shift_amount) return;
+
+    *sticky |= *guard;
+
+    if (shift_amount == 1) {
+        *guard = *value & 1;
+    }
+    else {
+        *guard = (*value & ((__uint128_t) 1 << (shift_amount - 1))) != 0;
+        __uint128_t mask = (((__uint128_t) 1 << (shift_amount - 1)) - 1);
+        *sticky |= (*value & mask) != 0;
+    }
+
+    *value >>= shift_amount;
+}
+
 void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *sticky) {
     *guard = 0;
     *sticky = 0;
+
+    if (start_bit >= SIGNIFICAND_BITS) return;
 
     __uint128_t mask = SBITMASK(start_bit);
     *guard = (fpv->significand & mask) != 0;
@@ -22,8 +42,7 @@ void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *st
     }
 }
 
-// Round to the nearest even bit at bit bits
-// The sss are orrded into a single sticky bit
+// Round to the nearest even
 // T is the top bit
 // g is the guard bit (first discarded bit)
 // s is the orrded sticky bits (second and further discarded bits, they are the tie breaker)
@@ -34,7 +53,7 @@ void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *st
 // 0|1|1 => 1   // Inexact, above half, round up
 // 1|0|0 => 0   // Exact, no change
 // 1|0|1 => 0   // Inexact, below half, round down
-// 1|1|0 => 1   // Exact, T is odd, round up
+// 1|1|0 => 1   // Exact, T is odd, round up to nearest even
 // 1|1|1 => 1   // Above half, round up
 void round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guard, int sticky) {
     #ifdef DEBUG_ROUNDING

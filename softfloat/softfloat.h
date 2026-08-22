@@ -76,15 +76,21 @@ long double convert_int64_to_ld     (int64_t  i);
 long double convert_uint64_to_ld    (uint64_t i);
 
 // rounding.c
+void shift_right(__uint128_t *value, int shift_amount, int *guard, int *sticky);
+void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *sticky);
 void round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guard, int sticky);
 void round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits);
-void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *sticky);
 
 // integers.c
 int64_t convert_fpv_to_int64(FpValue *fpv);
 uint64_t convert_fpv_to_uint64(FpValue *fpv);
 FpValue convert_int64_to_fpv(int64_t i);
 FpValue convert_uint64_to_fpv(uint64_t i);
+
+// arithmetic.c
+long double negate_ld(long double ld);
+long double add_ld(long double a, long double b);
+long double subtract_ld(long double a, long double b);
 
 #endif
 

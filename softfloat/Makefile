@@ -1,10 +1,10 @@
 all: test_softfloat
 
-LIBS = testlib.o loadstore.o conversions.o rounding.o integers.o
+LIBS = testlib.o loadstore.o conversions.o rounding.o integers.o arithmetic.o
 
 # set DEBUG=1 to activate all debug flags
 ifeq ($(DEBUG),1)
-	CC_OPTS=-DDEBUG_LOAD -DDEBUG_STORE -DDEBUG_ROUNDING
+	CC_OPTS=-DDEBUG_LOAD -DDEBUG_STORE -DDEBUG_ROUNDING -DDEBUG_ARITHMETIC
 endif
 
 %.o: %.c softfloat.h testlib.h
@@ -22,5 +22,6 @@ test: test_softfloat
 	./test_softfloat
 
 clean:
+	@rm -f debug
 	@rm -f test_softfloat
 	@rm -f *.o
