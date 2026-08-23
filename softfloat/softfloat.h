@@ -76,8 +76,11 @@ long double convert_int64_to_ld     (int64_t  i);
 long double convert_uint64_to_ld    (uint64_t i);
 
 // rounding.c
+int count_leading_zeros(__uint128_t v);
+void update_guard_and_sticky_bits(__uint128_t *value, int shift_amount, int *guard, int *sticky);
 void shift_right(__uint128_t *value, int shift_amount, int *guard, int *sticky);
-void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *sticky);
+void update_GRS_bits(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky);
+void shift_right_with_GRS(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky);
 void round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guard, int sticky);
 void round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits);
 

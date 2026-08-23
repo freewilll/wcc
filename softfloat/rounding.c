@@ -2,12 +2,31 @@
 
 #ifdef DEBUG_ROUNDING
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "testlib.h"
 #endif
 
-// Shift right and update guard and sticky bits
-void shift_right(__uint128_t *value, int shift_amount, int *guard, int *sticky) {
+// Determine the amount of leading zeros by looking at the
+// two 64-bit halves of a  128-bit significand.
+int count_leading_zeros(__uint128_t v) {
+    int leading_zeros;
+
+    uint64_t high = v >> 64;
+    uint64_t low = v;
+
+    if (high == 0 && low == 0) return 128;
+
+    if (high == 0)
+        leading_zeros =__builtin_clzll(low) + 64;
+    else
+        leading_zeros = __builtin_clzll(high);
+
+    return leading_zeros;
+}
+
+// Update guard and sticky bits as if the value were to be shifted right by shift_amount
+void update_guard_and_sticky_bits(__uint128_t *value, int shift_amount, int *guard, int *sticky) {
     if (!shift_amount) return;
 
     *sticky |= *guard;
@@ -20,26 +39,47 @@ void shift_right(__uint128_t *value, int shift_amount, int *guard, int *sticky) 
         __uint128_t mask = (((__uint128_t) 1 << (shift_amount - 1)) - 1);
         *sticky |= (*value & mask) != 0;
     }
-
-    *value >>= shift_amount;
 }
 
-void make_guard_and_sticky_bits(FpValue *fpv, int start_bit, int *guard, int *sticky) {
-    *guard = 0;
-    *sticky = 0;
+// Shift right and update guard and sticky bits
+void shift_right(__uint128_t *value, int shift_amount, int *guard, int *sticky) {
+    update_guard_and_sticky_bits(value, shift_amount, guard, sticky);
+    if (shift_amount) *value >>= shift_amount;
+}
 
-    if (start_bit >= SIGNIFICAND_BITS) return;
+// Update guard, round and sticky bits as if the value were to be shifted right by shift_amount
+void update_GRS_bits(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky) {
+    if (!shift_amount) return;
 
-    __uint128_t mask = SBITMASK(start_bit);
-    *guard = (fpv->significand & mask) != 0;
-    mask >>= 1;
-
-    *sticky = 0;
-    while (mask) {
-        int b = (fpv->significand & mask) != 0;
-        mask >>= 1;
-        *sticky |= b;
+    if (shift_amount >= 128) {
+        // Should not normally happen.
+        #ifdef DEBUG_ROUNDING
+        printf("Illegal shift amount %d >= 128 in update_GRS_bits", shift_amount);
+        exit(1);
+        #endif
+        return;
     }
+
+    if (shift_amount == 1) {
+        *sticky |= *round;
+        *round = *guard;
+        *guard = *value & 1;
+        return;
+    }
+
+    // Implicit else, shift_amount >= 2
+    *sticky |= *guard | *round;
+    *guard = (*value >> (shift_amount - 1)) & 1;
+    *round = (*value >> (shift_amount - 2)) & 1;
+
+    __uint128_t mask = (((__uint128_t) 1 << (shift_amount - 2)) - 1);
+    *sticky |= (*value & mask) != 0;
+}
+
+// Shift right and update guard, round and sticky bits
+void shift_right_with_GRS(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky) {
+    update_GRS_bits(value, shift_amount, guard, round, sticky);
+    if (shift_amount) *value >>= shift_amount;
 }
 
 // Round to the nearest even
@@ -103,8 +143,8 @@ void round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guar
 
 // Using a significand of bits size, look a the bits beyond and round.
 void round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits) {
-    int guard;
-    int sticky;
-    make_guard_and_sticky_bits(fpv, bits, &guard, &sticky);
+    int guard = 0;
+    int sticky = 0;
+    update_guard_and_sticky_bits(&fpv->significand, SIGNIFICAND_BITS - bits, &guard, &sticky);
     round_to_nearest_even(encoding, fpv, bits, guard, sticky);
 }

@@ -28,30 +28,20 @@ static void convert_from_subnormal(FpEncoding encoding, FpValue *fpv) {
 
     // Determine the amount of leading zeros by looking at the
     // two 64-bit halves of the 128-bit significand.
-    int leading_bits;
-    uint64_t high = fpv->significand >> 64;
-    uint64_t low = fpv->significand;
-
-    // Shouldn't happen; the IEEE encoding requires that at least one bit is 1
-    if (high == 0 && low == 0) return;
-
-    if (high == 0)
-        leading_bits =__builtin_clzll(low) + 64;
-    else
-        leading_bits = __builtin_clzll(high);
+    int leading_zeroes = count_leading_zeros(fpv->significand);
 
     // The upper bits are unused.
-    leading_bits -= EMPTY_HIGH_BITS;
+    leading_zeroes -= EMPTY_HIGH_BITS;
 
     int exponent_midway = GET_ENCODING_EXPONENT_MIDWAY(encoding);
 
     #ifdef DEBUG_LOAD
-    printf("                            Loading subnormal with leading_bits=%d exponent_midway=%d\n", leading_bits, exponent_midway);
+    printf("                            Loading subnormal with leading_zeroes=%d exponent_midway=%d\n", leading_zeroes, exponent_midway);
     #endif
 
     // Bump the exponent and shift the significand over
-    fpv->exponent = -exponent_midway - leading_bits;
-    fpv->significand = (fpv->significand << (leading_bits + 1));
+    fpv->exponent = -exponent_midway - leading_zeroes;
+    fpv->significand = (fpv->significand << (leading_zeroes + 1));
 
     #ifdef DEBUG_LOAD
     printf("After SN conversion:        ");
@@ -92,10 +82,10 @@ static void convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv) {
     }
 
     // Make the guard and sticky bits from the shift amount.
-    int guard;
-    int sticky;
+    int guard = 0;
+    int sticky = 0;
 
-    make_guard_and_sticky_bits(fpv, encoding.significand_bits - shift_amount, &guard, &sticky);
+    update_guard_and_sticky_bits(&fpv->significand, SIGNIFICAND_BITS - encoding.significand_bits + shift_amount, &guard, &sticky);
 
     #ifdef DEBUG_STORE
     printf("                            Converting to subnormal since %d - %d < 1: shift by %d\n", -fpv->exponent, exponent_midway, shift_amount);
