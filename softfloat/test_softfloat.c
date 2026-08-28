@@ -42,10 +42,10 @@ typedef union {
 // Check a + b and b + a
 #define ASSERT_LD_ADD_BINEQ(a, b, m) { \
     ASSERT_LD_ADD_BINEQ_ONE_DIRECTION(a, b, m); \
-    ASSERT_LD_ADD_BINEQ_ONE_DIRECTION(a, b, m " reverse"); \
+    ASSERT_LD_ADD_BINEQ_ONE_DIRECTION(b, a, m " reverse"); \
 }
 
-// Assert an addition done by the compiled code and lib is bitwise identical
+// Assert a subtraction done by the compiled code and lib is bitwise identical
 #define ASSERT_LD_SUB_BINEQ_ONE_DIRECTION(a, b, m) { \
     LongDoubleUnion u1; \
     LongDoubleUnion u2; \
@@ -61,8 +61,28 @@ typedef union {
 // Check a - b and b - a
 #define ASSERT_LD_SUB_BINEQ(a, b, m) { \
     ASSERT_LD_SUB_BINEQ_ONE_DIRECTION(a, b, m); \
-    ASSERT_LD_SUB_BINEQ_ONE_DIRECTION(a, b, m " reverse"); \
+    ASSERT_LD_SUB_BINEQ_ONE_DIRECTION(b, a, m " reverse"); \
 }
+
+// Assert a multiplication done by the compiled code and lib is bitwise identical
+#define ASSERT_LD_MUL_BINEQ_ONE_DIRECTION(a, b, m) { \
+    LongDoubleUnion u1; \
+    LongDoubleUnion u2; \
+    u1.ld = (a) * (b); \
+    u2.ld = multiply_ld(a, b); \
+    if (u1.i != u2.i) { \
+        printf("%016lx %016lx %Lg\n", (uint64_t) (u1.i >> 64), (uint64_t) u1.i, u1.ld); \
+        printf("%016lx %016lx %Lg\n", (uint64_t) (u2.i >> 64), (uint64_t) u2.i, u2.ld); \
+    } \
+    assert_int(1, u1.i == u2.i, m); \
+}
+
+// Check a * b and b * a
+#define ASSERT_LD_MUL_BINEQ(a, b, m) { \
+    ASSERT_LD_MUL_BINEQ_ONE_DIRECTION(a, b, m); \
+    ASSERT_LD_MUL_BINEQ_ONE_DIRECTION(b, a, m " reverse"); \
+}
+
 
 void test_shift_right() {
     __uint128_t v = 0;
@@ -151,6 +171,65 @@ void test_update_GRS_bits() {
     run_update_GRS_bits(1, 4, 0, 0, 0, 0, 0, 1, "update_GRS_bits: 0 >> 4, S |= bit");
     run_update_GRS_bits(2, 4, 0, 0, 0, 0, 0, 1, "update_GRS_bits: 0 >> 4, S |= bit");
     run_update_GRS_bits(3, 4, 0, 0, 0, 0, 0, 1, "update_GRS_bits: 0 >> 4, S |= bit");
+}
+
+void test_multiply_256_bit() {
+    __uint128_t a, b;
+
+    a = 3;
+    b = 4;
+    ASSERT_INT256(
+        0x0000000000000000,
+        0x0000000000000000,
+        0x0000000000000000,
+        0x000000000000000c,
+        multiply_256_bit(a, b),
+        "256 bit multiply 3 * 4"
+    );
+
+    a = (((__uint128_t) 3) << 64) | 4;
+    b = (((__uint128_t) 5) << 64) | 6;
+    ASSERT_INT256(
+        0x0000000000000000,
+        0x000000000000000f,
+        0x0000000000000026,
+        0x0000000000000018,
+        multiply_256_bit(a, b),
+        "256 bit multiply 3|4 * 5|6"
+    );
+
+    a = 0xffffffffffffffff;
+    b = 0xffffffffffffffff;
+    ASSERT_INT256(
+        0x0000000000000000,
+        0x0000000000000000,
+        0xfffffffffffffffe,
+        0x0000000000000001,
+        multiply_256_bit(a, b),
+        "256 bit multiply 0|f..f * 0|f..f"
+    );
+
+    a = -1;
+    b = -1;
+    ASSERT_INT256(
+        0xffffffffffffffff,
+        0xfffffffffffffffe,
+        0x0000000000000000,
+        0x0000000000000001,
+        multiply_256_bit(a, b),
+        "256 bit multiply f..f * f..f"
+    );
+
+    a = ((__uint128_t) 0x0123456789abcdefL << 64) | 0x0123456789abcdefL;
+    b = ((__uint128_t) 0xfedcba9876543210L << 64) | 0xfedcba9876543210L;
+    ASSERT_INT256(
+        0x0121fa00ad77d742,
+        0x247acc9140513b74,
+        0x458fab20783af122,
+        0x2236d88fe5618cf0,
+        multiply_256_bit(a, b),
+        "256 bit multiply seq * seq"
+    );
 }
 
 // Test that loading and storing a float produces the exact same binary result.
@@ -523,7 +602,7 @@ void test_add_ld() {
     long double LARGEST_SUBNORMAL = BUILD_LD(((__uint128_t) 1 << 112) - 1, -EXPONENT_MIDWAY);
     long double SMALLEST_SUBNORMAL = BUILD_LD(1, -EXPONENT_MIDWAY);
 
-    // Rounding tests
+    // Rounding
     ASSERT_LD_ADD_BINEQ(2 - TWO_EXP_MIN_112, TWO_EXP_MIN_112, "(2 - 2^-112) +  2^-112");
     ASSERT_LD_ADD_BINEQ(1, TWO_EXP_MIN_112, "1 + 2^-112");
     ASSERT_LD_ADD_BINEQ(1, TWO_EXP_MIN_113, "1 + 2^-113"); // T=0, g=1, s=0, rounds down
@@ -615,7 +694,7 @@ void test_subtract_ld() {
     ASSERT_LD_SUB_BINEQ(1.0L, ONE_PLUS_ULP, "1 - (1 + 2^-112)");
     ASSERT_LD_SUB_BINEQ(ONE_PLUS_ULP, 1.0L, "(1 + 2^-112) - 1");
 
-    // Rounding tests
+    // Rounding
     ASSERT_LD_SUB_BINEQ(1.0L, TWO_EXP_MIN_113, "1 - 2^-113"); // T=0, g=1, r=0, s=0  Exact
     ASSERT_LD_SUB_BINEQ(1.0L, TWO_EXP_MIN_114, "1 - 2^-114"); // T=0, g=0, r=1, s=0  Halfway
     ASSERT_LD_SUB_BINEQ(1.0L, TWO_EXP_MIN_115, "1 - 2^-115"); // T=0, g=0, r=0, s=1  Less than halfway
@@ -642,6 +721,75 @@ void test_subtract_ld() {
     ASSERT_LD_SUB_BINEQ(-INFINITY, -INFINITY, "-inf - -inf");
 }
 
+void test_multiply_ld() {
+    // Zero
+    ASSERT_LD_MUL_BINEQ( 0.0,  1.0, " 0.0 *   1.0");
+    ASSERT_LD_MUL_BINEQ(-0.0,  1.0, "-0.0 *   1.0");
+    ASSERT_LD_MUL_BINEQ( 0.0, -1.0, " 0.0 *  -1.0");
+    ASSERT_LD_MUL_BINEQ(-0.0, -1.0, "-0.0 *  -1.0");
+
+    // One
+    ASSERT_LD_MUL_BINEQ( 1.0,  2.0, " 1.0 *  2.0");
+    ASSERT_LD_MUL_BINEQ( 1.0, -2.0, " 1.0 * -2.0");
+    ASSERT_LD_MUL_BINEQ(-1.0,  2.0, "-1.0 *  2.0");
+    ASSERT_LD_MUL_BINEQ(-1.0, -2.0, "-1.0 * -2.0");
+
+    // Infinity
+    ASSERT_LD_MUL_BINEQ( INFINITY,   2.0,      "+inf *  2.0");
+    ASSERT_LD_MUL_BINEQ( INFINITY,  -2.0,      "+inf * -2.0");
+    ASSERT_LD_MUL_BINEQ( INFINITY,   0.5,      "+inf *  0.5");
+    ASSERT_LD_MUL_BINEQ( INFINITY,   INFINITY, "+inf * +inf");
+    ASSERT_LD_MUL_BINEQ(-INFINITY,   INFINITY, "-inf * +inf");
+    ASSERT_LD_MUL_BINEQ(-INFINITY,   INFINITY, "-inf * -inf");
+
+    ASSERT_LD_MUL_BINEQ( 0.0L,  NAN, "+0.0 - +nan");
+    ASSERT_LD_MUL_BINEQ( 0.0L, -NAN, "+0.0 - -nan");
+    ASSERT_LD_MUL_BINEQ(-0.0L,  NAN, "-0.0 - +nan");
+    ASSERT_LD_MUL_BINEQ(-0.0L, -NAN, "-0.0 - -nan");
+
+    ASSERT_LD_MUL_BINEQ( INFINITY,  0.0, "+inf *  0.0");
+    ASSERT_LD_MUL_BINEQ( INFINITY, -0.0, "+inf * -0.0");
+    ASSERT_LD_MUL_BINEQ(-INFINITY,  0.0, "-inf *  0.0");
+    ASSERT_LD_MUL_BINEQ(-INFINITY, -0.0, "-inf * -0.0");
+
+    ASSERT_LD_MUL_BINEQ( INFINITY,  NAN, "+inf *  NAN");
+    ASSERT_LD_MUL_BINEQ( INFINITY, -NAN, "+inf * -NAN");
+    ASSERT_LD_MUL_BINEQ(-INFINITY,  NAN, "-inf *  NAN");
+    ASSERT_LD_MUL_BINEQ(-INFINITY, -NAN, "-inf * -NAN");
+
+    ASSERT_LD_MUL_BINEQ( 1.0,     1.0,    " 1.0 *  1.0");
+    ASSERT_LD_MUL_BINEQ( 1.0,     2.0,    " 1.0 *  2.0");
+    ASSERT_LD_MUL_BINEQ( 2.0,     3.0,    " 2.0 *  3.0");
+    ASSERT_LD_MUL_BINEQ( 2.0,    -3.0,    " 2.0 * -3.0");
+    ASSERT_LD_MUL_BINEQ(-2.0,     3.0,    "-2.0 *  3.0");
+    ASSERT_LD_MUL_BINEQ(-2.0,    -3.0,    "-2.0 * -3.0");
+    ASSERT_LD_MUL_BINEQ( 3.0,     3.0,    " 3.0 *  3.0");
+    ASSERT_LD_MUL_BINEQ( 3.0,     0.5,    " 3.0 *  0.5");
+    ASSERT_LD_MUL_BINEQ( 1e-100L, 1e100L, " 1e-100 * 1e100");
+    ASSERT_LD_MUL_BINEQ( 1e-100L, 1e200L, " 1e-100 * 1e200");
+    ASSERT_LD_MUL_BINEQ( 1e-200L, 1e100L, " 1e-200 * 1e100");
+
+    // Create a bunch of convenient constants
+    long double TWO_EXP_MIN_112 = BUILD_LD(0, -112); // 2^-112
+    long double SMALLEST_NORMAL = BUILD_LD(0 , 1 - EXPONENT_MIDWAY);
+    long double LARGEST_NORMAL = BUILD_LD(((__uint128_t) 1 << 112) - 1, EXPONENT_MIDWAY);
+    long double LARGEST_SUBNORMAL = BUILD_LD(((__uint128_t) 1 << 112) - 1, -EXPONENT_MIDWAY);
+    long double SMALLEST_SUBNORMAL = BUILD_LD(1, -EXPONENT_MIDWAY);
+    long double ONE_PLUS_ULP = BUILD_LD(1, 0); // (1 + 2^-112)
+    long double ONE_MINUS_ULP =BUILD_LD(((__uint128_t) 1 << 112) - 1, -1);
+    long double TWO_MINUS_ULP = BUILD_LD(((__uint128_t) 1 << 112) - 1, 0);
+
+    // Rounding and subnormals
+    ASSERT_LD_MUL_BINEQ(SMALLEST_NORMAL, 0.5L, "smallest normal * 0.5");
+    ASSERT_LD_MUL_BINEQ(SMALLEST_NORMAL, TWO_EXP_MIN_112, "smallest normal * 2^-112");
+    ASSERT_LD_MUL_BINEQ(SMALLEST_SUBNORMAL, 0.5L, "smallest subnormal * 0.5 = 0");
+    ASSERT_LD_MUL_BINEQ(-SMALLEST_SUBNORMAL, 0.5L, "-smallest subnormal * 0.5 = 0");
+    ASSERT_LD_MUL_BINEQ(LARGEST_NORMAL, 2.0L, "largest normal * 2 = +inf");
+    ASSERT_LD_MUL_BINEQ(-LARGEST_NORMAL, 2.0L, "-largest normal * 2 = -inf");
+    ASSERT_LD_MUL_BINEQ(-LARGEST_NORMAL, -2.0L, "-largest normal * -2 = +inf");
+    ASSERT_LD_MUL_BINEQ(ONE_PLUS_ULP, ONE_PLUS_ULP, "(1 + 2^-112)^2 rounding");
+}
+
 int main() {
     #ifdef __x86_64
     printf("Softfloat is not supported on x86_64\n");
@@ -650,6 +798,7 @@ int main() {
 
     test_shift_right();
     test_update_GRS_bits();
+    test_multiply_256_bit();
     test_float_roundtrip();
     test_double_roundtrip();
     test_ld_roundtrip();
@@ -668,6 +817,7 @@ int main() {
     test_negate_ld();
     test_add_ld();
     test_subtract_ld();
+    test_multiply_ld();
 
     finish_tests();
 }

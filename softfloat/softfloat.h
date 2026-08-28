@@ -32,6 +32,11 @@
 // Set a significant bit, where 0 is the MSB
 #define SET_SBIT(s, p) (s) |= SBITMASK(p)
 
+typedef struct {
+    __uint128_t low;
+    __uint128_t high;
+} uint256_t;
+
 typedef struct fp_encoding {
     int exponent_bits;
     int significand_bits;
@@ -91,9 +96,11 @@ FpValue convert_int64_to_fpv(int64_t i);
 FpValue convert_uint64_to_fpv(uint64_t i);
 
 // arithmetic.c
+uint256_t multiply_256_bit(__uint128_t a, __uint128_t b);
 long double negate_ld(long double ld);
 long double add_ld(long double a, long double b);
 long double subtract_ld(long double a, long double b);
+long double multiply_ld(long double a, long double b);
 
 #endif
 
