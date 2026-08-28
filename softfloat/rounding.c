@@ -35,7 +35,7 @@ void update_guard_and_sticky_bits(__uint128_t *value, int shift_amount, int *gua
         *guard = *value & 1;
     }
     else {
-        *guard = (*value & ((__uint128_t) 1 << (shift_amount - 1))) != 0;
+        *guard = (*value >> (shift_amount - 1)) & 1;
         __uint128_t mask = (((__uint128_t) 1 << (shift_amount - 1)) - 1);
         *sticky |= (*value & mask) != 0;
     }

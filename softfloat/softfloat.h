@@ -101,6 +101,7 @@ long double negate_ld(long double ld);
 long double add_ld(long double a, long double b);
 long double subtract_ld(long double a, long double b);
 long double multiply_ld(long double a, long double b);
+long double divide_ld(long double a, long double b);
 
 #endif
 

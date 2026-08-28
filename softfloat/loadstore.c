@@ -74,21 +74,28 @@ static void convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv) {
     if (shift_amount > encoding.significand_bits) {
         fpv->exponent = 0;
         fpv->significand = 0;
+        fpv->type = TYPE_ZERO;
 
         #ifdef DEBUG_STORE
         printf("                            No bits would be left after converting to subnormal, making a zero\n");
         print_fpv(fpv);
         #endif
+
+        return;
     }
 
     // Make the guard and sticky bits from the shift amount.
     int guard = 0;
     int sticky = 0;
 
-    update_guard_and_sticky_bits(&fpv->significand, SIGNIFICAND_BITS - encoding.significand_bits + shift_amount, &guard, &sticky);
+    // Set the implicit 1 before the dot
+    fpv->significand |= ((__uint128_t) 1) << SIGNIFICAND_BITS;
+
+    // Set the guard and sticky bits based on a total shift of shift_amount + 1
+    update_guard_and_sticky_bits(&fpv->significand, SIGNIFICAND_BITS - encoding.significand_bits + shift_amount + 1, &guard, &sticky);
 
     #ifdef DEBUG_STORE
-    printf("                            Converting to subnormal since %d - %d < 1: shift by %d\n", -fpv->exponent, exponent_midway, shift_amount);
+    printf("                            Converting to subnormal since %d - %d < 1: shift by 1 + %d\n", -fpv->exponent, exponent_midway, shift_amount);
     printf("Before SN conversion:       ");
     print_fpv(fpv);
     #endif
@@ -96,7 +103,6 @@ static void convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv) {
     // The first shift is special, because the implicit 1 before the decimal point
     // from the normal encoding needs to be shifted over.
     fpv->significand >>= 1;
-    fpv->significand |= (__uint128_t) 1 << (SIGNIFICAND_BITS - 1);
 
     // Shift the bits over
     if (shift_amount) fpv->significand >>= shift_amount;

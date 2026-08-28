@@ -83,6 +83,24 @@ typedef union {
     ASSERT_LD_MUL_BINEQ_ONE_DIRECTION(b, a, m " reverse"); \
 }
 
+// Assert a division done by the compiled code and lib is bitwise identical
+#define ASSERT_LD_DIV_BINEQ_ONE_DIRECTION(a, b, m) { \
+    LongDoubleUnion u1; \
+    LongDoubleUnion u2; \
+    u1.ld = (a) / (b); \
+    u2.ld = divide_ld(a, b); \
+    if (u1.i != u2.i) { \
+        printf("%016lx %016lx %Lg\n", (uint64_t) (u1.i >> 64), (uint64_t) u1.i, u1.ld); \
+        printf("%016lx %016lx %Lg\n", (uint64_t) (u2.i >> 64), (uint64_t) u2.i, u2.ld); \
+    } \
+    assert_int(1, u1.i == u2.i, m); \
+}
+
+// Check a / b and b / a
+#define ASSERT_LD_DIV_BINEQ(a, b, m) { \
+    ASSERT_LD_DIV_BINEQ_ONE_DIRECTION(a, b, m); \
+    ASSERT_LD_DIV_BINEQ_ONE_DIRECTION(b, a, m " reverse"); \
+}
 
 void test_shift_right() {
     __uint128_t v = 0;
@@ -363,7 +381,7 @@ void test_convert_ld_to_float() {
     TEST_LD_TO_FLOAT(1.17549435e-38, "1.17549435e-38",  "Conversion of LD to float: min normal");
     TEST_LD_TO_FLOAT(1.17549421e-38,  "1.17549421e-38", "Conversion of LD to float: max subnormal");
     TEST_LD_TO_FLOAT(1.40129846e-45, "1.40129846e-45",  "Conversion of LD to float: min subnormal");
-    TEST_LD_TO_FLOAT(1e-40,          "1.00000862e-40",  "Conversion of LD to float: somewhere halfway subnormal");
+    TEST_LD_TO_FLOAT(1e-40,          "9.99994610e-41",  "Conversion of LD to float: somewhere halfway subnormal");
     TEST_LD_TO_FLOAT(1e-46,          "0.00000000e+00",  "Conversion of LD to float: below min subnormal +0.0");
     TEST_LD_TO_FLOAT(-1e-46,         "-0.00000000e+00", "Conversion of LD to float: below min subnormal -0.0");
 }
@@ -723,10 +741,10 @@ void test_subtract_ld() {
 
 void test_multiply_ld() {
     // Zero
-    ASSERT_LD_MUL_BINEQ( 0.0,  1.0, " 0.0 *   1.0");
-    ASSERT_LD_MUL_BINEQ(-0.0,  1.0, "-0.0 *   1.0");
-    ASSERT_LD_MUL_BINEQ( 0.0, -1.0, " 0.0 *  -1.0");
-    ASSERT_LD_MUL_BINEQ(-0.0, -1.0, "-0.0 *  -1.0");
+    ASSERT_LD_MUL_BINEQ( 0.0,  1.0, " 0.0 *  1.0");
+    ASSERT_LD_MUL_BINEQ(-0.0,  1.0, "-0.0 *  1.0");
+    ASSERT_LD_MUL_BINEQ( 0.0, -1.0, " 0.0 * -1.0");
+    ASSERT_LD_MUL_BINEQ(-0.0, -1.0, "-0.0 * -1.0");
 
     // One
     ASSERT_LD_MUL_BINEQ( 1.0,  2.0, " 1.0 *  2.0");
@@ -742,11 +760,6 @@ void test_multiply_ld() {
     ASSERT_LD_MUL_BINEQ(-INFINITY,   INFINITY, "-inf * +inf");
     ASSERT_LD_MUL_BINEQ(-INFINITY,   INFINITY, "-inf * -inf");
 
-    ASSERT_LD_MUL_BINEQ( 0.0L,  NAN, "+0.0 - +nan");
-    ASSERT_LD_MUL_BINEQ( 0.0L, -NAN, "+0.0 - -nan");
-    ASSERT_LD_MUL_BINEQ(-0.0L,  NAN, "-0.0 - +nan");
-    ASSERT_LD_MUL_BINEQ(-0.0L, -NAN, "-0.0 - -nan");
-
     ASSERT_LD_MUL_BINEQ( INFINITY,  0.0, "+inf *  0.0");
     ASSERT_LD_MUL_BINEQ( INFINITY, -0.0, "+inf * -0.0");
     ASSERT_LD_MUL_BINEQ(-INFINITY,  0.0, "-inf *  0.0");
@@ -757,6 +770,13 @@ void test_multiply_ld() {
     ASSERT_LD_MUL_BINEQ(-INFINITY,  NAN, "-inf *  NAN");
     ASSERT_LD_MUL_BINEQ(-INFINITY, -NAN, "-inf * -NAN");
 
+    // Nan
+    ASSERT_LD_MUL_BINEQ( 0.0L,  NAN, "+0.0 - +nan");
+    ASSERT_LD_MUL_BINEQ( 0.0L, -NAN, "+0.0 - -nan");
+    ASSERT_LD_MUL_BINEQ(-0.0L,  NAN, "-0.0 - +nan");
+    ASSERT_LD_MUL_BINEQ(-0.0L, -NAN, "-0.0 - -nan");
+
+    // Regular cases
     ASSERT_LD_MUL_BINEQ( 1.0,     1.0,    " 1.0 *  1.0");
     ASSERT_LD_MUL_BINEQ( 1.0,     2.0,    " 1.0 *  2.0");
     ASSERT_LD_MUL_BINEQ( 2.0,     3.0,    " 2.0 *  3.0");
@@ -790,6 +810,84 @@ void test_multiply_ld() {
     ASSERT_LD_MUL_BINEQ(ONE_PLUS_ULP, ONE_PLUS_ULP, "(1 + 2^-112)^2 rounding");
 }
 
+void test_divide_ld() {
+    // Zero
+    ASSERT_LD_DIV_BINEQ( 0.0,  1.0, " 0.0 /  1.0");
+    ASSERT_LD_DIV_BINEQ(-0.0,  1.0, "-0.0 /  1.0");
+    ASSERT_LD_DIV_BINEQ( 0.0, -1.0, " 0.0 / -1.0");
+    ASSERT_LD_DIV_BINEQ(-0.0, -1.0, "-0.0 / -1.0");
+    ASSERT_LD_DIV_BINEQ( 0.0,  0.0, " 0.0 /  0.0");
+    ASSERT_LD_DIV_BINEQ(-0.0,  0.0, "-0.0 /  0.0");
+    ASSERT_LD_DIV_BINEQ(-0.0, -0.0, "-0.0 / -0.0");
+
+    // Infinity
+    ASSERT_LD_MUL_BINEQ( 1.0,        INFINITY, "+1.0 / +inf");
+    ASSERT_LD_MUL_BINEQ(-1.0,        INFINITY, "-1.0 / +inf");
+    ASSERT_LD_MUL_BINEQ(-1.0,        INFINITY, "-1.0 / -inf");
+    ASSERT_LD_MUL_BINEQ( INFINITY,   1.0,      "+inf / +1.0");
+    ASSERT_LD_MUL_BINEQ(-INFINITY,   1.0,      "-inf / +1.0");
+    ASSERT_LD_MUL_BINEQ(-INFINITY,   1.0,      "-inf / -1.0");
+    ASSERT_LD_MUL_BINEQ( INFINITY,   INFINITY, "+inf / +inf");
+    ASSERT_LD_MUL_BINEQ(-INFINITY,   INFINITY, "-inf / +inf");
+    ASSERT_LD_MUL_BINEQ(-INFINITY,   INFINITY, "-inf / -inf");
+
+    // Nan
+    ASSERT_LD_MUL_BINEQ( NAN,   1.0, "_nan / +1.0");
+    ASSERT_LD_MUL_BINEQ( NAN,  -1.0, "_nan / -1.0");
+    ASSERT_LD_MUL_BINEQ(-NAN,   1.0, "-nan / +1.0");
+    ASSERT_LD_MUL_BINEQ(-NAN,  -1.0, "-nan / -1.0");
+
+    // Regular cases
+    ASSERT_LD_DIV_BINEQ(3.0L,      3.0L,     "3.0 / 3.0");
+    ASSERT_LD_DIV_BINEQ(3.0L,      2.0L,     "3.0 / 2.0");
+    ASSERT_LD_DIV_BINEQ(3.0L,     -2.0L,     "3.0 / -2.0");
+    ASSERT_LD_DIV_BINEQ(15.0L,     4.0L,     "15.0 / 4.0");
+    ASSERT_LD_DIV_BINEQ(1.0L,      1.0001L,  "1.0 / 1.0001");
+    ASSERT_LD_DIV_BINEQ(1.0L,      1.5L,     "1.0 / 1.5");
+    ASSERT_LD_DIV_BINEQ(1.0L,      3.0L,     "1.0 / 3.0");
+    ASSERT_LD_DIV_BINEQ(1.0L,      5.0L,     "1.0 / 5.0");
+    ASSERT_LD_DIV_BINEQ(2.0L,      3.0L,     "2.0 / 3.0");
+    ASSERT_LD_DIV_BINEQ(4.0L,      3.0L,     "4.0 / 3.0");
+    ASSERT_LD_DIV_BINEQ(7.0L,      5.0L,     "7.0 / 5.0");
+    ASSERT_LD_DIV_BINEQ(7.0L,      9.0L,     "7.0 / 9.0");
+    ASSERT_LD_DIV_BINEQ(7.0L,      15.0L,    "7.0 / 15.0");
+    ASSERT_LD_DIV_BINEQ(9.0L,      17.0L,    "9.0 / 17.0");
+    ASSERT_LD_DIV_BINEQ(10.0L,     3.0L,     "10.0 / 3.0");
+    ASSERT_LD_DIV_BINEQ(113.0L,    109.0L,   "113.0 / 109.0");
+    ASSERT_LD_DIV_BINEQ(1.0L,      10.0L,    "1.0 / 10.0");
+    ASSERT_LD_DIV_BINEQ(1.0L,      100.0L,   "1.0 / 100.0");
+    ASSERT_LD_DIV_BINEQ(1.0L,      3e-100L,  "1.0 / 3e-100");
+    ASSERT_LD_DIV_BINEQ(1.0e100L,  3.0L,     "1e100 / 3");
+    ASSERT_LD_DIV_BINEQ(1.0L,      3.0e100L, "1 / 3e100");
+    ASSERT_LD_DIV_BINEQ(1.0L,      3.0e-100L,"1 / 3e-100");
+    ASSERT_LD_DIV_BINEQ(1.0e-100L, 3.0L,     "1e-100 / 3");
+
+    // Create a bunch of convenient constants
+    long double SMALLEST_NORMAL = BUILD_LD(0 , 1 - EXPONENT_MIDWAY);
+    long double LARGEST_NORMAL = BUILD_LD(((__uint128_t) 1 << 112) - 1, EXPONENT_MIDWAY);
+    long double VERY_LARGE_NORMAL = BUILD_LD(0, EXPONENT_MIDWAY);  // Just smaller than the largest normal
+    long double SMALLEST_SUBNORMAL = BUILD_LD(1, -EXPONENT_MIDWAY);
+
+    // Subnormals
+    ASSERT_LD_DIV_BINEQ(VERY_LARGE_NORMAL,          SMALLEST_SUBNORMAL,  "very large normal / smallest subnormal");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_NORMAL,            SMALLEST_SUBNORMAL,  "normal / subnormal");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_NORMAL,            0.5L,                "smallest normal / 0.5");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_NORMAL,            2.0L,                "smallest normal / 2.0");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_NORMAL,            3.0L,                "smallest normal / 3.0");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_NORMAL,            4.0L,                "smallest normal / 4.0");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_SUBNORMAL,         1.0L,                "smallest subnormal / 1.0");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_SUBNORMAL,         2.0L,                "smallest subnormal / 2.0 = 0.0");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_SUBNORMAL,         2.0L,                "smallest subnormal / 2.0");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_SUBNORMAL,         3.0L,                "smallest subnormal / 3.0");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_SUBNORMAL * 3.0L,  2.0L,                "smallest subnormal * 3 / 2.0");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_SUBNORMAL,         SMALLEST_SUBNORMAL,  "smallest subnormal / smallest subnormal");
+    ASSERT_LD_DIV_BINEQ(SMALLEST_SUBNORMAL * 2.0L,  SMALLEST_SUBNORMAL,  "smallest subnormal * 2 / smallest subnormal");
+
+    // Overflow
+    ASSERT_LD_DIV_BINEQ( LARGEST_NORMAL, 0.5L,  "largest normal / 0.5 = inf");
+    ASSERT_LD_DIV_BINEQ(-LARGEST_NORMAL, 0.5L, "-largest normal / 0.5 = -inf");
+}
+
 int main() {
     #ifdef __x86_64
     printf("Softfloat is not supported on x86_64\n");
@@ -818,6 +916,7 @@ int main() {
     test_add_ld();
     test_subtract_ld();
     test_multiply_ld();
+    test_divide_ld();
 
     finish_tests();
 }

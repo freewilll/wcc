@@ -5,7 +5,9 @@
 #include <stdio.h>
 #endif
 
+static FpValue zero_fpv = {0, 0, 0, TYPE_ZERO};
 static FpValue nan_fpv = {0, 0, (__uint128_t) 1 << (SIGNIFICAND_BITS - 1), TYPE_NAN};
+static FpValue inf_fpv = {0, 0, (__uint128_t) 1 << (SIGNIFICAND_BITS - 1), TYPE_INF};
 
 // Negate a value. It is modified in place.
 static void negate(FpValue *fpv) {
@@ -239,10 +241,6 @@ static FpValue multiply(FpValue *a, FpValue *b) {
 
     // Implicit else, a and b are normal values
 
-    // Shortcut multiplying by 1
-    if (a->significand == 0 && a->exponent == 0) { FpValue result = *b; result.sign = a->sign ^ b->sign; return result; }
-    if (b->significand == 0 && b->exponent == 0) { FpValue result = *a; result.sign = a->sign ^ b->sign; return result; }
-
     // Set the implicit leading ones on both operands
     a->significand |= ((__uint128_t) 1) << SIGNIFICAND_BITS;
     b->significand |= ((__uint128_t) 1) << SIGNIFICAND_BITS;
@@ -252,17 +250,22 @@ static FpValue multiply(FpValue *a, FpValue *b) {
     result.sign = a->sign ^ b->sign;
     result.exponent += b->exponent;
 
-    uint256_t significand = multiply_256_bit(a->significand, b->significand);
-
     int guard = 0;
     int sticky = 0;
 
-    // The result needs to be shifted SIGNIFICAND_BITS bits to the right
-    // | 128   | 128    |    <- multiplied  value
-    // | 32 96 | 16 112 |    <- split up into parts for the 112 bit shift
-    result.significand = significand.low;
-    shift_right(&result.significand, 112, &guard, &sticky);
-    result.significand |= significand.high << 16;
+    if (b->significand) {
+        uint256_t significand = multiply_256_bit(a->significand, b->significand);
+
+        // The result needs to be shifted SIGNIFICAND_BITS bits to the right
+        // | 128   | 128    |    <- multiplied  value
+        // | 32 96 | 16 112 |    <- split up into parts for the 112 bit shift
+        result.significand = significand.low;
+        shift_right(&result.significand, 112, &guard, &sticky);
+        result.significand |= significand.high << 16;
+    }
+    else {
+        result.significand = a->significand; // Don't bother multiplying by 1
+    }
 
     // Normalize
     if (result.significand & ((__uint128_t) 1) << (SIGNIFICAND_BITS + 1)) {
@@ -275,6 +278,137 @@ static FpValue multiply(FpValue *a, FpValue *b) {
 
     #ifdef DEBUG_ARITHMETIC
     printf("Multiplication result:      ");
+    print_fpv(&result);
+    #endif
+
+    return result;
+}
+
+// The calculated quotient bits are as follows:
+// 1 implicit leading 1 before the dot
+// 112 significand bits
+// 3 GRS bits
+__uint128_t divide_128_bit(__uint128_t a, __uint128_t b, __uint128_t *output_remainder) {
+    __uint128_t quotient = 0;
+    __uint128_t remainder = a;
+
+    for (int i = 0; i < SIGNIFICAND_BITS + 4; i++) {
+        quotient <<= 1;
+        if (b <= remainder) {
+            quotient |= 1;
+            remainder -= b;
+        }
+        remainder <<= 1;
+    }
+
+    remainder >>= 1;
+
+    *output_remainder = remainder;
+
+    return quotient;
+}
+
+// Divide two FpValues. a and b get destroyed.
+static FpValue divide(FpValue *a, FpValue *b) {
+    #ifdef DEBUG_ARITHMETIC
+    printf("Dividing:\n");
+    printf("a:                          ");
+    print_fpv(a);
+    printf("b:                          ");
+    print_fpv(b);
+    #endif
+
+    // Zero the unused upper bits.
+    a->significand &= (((__uint128_t) 1) << SIGNIFICAND_BITS) - 1;
+    b->significand &= (((__uint128_t) 1) << SIGNIFICAND_BITS) - 1;
+
+    // 0 / 0
+    if (a->type == TYPE_ZERO && b->type == TYPE_ZERO) {
+        return nan_fpv;
+    }
+
+    // Zero dividend
+    if (a->type == TYPE_ZERO) {
+        FpValue result = zero_fpv;
+        result.sign = a->sign ^ b->sign;
+        return result;
+    }
+
+    // Zero divisor
+    if (b->type == TYPE_ZERO) {
+        FpValue result = *a;
+        result.type = TYPE_INF;
+        result.sign = a->sign ^ b->sign;
+        return result;
+    }
+
+    // infinity / infinity
+    if (a->type == TYPE_INF && b->type == TYPE_INF) {
+        return nan_fpv;
+    }
+
+    // finite / infinity
+    if (b->type == TYPE_INF) {
+        FpValue result = zero_fpv;
+        result.sign = a->sign ^ b->sign;
+        return result;
+    }
+
+    // infinity / finite
+    if (a->type == TYPE_INF) {
+        FpValue result = inf_fpv;
+        result.sign = a->sign ^ b->sign;
+        return result;
+    }
+
+    // Set the implicit leading ones on both operands
+    a->significand |= ((__uint128_t) 1) << SIGNIFICAND_BITS;
+    b->significand |= ((__uint128_t) 1) << SIGNIFICAND_BITS;
+
+    FpValue result = *a;
+
+    result.sign = a->sign ^ b->sign;
+    result.exponent -= b->exponent;
+
+    __uint128_t remainder;
+
+    __uint128_t significand;
+    if (b->significand)
+        significand = divide_128_bit(a->significand, b->significand, &remainder);
+    else
+        significand = a->significand; // Don't bother dividing by 1
+
+    result.significand = significand;
+
+    // Normalize
+    uint8_t guard = 0;
+    uint8_t round = 0;
+    uint8_t sticky = (remainder != 0) ? 1 : 0;
+
+    // There are 3 rounding bits at the end of the quotient
+    if (result.significand & ((__uint128_t) 1) << (SIGNIFICAND_BITS + 3)) {
+        // The quotient is like 1.xxxxxxxx.
+        // All three bits at the end are rounding bits.
+        guard = (result.significand >> 2) & 1;
+        round = (result.significand >> 1) & 1;
+        sticky |= result.significand & 1;
+        result.significand >>= 3;
+    }
+    else if (result.significand & ((__uint128_t) 1) << (SIGNIFICAND_BITS + 2)) {
+        // The quotient is like 0.xxxxxxxx and needs shifting left one.
+        // The remanining 2 bits at the end are rounding bits.
+        guard = (result.significand >> 1) & 1;
+        sticky |= result.significand & 1;
+        result.significand >>= 2;
+        result.exponent--;
+    }
+
+    // Round
+    sticky |= round; // Merge the round bit into the sticky bit.
+    round_to_nearest_even(binary128_encoding, &result, binary128_encoding.significand_bits, guard, sticky);
+
+    #ifdef DEBUG_ARITHMETIC
+    printf("Division result:            ");
     print_fpv(&result);
     #endif
 
@@ -324,6 +458,19 @@ long double multiply_ld(long double a, long double b) {
     if (fpv_b.type == TYPE_NAN) return store_ld(&fpv_b);
 
     FpValue result = multiply(&fpv_a, &fpv_b);
+
+    return store_ld(&result);
+}
+
+long double divide_ld(long double a, long double b) {
+    FpValue fpv_a = load_ld(a);
+    FpValue fpv_b = load_ld(b);
+
+    // Return the first NAN if there is one.
+    if (fpv_a.type == TYPE_NAN) return store_ld(&fpv_a);
+    if (fpv_b.type == TYPE_NAN) return store_ld(&fpv_b);
+
+    FpValue result = divide(&fpv_a, &fpv_b);
 
     return store_ld(&result);
 }
