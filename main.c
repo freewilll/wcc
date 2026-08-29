@@ -191,7 +191,6 @@ int main(int argc, char **argv) {
     int help = 0;
     int print_stack_register_count = 0;
     int print_instr_rules = 0;
-    int print_symbols = 0;
     int is_shared = 0;
     int is_static = 0;
     int use_musl = 0;
@@ -218,7 +217,7 @@ int main(int argc, char **argv) {
         if (*argv[0] == '-') {
                  if (argc > 0 && !strcmp(argv[0], "-h"                                )) { help = 1;                                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-v"                                )) { verbose = 1;                              argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                        argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_parser_symbols = 1;                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-g"                                )) { opt_debug_symbols = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fPIC"                             )) { opt_PIC = 1;                              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-shared"                           )) { is_shared = 1;                            argc--; argv++; }
@@ -629,7 +628,6 @@ int main(int argc, char **argv) {
         else
             wfree(compiler_output_filename);
 
-        if (print_symbols) dump_symbols();
         if (print_stack_register_count) printf("stack_register_count=%d\n", total_stack_register_count);
 
         free_memory_for_translation_unit();

@@ -753,6 +753,7 @@ typedef enum {
 extern char *cur_filename;              // Current filename being lexed
 extern int cur_line;                    // Current line number being lexed
 
+extern int print_parser_symbols;               // Print symbols after parser phase
 extern int print_ir1;                          // Print IR after parsing
 extern int print_ir2;                          // Print IR before register allocation
 extern int print_ir3;                          // Print IR after register allocation
@@ -1057,7 +1058,6 @@ StructOrUnionMember *lookup_struct_or_union_member(Type *type, char *identifier)
 Value *make_symbol_value(Symbol *symbol);
 int parse_sizeof(parse_expression_function_type expr);
 void parse(void);
-void dump_symbols(void);
 void init_parser(void);
 void free_parser(void);
 

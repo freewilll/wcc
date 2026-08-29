@@ -1299,8 +1299,7 @@ static Value *long_double_type_change(Value *src) {
 
     // Add a move for the type change
     dst = dup_value(src);
-    dst->vreg = 0;
-    dst->local_index = new_local_index();
+    dst->vreg = new_vreg();
     dst->type = new_type(TYPE_LONG_DOUBLE);
     add_parser_instruction(IR_MOVE, dst, src, 0);
 
@@ -1329,8 +1328,7 @@ static Value *double_type_change(Value *src) {
 
     // Add a move for the type change
     dst = dup_value(src);
-    dst->vreg = 0;
-    dst->local_index = new_local_index();
+    dst->vreg = new_vreg();
     dst->type = new_type(TYPE_DOUBLE);
     add_parser_instruction(IR_MOVE, dst, src, 0);
 
@@ -1352,8 +1350,7 @@ static Value *float_type_change(Value *src) {
 
     // Add a move for the type change
     dst = dup_value(src);
-    dst->vreg = 0;
-    dst->local_index = new_local_index();
+    dst->vreg = new_vreg();
     dst->type = new_type(TYPE_FLOAT);
     add_parser_instruction(IR_MOVE, dst, src, 0);
 
@@ -2553,10 +2550,7 @@ static void parse_va_arg() {
 
     Value *dst = new_value();
     dst->type = type;
-    if (type->type == TYPE_LONG_DOUBLE && long_doubles_are_in_the_stack)
-        dst->local_index = new_local_index();
-
-    else if (type->type == TYPE_STRUCT_OR_UNION) {
+    if (type->type == TYPE_STRUCT_OR_UNION) {
         dst->local_index = new_local_index();
         add_parser_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, dst, 0);
     }
@@ -3758,6 +3752,25 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
     return is_definition;
 }
 
+static void dump_symbols(void) {
+    printf("Symbols:\n");
+
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
+        Type *type = symbol->type;
+        char *identifier = symbol->identifier;
+        long value = symbol->value;
+        long local_index = symbol->local_index;
+        int is_global = symbol->scope == global_scope;
+        printf("%d %-3ld %-20ld ", is_global, local_index, value);
+        int type_len = print_type(stdout, type);
+        for (int j = 0; j < 24 - type_len; j++) printf(" ");
+        printf("%s\n", identifier);
+    }
+
+    printf("\n");
+}
+
 // Parse a translation unit
 void parse(void) {
     while (cur_token != TOK_EOF) {
@@ -3892,25 +3905,8 @@ void parse(void) {
 
         else error("Expected global declaration or function");
     }
-}
 
-void dump_symbols(void) {
-    printf("Symbols:\n");
-
-    for (int i = 0; i < global_scope->symbol_list->length; i++) {
-        Symbol *symbol = global_scope->symbol_list->elements[i];
-        Type *type = symbol->type;
-        char *identifier = symbol->identifier;
-        long value = symbol->value;
-        long local_index = symbol->local_index;
-        int is_global = symbol->scope == global_scope;
-        printf("%d %-3ld %-20ld ", is_global, local_index, value);
-        int type_len = print_type(stdout, type);
-        for (int j = 0; j < 24 - type_len; j++) printf(" ");
-        printf("%s\n", identifier);
-    }
-
-    printf("\n");
+    if (print_parser_symbols) dump_symbols();
 }
 
 void init_parser(void) {
