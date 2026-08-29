@@ -6,6 +6,8 @@
 #include "softfloat.h"
 #include "testlib.h"
 
+#ifdef __aarch64__
+
 typedef union {
     __uint128_t i;
     long double ld;
@@ -1045,12 +1047,15 @@ void test_comparisons() {
     ASSERT_LD_CMP(-1.1e-2, -1.2e1);
 }
 
+#endif
+
 int main() {
-    #ifdef __x86_64
+    #ifdef __x86_64__
     printf("Softfloat is not supported on x86_64\n");
-    exit(1);
+    exit(0);
     #endif
 
+    #ifdef __aarch64__
     test_shift_right();
     test_update_GRS_bits();
     test_multiply_256_bit();
@@ -1075,6 +1080,7 @@ int main() {
     test_multiply_ld();
     test_divide_ld();
     test_comparisons();
+    #endif
 
     finish_tests();
 }

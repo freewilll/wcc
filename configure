@@ -171,6 +171,7 @@ then
     mkdir -p tests/integration
     mkdir -p tests/cpp
     mkdir -p tests/e2e
+    mkdir -p softfloat
 
     cp "$SRC_DIR/musl-wcc" wcc-musl
 

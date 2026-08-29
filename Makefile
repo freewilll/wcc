@@ -169,7 +169,7 @@ test-self-compilation: wcc2 wcc3
 	@echo self compilation test passed
 
 .PHONY: test
-test: test-self-compilation test-all test-target-all
+test: test-self-compilation test-all test-softfloat test-target-all
 	@echo All tests passed
 
 .PHONY: ${BUILD_DIR}/tests/test-lib.o
@@ -228,6 +228,10 @@ test-e2e: wcc
 test-cpp: wcc
 	${MAKE} -C ${SRC_DIR}/tests test-cpp
 
+.PHONY: test-softfloat
+test-softfloat:
+	${MAKE} -C ${SRC_DIR}/softfloat test
+
 .PHONY: run-benchmark
 run-benchmark: wcc wcc2
 	${MAKE} -C ${SRC_DIR}/tools run-benchmark
@@ -246,6 +250,7 @@ install: wcc
 clean:
 	${MAKE} -C ${SRC_DIR}/tests clean
 	${MAKE} -C ${SRC_DIR}/tools clean
+	${MAKE} -C ${SRC_DIR}/softfloat clean
 
 	@rm -f make-internals
 	@rm -f internals.c
