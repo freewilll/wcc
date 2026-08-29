@@ -888,6 +888,163 @@ void test_divide_ld() {
     ASSERT_LD_DIV_BINEQ(-LARGEST_NORMAL, 0.5L, "-largest normal / 0.5 = -inf");
 }
 
+void test_comparisons() {
+    #define ASSERT_LD_EQ(a, b) assert_int((a) == (b), ld_eq(a, b), #a " == " #b)
+    #define ASSERT_LD_NE(a, b) assert_int((a) != (b), ld_ne(a, b), #a " != " #b)
+    #define ASSERT_LD_LT(a, b) assert_int((a) <  (b), ld_lt(a, b), #a " < "  #b)
+    #define ASSERT_LD_GT(a, b) assert_int((a) >  (b), ld_gt(a, b), #a " > "  #b)
+    #define ASSERT_LD_LE(a, b) assert_int((a) <= (b), ld_le(a, b), #a " <= " #b)
+    #define ASSERT_LD_GE(a, b) assert_int((a) >= (b), ld_ge(a, b), #a " >= " #b)
+
+    // Run a comparison with all comparison operators
+    #define ASSERT_LD_CMP(a, b) \
+        ASSERT_LD_EQ(a, b); \
+        ASSERT_LD_NE(a, b); \
+        ASSERT_LD_LT(a, b); \
+        ASSERT_LD_GT(a, b); \
+        ASSERT_LD_LE(a, b); \
+        ASSERT_LD_GE(a, b); \
+
+    // NAN & zero
+    ASSERT_LD_CMP(NAN, 0.0);
+    ASSERT_LD_CMP(0.0, NAN);
+
+    // NAN & finite
+    ASSERT_LD_CMP(NAN, 1.0);
+    ASSERT_LD_CMP(1.0, NAN);
+
+    // NAN & infinity
+    ASSERT_LD_CMP(NAN,      INFINITY);
+    ASSERT_LD_CMP(INFINITY, NAN);
+
+    // NAN & NAN
+    ASSERT_LD_CMP(NAN, NAN);
+
+    // Zero cmp zero
+    ASSERT_LD_CMP( 0.0,  0.0);
+    ASSERT_LD_CMP( 0.0, -0.0);
+    ASSERT_LD_CMP(-0.0,  0.0);
+    ASSERT_LD_CMP(-0.0, -0.0);
+
+    // Zero cmp infinity
+    ASSERT_LD_CMP( 0.0,  INFINITY);
+    ASSERT_LD_CMP( 0.0, -INFINITY);
+    ASSERT_LD_CMP(-0.0,  INFINITY);
+    ASSERT_LD_CMP(-0.0, -INFINITY);
+
+    // Infinity cmp zero
+    ASSERT_LD_CMP( INFINITY,  0.0);
+    ASSERT_LD_CMP( INFINITY, -0.0);
+    ASSERT_LD_CMP(-INFINITY,  0.0);
+    ASSERT_LD_CMP(-INFINITY, -0.0);
+
+    // Infinity cmp infinity
+    ASSERT_LD_CMP( INFINITY,  INFINITY);
+    ASSERT_LD_CMP( INFINITY, -INFINITY);
+    ASSERT_LD_CMP(-INFINITY,  INFINITY);
+    ASSERT_LD_CMP(-INFINITY, -INFINITY);
+
+    // Finite cmp infinity
+    ASSERT_LD_CMP( 1.1,  INFINITY);
+    ASSERT_LD_CMP( 1.1, -INFINITY);
+    ASSERT_LD_CMP(-1.1,  INFINITY);
+    ASSERT_LD_CMP(-1.1, -INFINITY);
+
+    // Infinity cmp finite
+    ASSERT_LD_CMP( INFINITY,  1.1);
+    ASSERT_LD_CMP( INFINITY, -1.1);
+    ASSERT_LD_CMP(-INFINITY,  1.1);
+    ASSERT_LD_CMP(-INFINITY, -1.1);
+
+    // Zero cmp finite
+    ASSERT_LD_CMP( 0.0,  1.1);
+    ASSERT_LD_CMP( 0.0, -1.1);
+    ASSERT_LD_CMP(-0.0,  1.1);
+    ASSERT_LD_CMP(-0.0, -1.1);
+
+    // Finite cmp zero
+    ASSERT_LD_CMP( 1.1,  0.0);
+    ASSERT_LD_CMP( 1.1, -0.0);
+    ASSERT_LD_CMP(-1.1,  0.0);
+    ASSERT_LD_CMP(-1.1, -0.0);
+
+    // Finite cmp finite
+    ASSERT_LD_CMP( 1.1,  1.1);
+    ASSERT_LD_CMP( 1.1, -1.1);
+    ASSERT_LD_CMP(-1.1,  1.1);
+    ASSERT_LD_CMP(-1.1, -1.1);
+
+    ASSERT_LD_CMP( 1.1,  1.2);
+    ASSERT_LD_CMP( 1.1, -1.2);
+    ASSERT_LD_CMP(-1.1,  1.2);
+    ASSERT_LD_CMP(-1.1, -1.2);
+
+    ASSERT_LD_CMP( 1.2,  1.1);
+    ASSERT_LD_CMP( 1.2, -1.1);
+    ASSERT_LD_CMP(-1.2,  1.1);
+    ASSERT_LD_CMP(-1.2, -1.1);
+
+    ASSERT_LD_CMP( 1.1e1,  1.1e2);
+    ASSERT_LD_CMP( 1.1e1, -1.1e2);
+    ASSERT_LD_CMP(-1.1e1,  1.1e2);
+    ASSERT_LD_CMP(-1.1e1, -1.1e2);
+
+    ASSERT_LD_CMP( 1.1e2,  1.1e1);
+    ASSERT_LD_CMP( 1.1e2, -1.1e1);
+    ASSERT_LD_CMP(-1.1e2,  1.1e1);
+    ASSERT_LD_CMP(-1.1e2, -1.1e1);
+
+    ASSERT_LD_CMP( 1.1e1,  1.2e2);
+    ASSERT_LD_CMP( 1.1e1, -1.2e2);
+    ASSERT_LD_CMP(-1.1e1,  1.2e2);
+    ASSERT_LD_CMP(-1.1e1, -1.2e2);
+
+    ASSERT_LD_CMP( 1.1e2,  1.2e1);
+    ASSERT_LD_CMP( 1.1e2, -1.2e1);
+    ASSERT_LD_CMP(-1.1e2,  1.2e1);
+    ASSERT_LD_CMP(-1.1e2, -1.2e1);
+
+    ASSERT_LD_CMP( 1.1e-1,  1.1e-2);
+    ASSERT_LD_CMP( 1.1e-1, -1.1e-2);
+    ASSERT_LD_CMP(-1.1e-1,  1.1e-2);
+    ASSERT_LD_CMP(-1.1e-1, -1.1e-2);
+
+    ASSERT_LD_CMP( 1.1e-2,  1.1e-1);
+    ASSERT_LD_CMP( 1.1e-2, -1.1e-1);
+    ASSERT_LD_CMP(-1.1e-2,  1.1e-1);
+    ASSERT_LD_CMP(-1.1e-2, -1.1e-1);
+
+    ASSERT_LD_CMP( 1.1e-1,  1.2e-2);
+    ASSERT_LD_CMP( 1.1e-1, -1.2e-2);
+    ASSERT_LD_CMP(-1.1e-1,  1.2e-2);
+    ASSERT_LD_CMP(-1.1e-1, -1.2e-2);
+
+    ASSERT_LD_CMP( 1.1e-2,  1.2e-1);
+    ASSERT_LD_CMP( 1.1e-2, -1.2e-1);
+    ASSERT_LD_CMP(-1.1e-2,  1.2e-1);
+    ASSERT_LD_CMP(-1.1e-2, -1.2e-1);
+
+    ASSERT_LD_CMP( 1.1e-1,  1.1e2);
+    ASSERT_LD_CMP( 1.1e-1, -1.1e2);
+    ASSERT_LD_CMP(-1.1e-1,  1.1e2);
+    ASSERT_LD_CMP(-1.1e-1, -1.1e2);
+
+    ASSERT_LD_CMP( 1.1e-2,  1.1e1);
+    ASSERT_LD_CMP( 1.1e-2, -1.1e1);
+    ASSERT_LD_CMP(-1.1e-2,  1.1e1);
+    ASSERT_LD_CMP(-1.1e-2, -1.1e1);
+
+    ASSERT_LD_CMP( 1.1e-1,  1.2e2);
+    ASSERT_LD_CMP( 1.1e-1, -1.2e2);
+    ASSERT_LD_CMP(-1.1e-1,  1.2e2);
+    ASSERT_LD_CMP(-1.1e-1, -1.2e2);
+
+    ASSERT_LD_CMP( 1.1e-2,  1.2e1);
+    ASSERT_LD_CMP( 1.1e-2, -1.2e1);
+    ASSERT_LD_CMP(-1.1e-2,  1.2e1);
+    ASSERT_LD_CMP(-1.1e-2, -1.2e1);
+}
+
 int main() {
     #ifdef __x86_64
     printf("Softfloat is not supported on x86_64\n");
@@ -917,6 +1074,7 @@ int main() {
     test_subtract_ld();
     test_multiply_ld();
     test_divide_ld();
+    test_comparisons();
 
     finish_tests();
 }

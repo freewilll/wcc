@@ -48,13 +48,13 @@ typedef enum fp_value_type {
     TYPE_INF,
     TYPE_NAN,
     TYPE_ZERO,
-} FPValueType;
+} FpValueType;
 
 typedef struct fp_value {
     unsigned int sign;          // 0 is positive, 1 is negative
     int exponent;
     __uint128_t significand;
-    FPValueType type;
+    FpValueType type;
 } FpValue;
 
 extern FpEncoding binary32_encoding;
@@ -102,6 +102,14 @@ long double add_ld(long double a, long double b);
 long double subtract_ld(long double a, long double b);
 long double multiply_ld(long double a, long double b);
 long double divide_ld(long double a, long double b);
+
+// comparisons.c
+int ld_eq(long double a, long double b);
+int ld_ne(long double a, long double b);
+int ld_lt(long double a, long double b);
+int ld_gt(long double a, long double b);
+int ld_le(long double a, long double b);
+int ld_ge(long double a, long double b);
 
 #endif
 

@@ -1,6 +1,6 @@
 all: test_softfloat
 
-LIBS = testlib.o loadstore.o conversions.o rounding.o integers.o arithmetic.o
+LIBS = testlib.o loadstore.o conversions.o rounding.o integers.o arithmetic.o comparisons.o
 
 # set DEBUG=1 to activate all debug flags
 ifeq ($(DEBUG),1)
