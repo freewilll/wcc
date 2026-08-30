@@ -418,6 +418,7 @@ void free_function(Function *function, int remove_from_allocations);
 void free_functions(void);
 Function *new_function(char *identifier);
 void reverse_function_call_args_order(Function *function);
+void add_single_function_param_location(FunctionParamAllocation *fpa, Type *type);
 FunctionParamAllocation *initialize_function_return_value_fpa(Type *function_type);
 void process_function_call_arg_allocations(Function *function);
 void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int count);
@@ -1601,6 +1602,7 @@ void perform_peephole_optimization(Function *function);
 // Target functions related code
 Set *allocate_return_value_live_ranges(void);
 int prepend_function_params(Function *function);
+void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack);
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
 int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, FunctionParamLocations *pl, RegisterSet *register_set);
 void add_function_vararg_param_moves(Function *function, FunctionParamAllocation *fpa);

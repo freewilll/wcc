@@ -860,7 +860,7 @@ static void process_function_varargs(Function *function) {
 }
 
 // Using the state of already allocated registers & stack entries in fpa, determine the location for a type and set it in fpl.
-static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack) {
+void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack) {
     fpl->int_register = -1;
     fpl->fp_register = -1;
     fpl->stack_offset = -1;
@@ -915,14 +915,6 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
     if (!in_stack && is_single_fp_register) fpa->single_fp_register_arg_count++;
 }
 
-static void add_single_stack_function_param_location(FunctionParamAllocation *fpa, Type *type) {
-    FunctionParamLocations *fpl = wcalloc(1, sizeof(FunctionParamLocations));
-    append_to_list(fpa->param_locations, fpl);
-    fpl->locations = wmalloc(sizeof(FunctionParamLocation));
-    fpl->count = 1;
-    add_type_to_allocation(fpa, &(fpl->locations[0]), type, 0);
-}
-
 // Make a set large enough to hold all live ranges
 Set *allocate_return_value_live_ranges(void) {
     return new_set(LIVE_RANGE_PREG_XMM01);
@@ -965,7 +957,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
         int in_stack = fpl->locations[0].stack_offset != -1 || fpl->locations[1].stack_offset != -1;
         if (in_stack) {
             *fpa = *backup_fpa;
-            add_single_stack_function_param_location(fpa, type);
+            add_single_function_param_location(fpa, type);
             free_function_param_locations(fpl);
         }
         else {
@@ -977,7 +969,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
 
     else if (type->type != TYPE_STRUCT_OR_UNION) {
         // Create a single location for the arg
-        add_single_stack_function_param_location(fpa, type);
+        add_single_function_param_location(fpa, type);
     }
 
     else {
@@ -987,7 +979,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
         int size = get_type_size(type);
         if (size > 16) {
             // The entire thing is on the stack
-            add_single_stack_function_param_location(fpa, type);
+            add_single_function_param_location(fpa, type);
         }
 
         else {
@@ -1038,7 +1030,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
 
             if  (in_memory || unaligned) {
                 // The entire thing is on the stack
-                add_single_stack_function_param_location(fpa, type);
+                add_single_function_param_location(fpa, type);
                 free_function_param_locations(fpl);
             }
 
@@ -1068,7 +1060,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
                 if (on_stack && eight_bytes_count > 1) {
                     if (debug_function_param_allocation) printf("         ran out of registers, rewinding ... \n");
                     *fpa = *backup_fpa;
-                    add_single_stack_function_param_location(fpa, type);
+                    add_single_function_param_location(fpa, type);
                     free_function_param_locations(fpl);
                 }
                 else

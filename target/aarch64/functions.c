@@ -18,7 +18,7 @@ void add_function_vararg_param_moves(Function *function, FunctionParamAllocation
 }
 
 // Using the state of already allocated registers & stack entries in fpa, determine the location for a type and set it in fpl.
-static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack) {
+void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack) {
     fpl->int_register = -1;
     fpl->fp_register = -1;
     fpl->stack_offset = -1;
@@ -54,19 +54,11 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
     if (!in_stack && is_single_fp_register) fpa->single_fp_register_arg_count++;
 }
 
-static void add_single_stack_function_param_location(FunctionParamAllocation *fpa, Type *type) {
-    FunctionParamLocations *fpl = wcalloc(1, sizeof(FunctionParamLocations));
-    append_to_list(fpa->param_locations, fpl);
-    fpl->locations = wmalloc(sizeof(FunctionParamLocation));
-    fpl->count = 1;
-    add_type_to_allocation(fpa, &(fpl->locations[0]), type, 0);
-}
-
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {
     if (type->type == TYPE_STRUCT_OR_UNION)
         panic("TODO aarch64 add_function_param_to_allocation for structs/unions");
 
-    add_single_stack_function_param_location(fpa, type);
+    add_single_function_param_location(fpa, type);
 }
 
 int *make_original_stack_indexes(Function *function) {

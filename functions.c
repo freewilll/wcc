@@ -143,6 +143,15 @@ void reverse_function_call_args_order(Function *function) {
     wfree(call_starts);
 }
 
+// Initialize a FPL and call add_type_to_allocation to allocate space for a type.
+void add_single_function_param_location(FunctionParamAllocation *fpa, Type *type) {
+    FunctionParamLocations *fpl = wcalloc(1, sizeof(FunctionParamLocations));
+    append_to_list(fpa->param_locations, fpl);
+    fpl->locations = wmalloc(sizeof(FunctionParamLocation));
+    fpl->count = 1;
+    add_type_to_allocation(fpa, &(fpl->locations[0]), type, 0);
+}
+
 // Initialize the return value FPA for a function, if needed
 FunctionParamAllocation *initialize_function_return_value_fpa(Type *function_type) {
     if (function_type->target->type == TYPE_STRUCT_OR_UNION) {
