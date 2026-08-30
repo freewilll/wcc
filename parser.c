@@ -1589,9 +1589,9 @@ Value *make_local_symbol_value(Symbol *symbol) {
     v->is_lvalue = v->type->type != TYPE_ARRAY;
 
     if (symbol->local_index >= 0)
-        // For historical and irrational sentimental reasons, pushed parameters start at
-        // stack_index 2.
-        v->local_index = symbol->local_index + 2;
+        // Symbol local indexes start at 0,
+        // Value local indexes start at 1.
+        v->local_index = symbol->local_index + 1;
     else
         // Local variable
         v->local_index = symbol->local_index;
@@ -2521,10 +2521,10 @@ static void parse_va_start() {
     Value *rightmost_param = pop();
     consume(TOK_RPAREN, ")");
 
-    if (rightmost_param->local_index < 2)
+    if (rightmost_param->local_index < 1)
         error("Expected function parameter as second argument to va_start");
 
-    int rightmost_param_index = rightmost_param->local_index - 2;
+    int rightmost_param_index = rightmost_param->local_index - 1;
 
     if (rightmost_param_index != cur_function_symbol->function->type->function->param_count - 1)
         error("Second argument to va_start isn't the rightmost function parameter");

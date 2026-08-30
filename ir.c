@@ -16,7 +16,7 @@ void free_ir(void) {
     free_list(allocated_tacs);
 }
 
-// Allocate a new local variable or tempoary
+// Allocate a new local variable or temporary
 static int new_local_index(Function *function) {
     return -1 - function->local_symbol_count++;
 }
@@ -754,9 +754,11 @@ void allocate_value_stack_indexes(Function *function) {
         MAP_LOCAL_INDEX_TO_STACK_INDEX(tac, tac->src2);
 
         // Map function call parameters
-        if (tac->dst  && tac->dst ->local_index > 0) tac->dst ->stack_index = tac->dst ->local_index;
-        if (tac->src1 && tac->src1->local_index > 0) tac->src1->stack_index = tac->src1->local_index;
-        if (tac->src2 && tac->src2->local_index > 0) tac->src2->stack_index = tac->src2->local_index;
+        // Local indexes start at 1.
+        // stack_index is starts at 2 for indefensible historical and sentimental reasons
+        if (tac->dst  && tac->dst ->local_index > 0) tac->dst ->stack_index = tac->dst ->local_index + 1;
+        if (tac->src1 && tac->src1->local_index > 0) tac->src1->stack_index = tac->src1->local_index + 1;
+        if (tac->src2 && tac->src2->local_index > 0) tac->src2->stack_index = tac->src2->local_index + 1;
     }
 
     // From this point onwards, local_index has no meaning and downstream code must not use it.

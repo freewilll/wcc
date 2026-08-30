@@ -205,7 +205,7 @@ typedef struct symbol {
     char has_extern_keyword;    // Has the extern keyword been used to declare this symbol
     long value;                 // Value in the case of a constant
     int local_index;            // Used by the parser for locals variables and function arguments
-                                // < 0 is a local variable or tempoary, >= 2 is a function parameter
+                                // < 0 is a local variable or temporary, >= 0 is a function parameter
     int is_enum_value;          // Enums are symbols with a value
     List *initializers;         // Set when a global object is initialized;
 } Symbol;
@@ -351,7 +351,7 @@ typedef struct value {
     unsigned int is_address_of:1;                        // Is an address of a constant expression.
     unsigned int has_struct_or_union_return_value:1;     // Is it a function call that returns a struct/union?
     unsigned int load_from_got:1;                        // Load from Global Offset Table (GOT)
-    int local_index;                                     // Used by parser for local variable and temporaries and function arguments
+    int local_index;                                     // Used by parser for local variable, temporaries and function arguments
     int stack_index;                                     // stack index in case of a pushed function argument, & usage or register spill
                                                          // < 0 is for locals, temporaries and spills. >= 2 is for pushed arguments, that start at 2.
     int stack_offset;                                    // Position on the stack

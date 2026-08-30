@@ -67,7 +67,6 @@ char *register_name(int preg) {
 //              +8        Arg 1
 //              +0        Arg 0
 static void process_stack_offset(Tac *tac, Value *v, int *stack_offsets) {
-    // printf("process_stack_offset stack_index=%d offset=%d\n", v->stack_index, v->stack_offset);
     int result;
 
     // A legacy from the original x86_64 code. Pushed args start at stack_index=2.
