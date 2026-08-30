@@ -820,16 +820,16 @@ static Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Va
     arg_value->function_call.function_call_arg_index = int_arg_index;
 
 
-    FunctionParamAllocation *fpa = init_function_param_allocaton(NULL);
-    FunctionParamLocations *fpl = wmalloc(sizeof(FunctionParamLocations));
-    append_to_list(fpa->param_locations, fpl);
+    CallValueAllocation *cva = init_call_value_allocaton(NULL);
+    CallValueLocations *cvl = wmalloc(sizeof(CallValueLocations));
+    append_to_list(cva->locations, cvl);
 
-    arg_value->function_call.function_call_arg_locations = fpl;
-    fpl->locations = wmalloc(sizeof(FunctionParamLocation));
-    memset(fpl->locations, -1, sizeof(FunctionParamLocation));
-    fpl->count = 1;
-    fpl->locations[0].int_register = int_arg_index;
-    fpl->locations[0].fp_register = -1;
+    arg_value->function_call.function_call_arg_locations = cvl;
+    cvl->locations = wmalloc(sizeof(CallValueLocation));
+    memset(cvl->locations, -1, sizeof(CallValueLocation));
+    cvl->count = 1;
+    cvl->locations[0].int_register = int_arg_index;
+    cvl->locations[0].fp_register = -1;
 
     return new_tac_after(ir, IR_ARG, 0, arg_value, v);
 }

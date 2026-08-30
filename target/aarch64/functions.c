@@ -9,20 +9,20 @@ int prepend_function_params(Function *function) {
     return 0;
 }
 
-int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, FunctionParamLocations *pl, RegisterSet *register_set) {
+int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, CallValueLocations *pl, RegisterSet *register_set) {
     panic("TODO aarch64 add_struct_or_union_param_move");
 }
 
-void add_function_vararg_param_moves(Function *function, FunctionParamAllocation *fpa) {
+void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva) {
     fprintf(stderr, "TODO aarch64 add_function_vararg_param_moves\n");
 }
 
-// Using the state of already allocated registers & stack entries in fpa, determine the location for a type and set it in fpl.
-void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack) {
-    fpl->int_register = -1;
-    fpl->fp_register = -1;
-    fpl->stack_offset = -1;
-    fpl->stack_padding = -1;
+// Using the state of already allocated registers & stack entries in cva, determine the location for a type and set it in cvl.
+void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int force_stack) {
+    cvl->int_register = -1;
+    cvl->fp_register = -1;
+    cvl->stack_offset = -1;
+    cvl->stack_padding = -1;
 
     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
     if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
@@ -34,31 +34,32 @@ void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation 
     int alignment = get_type_alignment(type);
 
     // TODO aarch64
-    if (fpa->single_int_register_arg_count >= 8)
+    if (cva->single_int_register_arg_count >= 8)
         panic("TODO aarch64 params in stack");
 
     if (!in_stack && is_single_int_register)
-        fpl->int_register = fpa->single_int_register_arg_count < 6 ? fpa->single_int_register_arg_count : -1;
+        cvl->int_register = cva->single_int_register_arg_count < 6 ? cva->single_int_register_arg_count : -1;
 
     else if (!in_stack && is_single_fp_register)
-        fpl->fp_register = fpa->single_fp_register_arg_count < 8 ? fpa->single_fp_register_arg_count : -1;
+        cvl->fp_register = cva->single_fp_register_arg_count < 8 ? cva->single_fp_register_arg_count : -1;
 
     if (debug_function_param_allocation && !in_stack && (is_single_int_register || is_single_fp_register)) {
-        if (fpl->int_register != -1)
-            printf("  arg %2d with alignment %2d     int reg %5d\n", fpa->param_locations->length, alignment, fpl->int_register);
+        if (cvl->int_register != -1)
+            printf("  arg %2d with alignment %2d     int reg %5d\n", cva->locations->length, alignment, cvl->int_register);
         else
-            printf("  arg %2d with alignment %2d     sse reg %5d\n", fpa->param_locations->length, alignment, fpl->fp_register);
+            printf("  arg %2d with alignment %2d     sse reg %5d\n", cva->locations->length, alignment, cvl->fp_register);
     }
 
-    fpa->single_int_register_arg_count += is_single_int_register;
-    if (!in_stack && is_single_fp_register) fpa->single_fp_register_arg_count++;
+    cva->single_int_register_arg_count += is_single_int_register;
+    if (!in_stack && is_single_fp_register) cva->single_fp_register_arg_count++;
 }
 
-void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {
+// Add a type to a call value allocation
+void add_type_to_cva(CallValueAllocation *cva, Type *type) {
     if (type->type == TYPE_STRUCT_OR_UNION)
-        panic("TODO aarch64 add_function_param_to_allocation for structs/unions");
+        panic("TODO aarch64 add_type_to_cva for structs/unions");
 
-    add_single_function_param_location(fpa, type);
+    add_single_call_value_location(cva, type);
 }
 
 int *make_original_stack_indexes(Function *function) {
@@ -66,7 +67,7 @@ int *make_original_stack_indexes(Function *function) {
     return result;
 } // TODO aarch64
 
-int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *param, int preg_class, int register_index, FunctionParamLocation *location, RegisterSet *register_set) {
+int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *param, int preg_class, int register_index, CallValueLocation *location, RegisterSet *register_set) {
     panic("TODO aarch64: make_struct_or_union_arg_move_instructions");
 }
 
@@ -128,7 +129,7 @@ static void add_function_return_moves(Function *function) {
 
 void process_target_functions(Function *function) {
     // Callee
-    initialize_function_return_value_fpa(function->type);
+    initialize_function_return_value_cva(function->type);
     add_function_param_moves(function);
     add_function_return_moves(function);
     // process_function_varargs(function); // TODO aarch64

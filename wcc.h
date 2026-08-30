@@ -163,7 +163,7 @@ typedef struct function_type {
     List *param_identifiers;                            // List of names of parameters
     int is_variadic;                                    // Set to 1 for builtin variadic functions
     int is_paramless;                                   // No parameters are declared, it's an old style K&R function definition
-    struct function_param_allocation *return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
+    struct call_value_allocation *return_value_cva;     // call_value_allocation for the return value if it's a struct or union
 } FunctionType;
 
 typedef struct type {
@@ -228,7 +228,7 @@ typedef struct register_set {
 } RegisterSet;
 
 // functions.c
-#define fpa_pl(fpa, i) (*((FunctionParamLocations *) fpa->param_locations->elements[i]))
+#define CVA_CVL(cva, i) (*((CallValueLocations *) cva->locations->elements[i]))
 
 // Details about a single scalar in a struct/union
 typedef struct struct_or_union_scalar {
@@ -255,7 +255,7 @@ typedef struct function {
     int is_defined;                                     // if a definition has been found
     List *static_symbols;                               // Static symbols
     struct value *return_value_pointer;                 // Set to the register holding the memory return address if the function returns something in memory
-    struct function_param_allocation *fpa;              // function_param_allocaton for the params
+    struct call_value_allocation *cva;                  // call_value_allocation for the params
     struct three_address_code *ir;                      // Intermediate representation
     StrMap *labels;                                     // Map of identifiers to label ids
     CircularLinkedList *goto_backpatches;               // Gotos to labels not yet defined
@@ -281,7 +281,7 @@ typedef struct function {
 } Function;
 
 // Data of the a single eight byte that's part of a struct or union function parameter or arg
-typedef struct function_param_location {
+typedef struct call_value_location {
     // Details of the struct/union
     int stru_offset;             // Starting offset in the case of a struct/union
     int stru_size;               // Number of bytes in the 8-byte in the case of a struct/union
@@ -294,22 +294,22 @@ typedef struct function_param_location {
     int fp_register;        // If not -1, an FP register
     int stack_offset;       // If not -1, the stack offset
     int stack_padding;      // If not -1, the stack padding
-} FunctionParamLocation;
+} CallValueLocation;
 
-typedef struct function_param_locations {
+typedef struct call_value_locations {
     int count;
-    FunctionParamLocation *locations;
-} FunctionParamLocations;
+    CallValueLocation *locations;
+} CallValueLocations;
 
-typedef struct function_param_allocation {
+typedef struct call_value_allocation {
     int single_int_register_arg_count;  // Amount of allocated integer registers
     int single_fp_register_arg_count;   // Amount of allocated floating point registers
     int biggest_alignment;              // Alignment of largest param
     int offset;                         // If on the stack, offset within the FPA
     int padding;                        // Final padding on the stack
     int size;                           // Size on the stack, including padding
-    List *param_locations;
-} FunctionParamAllocation;
+    List *locations;
+} CallValueAllocation;
 
 // Physical register class
 enum {
@@ -324,7 +324,7 @@ typedef struct function_call_value {
     Type *function_type;                                 // Type of the function in a function call
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
     int function_call_arg_index;                         // Index of the argument (0=leftmost)
-    FunctionParamLocations *function_call_arg_locations; // Destination of the arg, either a single int or FP register, or in the case of a struct, a list of locations
+    CallValueLocations *function_call_arg_locations; // Destination of the arg, either a single int or FP register, or in the case of a struct, a list of locations
     int function_call_fp_register_arg_index;             // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
     int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
     int function_call_arg_push_count;                    // Number of arguments pushed on the stack
@@ -418,13 +418,13 @@ void free_function(Function *function, int remove_from_allocations);
 void free_functions(void);
 Function *new_function(char *identifier);
 void reverse_function_call_args_order(Function *function);
-void add_single_function_param_location(FunctionParamAllocation *fpa, Type *type);
-FunctionParamAllocation *initialize_function_return_value_fpa(Type *function_type);
+void add_single_call_value_location(CallValueAllocation *cva, Type *type);
+CallValueAllocation *initialize_function_return_value_cva(Type *function_type);
 void process_function_call_arg_allocations(Function *function);
 void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int count);
 int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *param, int preg_class, int register_index, RegisterSet *register_set);
-void load_struct_scalar_into_value(Function *function, Tac *ir, Value *param, FunctionParamLocation *pl, Type *type, Value *dst, int offset);
-Value *load_struct_scalar_into_new_vreg(Function *function, Tac *ir, Value *param, FunctionParamLocation *pl, Type *type);
+void load_struct_scalar_into_value(Function *function, Tac *ir, Value *param, CallValueLocation *pl, Type *type, Value *dst, int offset);
+Value *load_struct_scalar_into_new_vreg(Function *function, Tac *ir, Value *param, CallValueLocation *pl, Type *type);
 Value *make_long_temp_vreg(Function *function);
 void add_function_call_arg_move_for_struct_or_union_on_stack(Function *function, Tac *ir);
 void remove_IR_ARG_instructions_that_have_been_handled(Function *function);
@@ -432,13 +432,13 @@ void add_function_call_arg_moves(Function *function);
 void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset);
 void remap_stack_index(int *stack_index_remap, Value *v);
 Value *make_function_call_value(int function_call, Type *type);
-FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
+CallValueAllocation *init_call_value_allocaton(char *function_identifier);
 void add_function_param_moves(Function *function);
 Tac *make_param_move_to_register_tac(Function *function, Type *type, int single_register_arg_count, int in_register);
 Tac *make_param_move_to_stack_tac(Function *function, Type *type, int single_register_arg_count);
-void free_function_param_allocaton(FunctionParamAllocation *fpa);
-void free_function_param_locations(FunctionParamLocations *fpl);
-void finalize_function_param_allocation(FunctionParamAllocation *fpa);
+void free_call_value_allocaton(CallValueAllocation *cva);
+void free_call_value_locations(CallValueLocations *cvl);
+void finalize_call_value_allocation(CallValueAllocation *cva);
 
 // Struct/union member
 typedef struct struct_or_union_member {
@@ -1602,12 +1602,12 @@ void perform_peephole_optimization(Function *function);
 // Target functions related code
 Set *allocate_return_value_live_ranges(void);
 int prepend_function_params(Function *function);
-void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack);
-void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
-int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, FunctionParamLocations *pl, RegisterSet *register_set);
-void add_function_vararg_param_moves(Function *function, FunctionParamAllocation *fpa);
+void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int force_stack);
+void add_type_to_cva(CallValueAllocation *cva, Type *type);
+int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, CallValueLocations *pl, RegisterSet *register_set);
+void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva);
 int *make_original_stack_indexes(Function *function);
-int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *param, int preg_class, int register_index, FunctionParamLocation *location, RegisterSet *register_set);
+int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *param, int preg_class, int register_index, CallValueLocation *location, RegisterSet *register_set);
 void process_target_functions(Function *function);
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
 

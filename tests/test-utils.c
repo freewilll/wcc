@@ -380,12 +380,12 @@ void finish_spill_ir(Function *function) {
 Value *make_arg_src1() {
     // Setup rdi as a register
     Value *arg_src1 = c(0);
-    FunctionParamLocations *fpl = malloc(sizeof(FunctionParamLocations));
-    fpl->locations = malloc(sizeof(FunctionParamLocation));
-    fpl->count = 1;
-    fpl->locations[0].int_register = 0;
-    fpl->locations[0].fp_register = -1;
-    arg_src1->function_call.function_call_arg_locations = fpl;
+    CallValueLocations *cvl = malloc(sizeof(CallValueLocations));
+    cvl->locations = malloc(sizeof(CallValueLocation));
+    cvl->count = 1;
+    cvl->locations[0].int_register = 0;
+    cvl->locations[0].fp_register = -1;
+    arg_src1->function_call.function_call_arg_locations = cvl;
 
     return arg_src1;
 }

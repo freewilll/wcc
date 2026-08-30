@@ -14,7 +14,7 @@ static int is_sse_floating_point_type(Type *type) {
 // This implements the reverse of make_int_struct_or_union_arg_move_instructions
 // This is also used for moving struct/unions into function return value registers
 static int make_int_struct_or_union_move_from_register_to_stack_instructions(
-        Function *function, Tac *ir, Type *type, FunctionParamLocation* pl,
+        Function *function, Tac *ir, Type *type, CallValueLocation* pl,
         int register_index, int stack_index, RegisterSet *register_set, int param_register_vreg) {
 
     if (debug_function_param_mapping)
@@ -72,7 +72,7 @@ static int make_int_struct_or_union_move_from_register_to_stack_instructions(
 // This implements the reverse of make_sse_struct_or_union_arg_move_instructions.
 // This is also used for moving struct/unions into function return value registers.
 static int make_sse_struct_or_union_move_from_register_to_stack_instructions(
-        Function *function, Tac *ir, Type *type, FunctionParamLocation* pl,
+        Function *function, Tac *ir, Type *type, CallValueLocation* pl,
         int register_index, int stack_index, RegisterSet *register_set, int param_register_vreg) {
 
     if (debug_function_param_mapping)
@@ -125,13 +125,13 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
 
     Type *function_type = ir->src1->type;
 
-    FunctionParamAllocation *fpa = function_type->function->return_value_fpa;
-    if (!fpa) panic("In add_function_call_result_moves_for_struct_or_union() got an empty RV fpa");
-    FunctionParamLocations *fpl = fpa->param_locations->elements[0];
+    CallValueAllocation *cva = function_type->function->return_value_cva;
+    if (!cva) panic("In add_function_call_result_moves_for_struct_or_union() got an empty RV cva");
+    CallValueLocations *cvl = cva->locations->elements[0];
 
     Value *function_value = ir->src1;
 
-    if (fpl->locations[0].stack_offset == -1) {
+    if (cvl->locations[0].stack_offset == -1) {
         // Move registers to a struct/union on the stack
 
         ir->dst = 0;
@@ -139,8 +139,8 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
 
         // Allocate result vregs and create a live range or them
         int *live_range_pregs = wmalloc(sizeof(int) * 8);
-        for (int loc = 0; loc < fpl->count; loc++) {
-            FunctionParamLocation *location = &(fpl->locations[loc]);
+        for (int loc = 0; loc < cvl->count; loc++) {
+            CallValueLocation *location = &(cvl->locations[loc]);
             live_range_pregs[loc] = ++function->vreg_count;
             Value *dst = new_value();
             dst->vreg = live_range_pregs[loc];
@@ -148,8 +148,8 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
             new_tac_before(ir, IR_CALL_ARG_REG, dst, 0, 0, 1);
         }
 
-        for (int loc = 0; loc < fpl->count; loc++) {
-            FunctionParamLocation *location = &(fpl->locations[loc]);
+        for (int loc = 0; loc < cvl->count; loc++) {
+            CallValueLocation *location = &(cvl->locations[loc]);
 
             int live_range_preg;
             int param_register_vreg = live_range_pregs[loc];
@@ -242,13 +242,13 @@ static void add_function_call_result_moves(Function *function) {
 // Move struct or union of size <= 32 into rax/rdx or xmm0/xmm1
 static void add_function_return_moves_for_struct_or_union(Function *function, Tac *ir, char *identifier) {
     // Determine registers
-    FunctionParamAllocation *fpa = init_function_param_allocaton(identifier);
-    add_function_param_to_allocation(fpa, ir->src1->type);
-    FunctionParamLocations *fpl = fpa->param_locations->elements[0];
+    CallValueAllocation *cva = init_call_value_allocaton(identifier);
+    add_type_to_cva(cva, ir->src1->type);
+    CallValueLocations *cvl = cva->locations->elements[0];
 
     Value **function_call_values = wcalloc(2, sizeof(Value *));
 
-    if (fpl->locations[0].stack_offset != -1) {
+    if (cvl->locations[0].stack_offset != -1) {
         // Move data into memory
 
         ir->operation.id = IR_NOP;
@@ -275,8 +275,8 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
     }
     else {
         // Move the data into registers
-        for (int loc = fpl->count - 1; loc >= 0; loc--) {
-            FunctionParamLocation *location = &(fpl->locations[loc]);
+        for (int loc = cvl->count - 1; loc >= 0; loc--) {
+            CallValueLocation *location = &(cvl->locations[loc]);
             int preg_class = (location->int_register != -1) ? PC_INT : PC_FP;
             int register_index = (preg_class == PC_INT) ? location->int_register : location->fp_register;
             Value *param = ir->src1;
@@ -349,7 +349,7 @@ static void add_function_return_moves(Function *function) {
 // size = 8     load long
 static int make_int_struct_or_union_arg_move_instructions(
     Function *function, Tac *ir, Value *param, int preg_class, int register_index,
-    FunctionParamLocation *pl, RegisterSet *register_set) {
+    CallValueLocation *pl, RegisterSet *register_set) {
 
     // Make the shift register
     Value *result_register = new_value();
@@ -410,7 +410,7 @@ static int make_int_struct_or_union_arg_move_instructions(
 // The struct/union already has an alignment of either 4 or 8, so it can be loaded with simple instructions.
 static int make_sse_struct_or_union_arg_move_instructions(
     Function *function, Tac *ir, Value *param, int preg_class, int register_index,
-    FunctionParamLocation *pl, RegisterSet *register_set) {
+    CallValueLocation *pl, RegisterSet *register_set) {
 
     if (debug_function_arg_mapping) printf("Adding arg move from struct to SSE register_index=%d register size=%d\n", register_index, pl->stru_size);
 
@@ -439,7 +439,7 @@ static int make_sse_struct_or_union_arg_move_instructions(
 // Load a function parameter register from an struct or union 8-byte
 int make_struct_or_union_arg_move_instructions(
         Function *function, Tac *ir, Value *param, int preg_class, int register_index,
-        FunctionParamLocation *location, RegisterSet *register_set) {
+        CallValueLocation *location, RegisterSet *register_set) {
 
     if (preg_class == PC_INT)
         return make_int_struct_or_union_arg_move_instructions(function, ir, param, preg_class, register_index, location, register_set);
@@ -448,7 +448,7 @@ int make_struct_or_union_arg_move_instructions(
 }
 
 // Add instructions to move struct/union data from a param register to a struct on the stack
-int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, FunctionParamLocations *pl, RegisterSet *register_set) {
+int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, CallValueLocations *pl, RegisterSet *register_set) {
     // Allocate space on the stack for the struct
     Value *v = new_value();
     v->type = dup_type(type);
@@ -457,7 +457,7 @@ int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, Func
     new_tac_before(ir, IR_DECL_LOCAL_COMP_OBJ, 0, v, 0, 0);
 
     for (int loc = 0; loc < pl->count; loc++) {
-        FunctionParamLocation *location = &(pl->locations[loc]);
+        CallValueLocation *location = &(pl->locations[loc]);
 
         if (location->int_register != -1)
             make_int_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->int_register, v->stack_index, register_set, 0);
@@ -474,9 +474,9 @@ int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, Func
 // the target in rdi. Make a copy of rdi in return_value_pointer for use in the
 // return value code. The function returns 1 if rdi has been used in this way.
 static int setup_return_for_struct_or_union(Function *function) {
-    FunctionParamAllocation *fpa = function->type->function->return_value_fpa;
-    if (!fpa) panic("In setup_return_for_struct_or_union() got an empty RV fpa");
-    if (fpa_pl(fpa, 0).locations[0].stack_offset == -1) return 0;
+    CallValueAllocation *cva = function->type->function->return_value_cva;
+    if (!cva) panic("In setup_return_for_struct_or_union() got an empty RV cva");
+    if (CVA_CVL(cva, 0).locations[0].stack_offset == -1) return 0;
 
     function->return_value_pointer = new_value();
     function->return_value_pointer->vreg = ++function->vreg_count;
@@ -499,9 +499,9 @@ static int setup_return_for_struct_or_union(Function *function) {
 // For functions with variadic arguments, move registers into the register save area.
 // The register save area has been allocated on the stack by the parser with the
 // value set in function->register_save_area.
-void add_function_vararg_param_moves(Function *function, FunctionParamAllocation *fpa) {
+void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva) {
     // Add moves for ints registers to register save area
-    for (int i = fpa->single_int_register_arg_count; i < 6; i++) {
+    for (int i = cva->single_int_register_arg_count; i < 6; i++) {
         Value *src = new_value();
         src->vreg = ++function->vreg_count;
         src->type = new_type(TYPE_LONG);
@@ -521,7 +521,7 @@ void add_function_vararg_param_moves(Function *function, FunctionParamAllocation
     ir = new_tac_after(ir, IR_JZ, 0, rax, ldone);
 
     // Add moves for SSE registers to register save area
-    for (int i = fpa->single_fp_register_arg_count; i < 8; i++) {
+    for (int i = cva->single_fp_register_arg_count; i < 8; i++) {
         Value *src = new_value();
         src->vreg = ++function->vreg_count;
         src->type = new_type(TYPE_DOUBLE);
@@ -555,7 +555,7 @@ static void process_function_va_start(Function *function, Tac *ir) {
     fp_offset_value->type = new_type(TYPE_INT);
     fp_offset_value->type->is_unsigned = 1;
     fp_offset_value->is_constant = 1;
-    fp_offset_value->int_value = function->fpa->single_int_register_arg_count * 8;
+    fp_offset_value->int_value = function->cva->single_int_register_arg_count * 8;
 
     Value *dst = dup_value(va_list);
     dst->type = new_type(TYPE_INT);
@@ -564,7 +564,7 @@ static void process_function_va_start(Function *function, Tac *ir) {
 
     // Set va_list.gp_offset, the offset of the first vararg SSE register
     Value *gp_offset_value = dup_value(fp_offset_value);
-    gp_offset_value->int_value = 48 + function->fpa->single_fp_register_arg_count * 16;
+    gp_offset_value->int_value = 48 + function->cva->single_fp_register_arg_count * 16;
     dst = dup_value(dst);
     dst->offset = 4;
     ir = new_tac_after(ir, IR_MOVE, dst, gp_offset_value, 0);
@@ -806,11 +806,11 @@ static void process_function_va_arg(Function *function, Tac *ir) {
     int fp_count = 0; // SSE registers
 
     if (type->type == TYPE_STRUCT_OR_UNION) {
-        FunctionParamAllocation *fpa = init_function_param_allocaton("vararg struct");
-        add_function_param_to_allocation(fpa, type);
-        FunctionParamLocations *fpl = fpa->param_locations->elements[0];
+        CallValueAllocation *cva = init_call_value_allocaton("vararg struct");
+        add_type_to_cva(cva, type);
+        CallValueLocations *cvl = cva->locations->elements[0];
 
-        if (fpl->locations[0].stack_offset != -1) {
+        if (cvl->locations[0].stack_offset != -1) {
             // It's on the stack
             ir = add_function_va_arg_stack_read(function, ir, type, va_list, dst);
             return;
@@ -818,10 +818,10 @@ static void process_function_va_arg(Function *function, Tac *ir) {
 
         // The arg can be in registers. Although it might end up on the stack
         // if registers have run out.
-        else if (fpl->locations[0].int_register != -1)
-            gp_count = fpl->count;
+        else if (cvl->locations[0].int_register != -1)
+            gp_count = cvl->count;
         else
-            fp_count = fpl->count;
+            fp_count = cvl->count;
     }
     else {
         // A scalar arg is either in int (gp) or sse (fp) registers
@@ -859,12 +859,12 @@ static void process_function_varargs(Function *function) {
     }
 }
 
-// Using the state of already allocated registers & stack entries in fpa, determine the location for a type and set it in fpl.
-void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack) {
-    fpl->int_register = -1;
-    fpl->fp_register = -1;
-    fpl->stack_offset = -1;
-    fpl->stack_padding = -1;
+// Using the state of already allocated registers & stack entries in cva, determine the location for a type and set it in cvl.
+void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int force_stack) {
+    cvl->int_register = -1;
+    cvl->fp_register = -1;
+    cvl->stack_offset = -1;
+    cvl->stack_padding = -1;
 
     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
     if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
@@ -875,44 +875,44 @@ void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation 
     int in_stack =
         is_long_double ||
         force_stack ||
-        (is_single_int_register && fpa->single_int_register_arg_count >= 6) || (is_single_fp_register && fpa->single_fp_register_arg_count >= 8);
+        (is_single_int_register && cva->single_int_register_arg_count >= 6) || (is_single_fp_register && cva->single_fp_register_arg_count >= 8);
 
     int alignment = get_type_alignment(type);
     if (alignment < 8) alignment = 8;
 
     if (!in_stack && is_single_int_register)
-        fpl->int_register = fpa->single_int_register_arg_count < 6 ? fpa->single_int_register_arg_count : -1;
+        cvl->int_register = cva->single_int_register_arg_count < 6 ? cva->single_int_register_arg_count : -1;
 
     else if (!in_stack && is_single_fp_register)
-        fpl->fp_register = fpa->single_fp_register_arg_count < 8 ? fpa->single_fp_register_arg_count : -1;
+        cvl->fp_register = cva->single_fp_register_arg_count < 8 ? cva->single_fp_register_arg_count : -1;
 
     else {
         // It's on the stack
 
-        if (alignment > fpa->biggest_alignment) fpa->biggest_alignment = alignment;
-        int padding = ((fpa->offset + alignment  - 1) & (~(alignment - 1))) - fpa->offset;
-        fpa->offset += padding;
+        if (alignment > cva->biggest_alignment) cva->biggest_alignment = alignment;
+        int padding = ((cva->offset + alignment  - 1) & (~(alignment - 1))) - cva->offset;
+        cva->offset += padding;
 
-        fpl->stack_offset = fpa->offset;
-        fpl->stack_padding = padding;
+        cvl->stack_offset = cva->offset;
+        cvl->stack_padding = padding;
 
         int type_size = get_type_size(type);
         if (type_size < 8) type_size = 8;
-        fpa->offset += type_size;
+        cva->offset += type_size;
 
         if (debug_function_param_allocation)
-            printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", fpa->param_locations->length, alignment, fpl->stack_offset, fpl->stack_padding);
+            printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", cva->locations->length, alignment, cvl->stack_offset, cvl->stack_padding);
     }
 
     if (debug_function_param_allocation && !in_stack && (is_single_int_register || is_single_fp_register)) {
-        if (fpl->int_register != -1)
-            printf("  arg %2d with alignment %2d     int reg %5d\n", fpa->param_locations->length, alignment, fpl->int_register);
+        if (cvl->int_register != -1)
+            printf("  arg %2d with alignment %2d     int reg %5d\n", cva->locations->length, alignment, cvl->int_register);
         else
-            printf("  arg %2d with alignment %2d     sse reg %5d\n", fpa->param_locations->length, alignment, fpl->fp_register);
+            printf("  arg %2d with alignment %2d     sse reg %5d\n", cva->locations->length, alignment, cvl->fp_register);
     }
 
-    fpa->single_int_register_arg_count += is_single_int_register;
-    if (!in_stack && is_single_fp_register) fpa->single_fp_register_arg_count++;
+    cva->single_int_register_arg_count += is_single_int_register;
+    if (!in_stack && is_single_fp_register) cva->single_fp_register_arg_count++;
 }
 
 // Make a set large enough to hold all live ranges
@@ -925,51 +925,52 @@ Set *allocate_return_value_live_ranges(void) {
 // rdi contains the address where the return struct must be copied to.
 // Returns the amount of prepended parameters that were added.
 int prepend_function_params(Function *function) {
-    int fpa_start = 0;
+    int cva_start = 0;
 
     if (function->type->target->type == TYPE_STRUCT_OR_UNION) {
-        fpa_start = setup_return_for_struct_or_union(function);
-        if (fpa_start) add_function_param_to_allocation(function->fpa, function->return_value_pointer->type);
+        cva_start = setup_return_for_struct_or_union(function);
+        if (cva_start) add_type_to_cva(function->cva, function->return_value_pointer->type);
     }
 
-    return fpa_start;
+    return cva_start;
 }
 
+// Add a type to a call value allocation
 // Add a param/arg to a function and allocate registers & stack entries
 // Structs are decomposed.
-void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {
+void add_type_to_cva(CallValueAllocation *cva, Type *type) {
     if (type->type == TYPE_INT128) {
         // An int-128 fits into two 8 bytes
 
-        FunctionParamLocations *fpl = wcalloc(1, sizeof(FunctionParamLocations));
-        fpl->locations = wmalloc(sizeof(FunctionParamLocation) * 2);
-        fpl->count = 2;
+        CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
+        cvl->locations = wmalloc(sizeof(CallValueLocation) * 2);
+        cvl->count = 2;
 
-        FunctionParamAllocation *backup_fpa = wmalloc(sizeof(FunctionParamAllocation));
-        *backup_fpa = *fpa;
+        CallValueAllocation *backup_cva = wmalloc(sizeof(CallValueAllocation));
+        *backup_cva = *cva;
 
-        add_type_to_allocation(fpa, &(fpl->locations[0]), new_type(TYPE_INT), 0);
-        add_type_to_allocation(fpa, &(fpl->locations[1]), new_type(TYPE_INT), 0);
+        add_type_to_cvl(cva, &(cvl->locations[0]), new_type(TYPE_INT), 0);
+        add_type_to_cvl(cva, &(cvl->locations[1]), new_type(TYPE_INT), 0);
 
-        fpl->locations[0].i128_part = 0;
-        fpl->locations[1].i128_part = 1;
+        cvl->locations[0].i128_part = 0;
+        cvl->locations[1].i128_part = 1;
 
-        int in_stack = fpl->locations[0].stack_offset != -1 || fpl->locations[1].stack_offset != -1;
+        int in_stack = cvl->locations[0].stack_offset != -1 || cvl->locations[1].stack_offset != -1;
         if (in_stack) {
-            *fpa = *backup_fpa;
-            add_single_function_param_location(fpa, type);
-            free_function_param_locations(fpl);
+            *cva = *backup_cva;
+            add_single_call_value_location(cva, type);
+            free_call_value_locations(cvl);
         }
         else {
-            append_to_list(fpa->param_locations, fpl);
+            append_to_list(cva->locations, cvl);
         }
 
-        wfree(backup_fpa);
+        wfree(backup_cva);
     }
 
     else if (type->type != TYPE_STRUCT_OR_UNION) {
         // Create a single location for the arg
-        add_single_function_param_location(fpa, type);
+        add_single_call_value_location(cva, type);
     }
 
     else {
@@ -979,7 +980,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
         int size = get_type_size(type);
         if (size > 16) {
             // The entire thing is on the stack
-            add_single_function_param_location(fpa, type);
+            add_single_call_value_location(cva, type);
         }
 
         else {
@@ -1020,9 +1021,9 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
 
             // Determine number of 8-bytes & allocate memory
             int eight_bytes_count = (size + 7) / 8;
-            FunctionParamLocations *fpl = wcalloc(1, sizeof(FunctionParamLocations));
-            fpl->locations = wmalloc(sizeof(FunctionParamLocation) * eight_bytes_count);
-            fpl->count = eight_bytes_count;
+            CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
+            cvl->locations = wmalloc(sizeof(CallValueLocation) * eight_bytes_count);
+            cvl->count = eight_bytes_count;
 
             // If one of the classes is MEMORY, the whole argument is passed in memory.
             int in_memory = 0;
@@ -1030,43 +1031,43 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
 
             if  (in_memory || unaligned) {
                 // The entire thing is on the stack
-                add_single_function_param_location(fpa, type);
-                free_function_param_locations(fpl);
+                add_single_call_value_location(cva, type);
+                free_call_value_locations(cvl);
             }
 
             else {
-                FunctionParamAllocation *backup_fpa = wmalloc(sizeof(FunctionParamAllocation));
-                *backup_fpa = *fpa;
+                CallValueAllocation *backup_cva = wmalloc(sizeof(CallValueAllocation));
+                *backup_cva = *cva;
                 int on_stack = 0;
 
                 // Create a location for each eight byte
                 for (int i = 0; i < eight_bytes_count; i++) {
-                    fpl->locations[i].stru_size = size > 8 ? 8 : size;
+                    cvl->locations[i].stru_size = size > 8 ? 8 : size;
                     size -= 8;
 
-                    fpl->locations[i].stru_member_count = member_counts[i];
-                    fpl->locations[i].stru_offset = i * 8;
+                    cvl->locations[i].stru_member_count = member_counts[i];
+                    cvl->locations[i].stru_offset = i * 8;
 
                     if (seen_integer[i])
-                        add_type_to_allocation(fpa, &(fpl->locations[i]), new_type(TYPE_INT), 0);
+                        add_type_to_cvl(cva, &(cvl->locations[i]), new_type(TYPE_INT), 0);
                     else
-                        add_type_to_allocation(fpa, &(fpl->locations[i]), new_type(TYPE_FLOAT), 0);
+                        add_type_to_cvl(cva, &(cvl->locations[i]), new_type(TYPE_FLOAT), 0);
 
-                    if (fpl->locations[i].stack_offset != -1) on_stack = 1;
+                    if (cvl->locations[i].stack_offset != -1) on_stack = 1;
                 }
 
                 // Part of the struct/union overflowed into the stack due to a shortage
                 // of registers. Roll back & put the whole thing in the stack.
                 if (on_stack && eight_bytes_count > 1) {
                     if (debug_function_param_allocation) printf("         ran out of registers, rewinding ... \n");
-                    *fpa = *backup_fpa;
-                    add_single_function_param_location(fpa, type);
-                    free_function_param_locations(fpl);
+                    *cva = *backup_cva;
+                    add_single_call_value_location(cva, type);
+                    free_call_value_locations(cvl);
                 }
                 else
-                    append_to_list(fpa->param_locations, fpl);
+                    append_to_list(cva->locations, cvl);
 
-                wfree(backup_fpa);
+                wfree(backup_cva);
             }
 
             wfree(seen_integer);
@@ -1097,7 +1098,7 @@ int *make_original_stack_indexes(Function *function) {
 // Process target function calls, args, params and return values
 void process_target_functions(Function *function) {
     // Callee
-    initialize_function_return_value_fpa(function->type);
+    initialize_function_return_value_cva(function->type);
     add_function_param_moves(function);
     add_function_return_moves(function);
     process_function_varargs(function);
