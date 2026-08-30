@@ -53,7 +53,7 @@ Function *new_function(char *identifier) {
     return function;
 }
 
-// In the initial parser IR, argumensts are left to right.
+// In the initial parser IR, arguments are left to right.
 // In the final IR, after arg processing the arguments are right to left.
 // This matches the ABIs, where pushed arguments are also right to left.
 void reverse_function_call_args_order(Function *function) {
@@ -157,8 +157,7 @@ FunctionParamAllocation *initialize_function_return_value_fpa(Type *function_typ
 
 // Prepare register/stack allocation for args in function calls
 void process_function_call_arg_allocations(Function *function) {
-    int function_calls_size = make_max_function_call_id(function) + 1;
-    FunctionParamAllocation **fpas = wcalloc(function_calls_size, sizeof(FunctionParamAllocation));
+    FunctionParamAllocation *fpa = NULL;
 
     int has_struct_or_union_return_value = -1;
 
@@ -171,10 +170,7 @@ void process_function_call_arg_allocations(Function *function) {
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
             Type *function_type = ir->src1->function_call.function_type;
             if (!function_type) panic("function_type NULL in IR_START_CALL in function %s", symbol ? symbol->global_identifier : "(anonymous)");
-            FunctionParamAllocation *fpa = init_function_param_allocaton(symbol_name);
-            int function_call_number = ir->src1->int_value;
-            fpas[function_call_number] = fpa;
-
+            fpa = init_function_param_allocaton(symbol_name);
 
             if (function_type->target->type == TYPE_STRUCT_OR_UNION) {
                 FunctionParamAllocation *rv_fpa = initialize_function_return_value_fpa(function_type);
@@ -193,9 +189,7 @@ void process_function_call_arg_allocations(Function *function) {
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
 
             Value *arg = ir->src1;
-            int function_call_number = arg->int_value;
 
-            FunctionParamAllocation *fpa = fpas[function_call_number];
             if (!fpa) panic("fpa was NULL in an IR_ARG for a function call to %s in function %s", symbol_name, function->identifier);
 
             if (has_struct_or_union_return_value == -1) panic("has_struct_or_union_return_value was not set");
@@ -214,9 +208,7 @@ void process_function_call_arg_allocations(Function *function) {
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
 
             Value *function_value = ir->src1;
-            int function_call_number = function_value->int_value;
 
-            FunctionParamAllocation *fpa = fpas[function_call_number];
             if (!fpa) panic("fpa was NULL in an IR_CALL for a function call to %s in function %s", symbol_name, function->identifier);
 
             function_value->function_call.function_call_fp_register_arg_count = fpa->single_fp_register_arg_count;
@@ -230,9 +222,7 @@ void process_function_call_arg_allocations(Function *function) {
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
 
             Value *arg = ir->src1;
-            int function_call_number = arg->int_value;
 
-            FunctionParamAllocation *fpa = fpas[function_call_number];
             if (!fpa) panic("fpa was NULL in an IR_END_CALL for a function call to %s in function %s", symbol_name, function->identifier);
 
             finalize_function_param_allocation(fpa);
@@ -240,8 +230,6 @@ void process_function_call_arg_allocations(Function *function) {
             arg->function_call.function_call_arg_push_count = (fpa->size + 7) / 8;
         }
     }
-
-    wfree(fpas);
 }
 
 // Add IR_CALL_ARG_REG instructions that don't do anything, but ensure

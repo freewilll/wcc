@@ -2390,13 +2390,13 @@ static void parse_function_call(void) {
     next();
 
     int function_call = function_call_count++;
-    Value *src1 = make_function_call_value(function_call, function_type);
-    src1->function_call.function_symbol = symbol;
-    src1->function_call.function_type = function_type;
+    Value *function_call_value = make_function_call_value(function_call, function_type);
+    function_call_value->function_call.function_symbol = symbol;
+    function_call_value->function_call.function_type = function_type;
 
-    add_parser_instruction(IR_START_CALL, 0, src1, 0);
-
+    // Collect all args first, so that function calls aren't nested.
     int arg_count = 0;
+    List *args = new_list(8);
 
     while (1) {
         if (cur_token == TOK_RPAREN) break;
@@ -2405,7 +2405,6 @@ static void parse_function_call(void) {
             error("Too many arguments for function call");
 
         parse_expression(TOK_EQ);
-        Value *arg = dup_value(src1);
 
         if (vtop()->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
         if (vtop()->type->type == TYPE_ENUM) vtop()->type->type = TYPE_INT;
@@ -2436,7 +2435,7 @@ static void parse_function_call(void) {
                 push(arg);
         }
 
-        add_parser_instruction(IR_ARG, 0, arg, pl());
+        append_to_list(args, pl());
 
         arg_count++;
 
@@ -2445,6 +2444,15 @@ static void parse_function_call(void) {
         if (cur_token == TOK_RPAREN) error("Expected expression");
     }
     consume(TOK_RPAREN, ")");
+
+    // Make IR_START_CALL, IR_ARG, [IR_ARG, ..] ... IR_END_CALL instructions
+
+    add_parser_instruction(IR_START_CALL, 0, function_call_value, 0);
+
+    for (int i = 0; i < arg_count; i++)
+        add_parser_instruction(IR_ARG, 0, dup_value(function_call_value), args->elements[i]);
+
+    free_list(args);
 
     Value *function_value = new_value();
     function_value->int_value = function_call;
@@ -2481,7 +2489,7 @@ static void parse_function_call(void) {
     }
 
     add_parser_instruction(IR_CALL, return_value, function_value, 0);
-    add_parser_instruction(IR_END_CALL, 0, src1, 0);
+    add_parser_instruction(IR_END_CALL, 0, function_call_value, 0);
 
     if (return_value) push(return_value);
 }
