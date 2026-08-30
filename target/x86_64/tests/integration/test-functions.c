@@ -112,8 +112,8 @@ static void test_param_on_stack(void) {
     ASSERT_REG_PARAM(9,  10, LIVE_RANGE_PREG_R08);
     ASSERT_REG_PARAM(11, 12, LIVE_RANGE_PREG_R09);
 
-    // r13:int = &S[2]:int
-    assert_tac(ir, IR_MOVE, vsz(13, TYPE_INT), S(2), 0);
+    // r13:int = &S[1]:int
+    assert_tac(ir, IR_MOVE, vsz(13, TYPE_INT), S(1), 0);
     assert_int(0, !!ir->label);
 
     // label: nop

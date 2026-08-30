@@ -84,11 +84,11 @@ char *register_name(int preg) {
 // or stack offset for local params.
 // The stack layout for a function with 2 function parameters pushed to the stack
 // stack index  offset    what
-// 7            +56       arg 9, e.g. an int
-// 6            +48       arg 8, e.g. an int
-// 4            +32       arg 7, e.g. a long double, aligned on 16 bytes
+// 6            +56       arg 9, e.g. an int
+// 5            +48       arg 8, e.g. an int
+// 3            +32       arg 7, e.g. a long double, aligned on 16 bytes
 //                        alignment gap
-// 2            +16       arg 6, e.g. an int
+// 1            +16       arg 6, e.g. an int
 //              +8        return address
 //              +0        Pushed BP
 // -1           -8        first local variable / spilled register e.g. long
@@ -97,9 +97,9 @@ char *register_name(int preg) {
 static int get_stack_offset(Value *v) {
     int stack_index = v->stack_index;
 
-    if (stack_index >= 2)
-        // Function parameter
-        return 8 * stack_index;
+    if (stack_index > 0) {
+        return 8 * (stack_index + 1);
+    }
     else if (stack_index < 0) {
         if (!v->stack_offset && !debug_instsel_tiling) panic("Unexpected zero stack offset");
         return -v->stack_offset;

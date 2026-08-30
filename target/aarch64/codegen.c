@@ -3,8 +3,6 @@
 #include "wcc.h"
 #include "aarch64.h"
 
-#define HISTORICAL_PUSHED_FUNCTION_PARAM_OFFSET 2
-
 static int cur_function_stack_size;                 // The stack size of the current function
 static int cur_function_has_function_calls;         // If the current function makes any function calls
 static int cur_function_stack_space_for_x29_x30;    // Amount of stack space allocated for x29 and x30
@@ -69,17 +67,14 @@ char *register_name(int preg) {
 static void process_stack_offset(Tac *tac, Value *v, int *stack_offsets) {
     int result;
 
-    // A legacy from the original x86_64 code. Pushed args start at stack_index=2.
     int stack_index = v->stack_index;
 
-    if (stack_index >= HISTORICAL_PUSHED_FUNCTION_PARAM_OFFSET) {
-        // Function parameter
-        result = 8 * (stack_index - HISTORICAL_PUSHED_FUNCTION_PARAM_OFFSET);
-
-        if (stack_offsets) stack_offsets[-stack_index] = result;
-    }
-    else if (stack_index <= 0) {
+    if (stack_index < 0) {
         result = cur_function_stack_size - v->stack_offset;
+    }
+    else if (stack_index >= 0) {
+        // Function parameter
+        panic("TODO aarch64: function parameters on the stack");
     }
 
     if (v->spilled) {

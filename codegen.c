@@ -302,9 +302,10 @@ void make_stack_offsets(Function *function) {
     // Assign stack_offsets
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Special case for functions with a va_list. A src1 with stack_index OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX
-        // needs to be reassigned with address where the pushed varargs start
+        // needs to be reassigned with address where the pushed varargs start.
+        // Function param stack indexes start at 1.
         if (tac->src1 && tac->src1->stack_index == OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX) {
-            tac->src1->stack_index = 2 + (function->fpa->size >> 3);
+            tac->src1->stack_index = 1 + (function->fpa->size >> 3);
         }
         else
             if (tac->src1 && tac->src1->stack_index < 0) tac->src1->stack_offset = stack_offsets[-tac->src1->stack_index];

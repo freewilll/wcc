@@ -611,7 +611,7 @@ void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset) {
 
 // Convert a stack_index if stack_index_map isn't -1
 void remap_stack_index(int *stack_index_remap, Value *v) {
-    if (v && v->stack_index >= 2 && !v->has_been_renamed && stack_index_remap[v->stack_index] != -1) {
+    if (v && v->stack_index >= 0 && !v->has_been_renamed && stack_index_remap[v->stack_index] != -1) {
         v->stack_index = stack_index_remap[v->stack_index];
         v->has_been_renamed = 1;
     }
@@ -663,41 +663,41 @@ Tac *make_param_move_to_stack_tac(Function *function, Type *type, int single_reg
 static void check_param_value_has_used_in_an_address_of(int *has_address_of, Tac *tac, Value *v) {
     if (!v) return;
     if (tac->operation.id != IR_ADDRESS_OF) return;
-    if (v->stack_index < 2) return;
-    has_address_of[v->stack_index - 2] = 1;
+    if (v->stack_index <= 0) return;
+    has_address_of[v->stack_index - 1] = 1;
     return;
 }
 
 // Convert stack_index in value v to a parameter register
 static void convert_register_param_stack_index_to_register(Function *function, RegisterParamLocations *register_param_vregs, Value *v) {
-    if (!v || v->stack_index < 2) return;
+    if (!v || v->stack_index <= 0) return;
 
-    if (register_param_vregs[v->stack_index  - 2].low != -1 && v->offset == 0) {
-        assign_register_to_value(v, register_param_vregs[v->stack_index  - 2].low);
+    if (register_param_vregs[v->stack_index - 1].low != -1 && v->offset == 0) {
+        assign_register_to_value(v, register_param_vregs[v->stack_index - 1].low);
     }
-    else if (register_param_vregs[v->stack_index  - 2].high != -1 && v->offset == 8) {
-        assign_register_to_value(v, register_param_vregs[v->stack_index  - 2].high);
+    else if (register_param_vregs[v->stack_index - 1].high != -1 && v->offset == 8) {
+        assign_register_to_value(v, register_param_vregs[v->stack_index -1 ].high);
         v->offset = 0;
     }
 }
 
 // Convert stack_index in value v to a parameter in the stack
 static void convert_register_param_stack_index_to_stack(Function *function, int *register_param_stack_indexes, Value *v) {
-    if (v && v->stack_index >= 2 && register_param_stack_indexes[v->stack_index  - 2]) {
-        v->stack_index = register_param_stack_indexes[v->stack_index  - 2];
+    if (v && v->stack_index > 0 && register_param_stack_indexes[v->stack_index - 1]) {
+        v->stack_index = register_param_stack_indexes[v->stack_index - 1];
         v->is_lvalue = 0;
     }
 }
 
 // Convert a value that has a stack index >= 2, i.e. it's a pushed parameter into a vreg
 static void convert_pushed_param_stack_index_to_register(Function *function, RegisterParamLocations *stack_param_vregs, Value *v) {
-    if (!v || v->function_call.function_param_original_stack_index || v->stack_index< 2) return;
+    if (!v || v->function_call.function_param_original_stack_index || v->stack_index <= 0) return;
 
-    if (stack_param_vregs[v->stack_index - 2].low != -1  && v->offset == 0) {
-        assign_register_to_value(v, stack_param_vregs[v->stack_index - 2].low);
+    if (stack_param_vregs[v->stack_index - 1].low != -1  && v->offset == 0) {
+        assign_register_to_value(v, stack_param_vregs[v->stack_index - 1].low);
     }
-    else if (stack_param_vregs[v->stack_index - 2].high != -1  && v->offset == 8) {
-        assign_register_to_value(v, stack_param_vregs[v->stack_index - 2].high);
+    else if (stack_param_vregs[v->stack_index - 1].high != -1  && v->offset == 8) {
+        assign_register_to_value(v, stack_param_vregs[v->stack_index - 1].high);
         v->offset = 0;
     }
 }
@@ -877,7 +877,7 @@ void add_function_param_moves(Function *function) {
     }
 
     // Add moves for params in the stack.
-    // Parameter stack indexes go from 2, 3, 4 for arg 0, arg 1, arg 2, ...
+    // Parameter stack indexes go from 1, 2, 3, 4 for arg 0, arg 1, arg 2,
     // Determine the actual stack index based on type sizes and alignment and
     // remap stack_index.
     int *stack_index_remap = wmalloc(sizeof(int) * (function->type->function->param_count + 2));
@@ -890,10 +890,10 @@ void add_function_param_moves(Function *function) {
 
         Type *type = function->type->function->param_types->elements[i];
 
-        int stack_index = (fpa_pl(fpa, fpa_start + i).locations[0].stack_offset + 16) >> 3;
+        int stack_index = (fpa_pl(fpa, fpa_start + i).locations[0].stack_offset + 8) >> 3;
 
-        // The rightmost arg has stack index 2
-        if (i + 2 != stack_index) stack_index_remap[i + 2] = stack_index;
+        // The rightmost arg has stack index 1
+        if (stack_index != i + 1) stack_index_remap[i + 1] = stack_index;
 
         if (debug_function_param_mapping) printf("Param %d SI %d -> SI %d\n", i, i + 2, stack_index);
 
@@ -902,14 +902,14 @@ void add_function_param_moves(Function *function) {
             long_type->type = TYPE_LONG;
 
             Tac *tac_low = make_param_move_to_register_tac(function, long_type, i, 0);
-            stack_param_vregs[stack_index - 2].low = tac_low->dst->vreg;
+            stack_param_vregs[stack_index - 1].low = tac_low->dst->vreg;
             tac_low->src1->function_call.function_param_original_stack_index = stack_index;
             tac_low->src1->stack_index = stack_index;
             tac_low->src1->has_been_renamed = 1; // Stop remap_stack_index() from changing the stack index again
             insert_tac_before(ir, tac_low, 0);
 
             Tac *tac_high = make_param_move_to_register_tac(function, long_type, i, 0);
-            stack_param_vregs[stack_index - 2].high = tac_high->dst->vreg;
+            stack_param_vregs[stack_index - 1].high = tac_high->dst->vreg;
             tac_high->src1->function_call.function_param_original_stack_index = stack_index + 1;
             tac_high->src1->stack_index = stack_index;
             tac_high->src1->offset = 8;
@@ -919,7 +919,7 @@ void add_function_param_moves(Function *function) {
 
         else if (!has_address_of[i] && (!long_doubles_are_in_the_stack || type->type != TYPE_LONG_DOUBLE) && type->type != TYPE_STRUCT_OR_UNION) {
             Tac *tac = make_param_move_to_register_tac(function, type, i, 0);
-            stack_param_vregs[stack_index - 2].low = tac->dst->vreg;
+            stack_param_vregs[stack_index - 1].low = tac->dst->vreg;
             tac->src1->function_call.function_param_original_stack_index = stack_index;
             tac->src1->stack_index = stack_index;
             tac->src1->has_been_renamed = 1; // Stop remap_stack_index() from changing the stack index again

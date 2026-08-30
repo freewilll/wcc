@@ -1674,7 +1674,7 @@ void test_param_vreg_moves() {
     i(0, IR_NOP, 0, 0, 0);
 
     for (j = 0; j < function->type->function->param_count; j++)
-        tac = i(0, IR_ADD, v(j + 3), v(1), S(j + 2));
+        tac = i(0, IR_ADD, v(j + 3), v(1), S(j + 1));
 
     finish_spill_ir(function);
 
