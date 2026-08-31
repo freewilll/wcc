@@ -29,16 +29,18 @@ void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *typ
 
     int is_single_int_register = type_fits_in_single_int_register(type);
     int is_single_fp_register = is_floating_point_type(type);
-    int in_stack = 0;
+    int in_stack =
+        force_stack ||
+        (is_single_int_register && cva->single_int_register_arg_count >= 8) || (is_single_fp_register && cva->single_fp_register_arg_count >= 8);
 
     int alignment = get_type_alignment(type);
 
     // TODO aarch64
-    if (cva->single_int_register_arg_count >= 8)
+    if (in_stack)
         panic("TODO aarch64 params in stack");
 
     if (!in_stack && is_single_int_register)
-        cvl->int_register = cva->single_int_register_arg_count < 6 ? cva->single_int_register_arg_count : -1;
+        cvl->int_register = cva->single_int_register_arg_count < 8 ? cva->single_int_register_arg_count : -1;
 
     else if (!in_stack && is_single_fp_register)
         cvl->fp_register = cva->single_fp_register_arg_count < 8 ? cva->single_fp_register_arg_count : -1;
@@ -47,7 +49,7 @@ void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *typ
         if (cvl->int_register != -1)
             printf("  arg %2d with alignment %2d     int reg %5d\n", cva->locations->length, alignment, cvl->int_register);
         else
-            printf("  arg %2d with alignment %2d     sse reg %5d\n", cva->locations->length, alignment, cvl->fp_register);
+            printf("  arg %2d with alignment %2d     fp  reg %5d\n", cva->locations->length, alignment, cvl->fp_register);
     }
 
     cva->single_int_register_arg_count += is_single_int_register;

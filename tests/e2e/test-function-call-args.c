@@ -12,43 +12,141 @@ float gf1;
 double gd1;
 long double gld;
 
-int fca0() {
-    assert_int(1, 1, "function call with 0 args");
+void fc_int0() {
+    assert_int(1, 1, "function call with 0 int args");
 }
 
-int fca1(int i1) {
-    assert_int(1, i1, "function call with 1 arg");
+void fc_int1(int i1) {
+    assert_int(1, i1, "function call with 1 int arg");
 }
 
-int fca2(int i1, int i2) {
-    assert_int(12, 10 * i1 + i2, "function call with 2 args");
+void fc_int2(int i1, int i2) {
+    assert_int(12, 10 * i1 + i2, "function call with 2 int args");
 }
 
-int fca3(int i1, int i2, int i3) {
-    assert_int(123, 100 * i1 + 10 * i2 + i3, "function call with 3 args");
+void fc_int3(int i1, int i2, int i3) {
+    assert_int(123, 100 * i1 + 10 * i2 + i3, "function call with 3 int args");
 }
 
-int fca4(int i1, int i2, int i3, int i4) {
-    assert_int(1234, 1000 * i1 + 100 * i2 + 10 * i3 + i4, "function call with 4 args");
+void fc_int4(int i1, int i2, int i3, int i4) {
+    assert_int(1234, 1000 * i1 + 100 * i2 + 10 * i3 + i4, "function call with 4 int args");
 }
 
-int fca5(int i1, int i2, int i3, int i4, int i5) {
-    assert_int(12345, 10000 * i1 + 1000 * i2 + 100 * i3 + 10 * i4 + i5, "function call with 5 args");
+void fc_int5(int i1, int i2, int i3, int i4, int i5) {
+    assert_int(12345, 10000 * i1 + 1000 * i2 + 100 * i3 + 10 * i4 + i5, "function call with 5 int args");
 }
 
-int fca6(int i1, int i2, int i3, int i4, int i5, int i6) {
-    assert_int(123456, 100000 * i1 + 10000 * i2 + 1000 * i3 + 100 * i4 + 10 * i5 + i6, "function call with 6 args");
+void fc_int6(int i1, int i2, int i3, int i4, int i5, int i6) {
+    assert_int(123456, 100000 * i1 + 10000 * i2 + 1000 * i3 + 100 * i4 + 10 * i5 + i6, "function call with 6 int args");
+}
+
+void fc_int7(int i1, int i2, int i3, int i4, int i5, int i6, int i7) {
+    assert_int(1234567, 1000000 * i1 + 100000 * i2 + 10000 * i3 + 1000 * i4 + 100 * i5 + 10 * i6 + i7, "function call with 7 int args");
+}
+
+void fc_int8(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8) {
+    assert_int(12345678, 10000000 * i1 + 1000000 * i2 + 100000 * i3 + 10000 * i4 + 1000 * i5 + 100 * i6 + 10 * i7 + i8, "function call with 8 int args");
+}
+
+void fc_int_in_stack8(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8) {
+    &i1; &i2; &i3; &i3; &i4; &i5; &i6; &i7; &i8;
+    assert_int(12345678, 10000000 * i1 + 1000000 * i2 + 100000 * i3 + 10000 * i4 + 1000 * i5 + 100 * i6 + 10 * i7 + i8, "function call with 8 int args with local args in stack");
+}
+
+void test_int_args() {
+    fc_int0();
+    fc_int1(1);
+    fc_int2(1, 2);
+    fc_int3(1, 2, 3);
+    fc_int4(1, 2, 3, 4);
+    fc_int5(1, 2, 3, 4, 5);
+    fc_int6(1, 2, 3, 4, 5, 6);
+    fc_int7(1, 2, 3, 4, 5, 6, 7);
+    fc_int8(1, 2, 3, 4, 5, 6, 7, 8);
+    fc_int_in_stack8(1, 2, 3, 4, 5, 6, 7, 8);
+
+    // Test passing an int on the stack
+    int i = 1;
+    &i;
+    fc_int1(1);
+}
+
+void fc_float0() {
+    assert_float(1.1, 1.1, "function call with 0 fp args");
+}
+
+void fc_float1(float f1) {
+    assert_float(1.1, f1, "function call with 1 fp arg");
+}
+
+void fc_float2(float f1, float f2) {
+    assert_float(3.2, f1 + f2, "function call with 2 fp args");
+}
+
+void fc_float3(float f1, float f2, float f3) {
+    assert_float(6.3, f1 + f2 + f3, "function call with 3 fp args");
+}
+
+void fc_float4(float f1, float f2, float f3, float f4) {
+    assert_float(10.4, f1 + f2 + f3 + f4, "function call with 4 fp args");
+}
+
+void fc_float5(float f1, float f2, float f3, float f4, float f5) {
+    assert_float(15.5, f1 + f2 + f3 + f4 + f5, "function call with 5 fp args");
+}
+
+void fc_float6(float f1, float f2, float f3, float f4, float f5, float f6) {
+    assert_float(21.6 , f1 + f2 + f3 + f4 + f5 + f6, "function call with 6 fp args");
+}
+
+void fc_float7(float f1, float f2, float f3, float f4, float f5, float f6, float f7) {
+    assert_float(28.7, f1 + f2 + f3 + f4 + f5 + f6 + f7, "function call with 7 fp args");
+}
+
+void fc_float8(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8) {
+    assert_float(36.8, f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8, "function call with 8 fp args");
+}
+
+void fc_float_in_stack8(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8) {
+    &f1; &f2; &f3; &f3; &f4; &f5; &f6; &f7; &f8;
+    assert_float(36.8, f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8, "function call with 8 fp args");
+}
+
+void test_fp_args() {
+    fc_float0();
+    fc_float1(1.1);
+    fc_float2(1.1, 2.1);
+    fc_float3(1.1, 2.1, 3.1);
+    fc_float4(1.1, 2.1, 3.1, 4.1);
+    fc_float5(1.1, 2.1, 3.1, 4.1, 5.1);
+    fc_float6(1.1, 2.1, 3.1, 4.1, 5.1, 6.1);
+    fc_float7(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1);
+    fc_float8(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1);
+    fc_float_in_stack8(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1);
+
+    // Test passing a float on the stack
+    float f = 1;
+    &f;
+    fc_float1(1.1);
+}
+
+int int_sum(int i, int j) {
+    return i + j;
+}
+
+float fp_sum(float i, float j) {
+    return i + j;
+}
+
+void test_int_return_reg_reg() {
+    assert_int(3, int_sum(1, 2), "test_int_ret_reg_reg");
+}
+
+void test_fp_return_reg_reg() {
+    assert_float(3.3, fp_sum(1.2, 2.1), "test_fp_ret_reg_reg");
 }
 
 #ifdef __x86_64__
-
-int fca7(int i1, int i2, int i3, int i4, int i5, int i6, int i7) {
-    assert_int(1234567, 1000000 * i1 + 100000 * i2 + 10000 * i3 + 1000 * i4 + 100 * i5 + 10 * i6 + i7, "function call with 7 args");
-}
-
-int fca8(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8) {
-    assert_int(12345678, 10000000 * i1 + 1000000 * i2 + 100000 * i3 + 10000 * i4 + 1000 * i5 + 100 * i6 + 10 * i7 + i8, "function call with 8 args");
-}
 
 int f(int i, int j) {
     return i + 2 * j;
@@ -547,17 +645,12 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv);
 
+    test_int_args();
+    test_fp_args();
+    test_int_return_reg_reg();
+    test_fp_return_reg_reg();
 
-    fca0();
-    fca1(1);
-    fca2(1, 2);
-    fca3(1, 2, 3);
-    fca4(1, 2, 3, 4);
-    fca5(1, 2, 3, 4, 5);
-    fca6(1, 2, 3, 4, 5, 6);
     #ifdef __x86_64__
-    fca7(1, 2, 3, 4, 5, 6, 7);
-    fca8(1, 2, 3, 4, 5, 6, 7, 8);
     test_direct_register_use();
     test_sign_extension_pushed_params();
     test_long_double_stack_zero_offset();

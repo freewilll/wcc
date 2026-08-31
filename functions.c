@@ -405,7 +405,7 @@ static Value *make_function_call_arg_value_for_int128(Function *function, CallVa
 // copy a struct arg over.
 static void add_function_call_arg_moves_for_preg_class(Function *function, int preg_class) {
     int function_calls_size = make_max_function_call_id(function) + 1;
-    int register_count = preg_class == PC_INT ? 6 : 8; // TODO aarch64 unhardcode this
+    int register_count = MAX_ARG_REGISTERS;
 
     // Values of the passed argument, i.e. by the caller
     int allocated_count = function_calls_size * register_count;

@@ -16,6 +16,14 @@ void assert_long(long expected, long actual) {
     }
 }
 
+void assert_string(char *expected, char *actual, char *message) {
+    if (strcmp(expected, actual)) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected \"%s\" got \"%s\"\n", expected, actual);
+    }
+}
+
 void assert_value(Value *v1, Value *v2) {
     if (v1->is_constant)
         assert_long(v1->int_value, v2->int_value);
