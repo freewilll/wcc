@@ -11,8 +11,6 @@ int failures;
 
 int g;
 
-#ifdef __x86_64__
-
 int nfc(int i) { return i + 1; }
 
 int get_g() {
@@ -51,39 +49,39 @@ void vrf() {
     g = 2;
 }
 
-static char  return_c_from_c() { return (char)  -1; }
-static char  return_c_from_s() { return (short) -1; }
-static char  return_c_from_i() { return (int)   -1; }
-static char  return_c_from_l() { return (long)  -1; }
-static short return_s_from_c() { return (char)  -1; }
-static short return_s_from_s() { return (short) -1; }
-static short return_s_from_i() { return (int)   -1; }
-static short return_s_from_l() { return (long)  -1; }
-static int   return_i_from_c() { return (char)  -1; }
-static int   return_i_from_s() { return (short) -1; }
-static int   return_i_from_i() { return (int)   -1; }
-static int   return_i_from_l() { return (long)  -1; }
-static long  return_l_from_c() { return (char)  -1; }
-static long  return_l_from_s() { return (short) -1; }
-static long  return_l_from_i() { return (int)   -1; }
-static long  return_l_from_l() { return (long)  -1; }
+static signed char  return_c_from_c() { return (signed char)  -1; }
+static signed char  return_c_from_s() { return (short)        -1; }
+static signed char  return_c_from_i() { return (int)          -1; }
+static signed char  return_c_from_l() { return (long)         -1; }
+static short        return_s_from_c() { return (signed char)  -1; }
+static short        return_s_from_s() { return (short)        -1; }
+static short        return_s_from_i() { return (int)          -1; }
+static short        return_s_from_l() { return (long)         -1; }
+static int          return_i_from_c() { return (signed char)  -1; }
+static int          return_i_from_s() { return (short)        -1; }
+static int          return_i_from_i() { return (int)          -1; }
+static int          return_i_from_l() { return (long)         -1; }
+static long         return_l_from_c() { return (signed char)  -1; }
+static long         return_l_from_s() { return (short)        -1; }
+static long         return_l_from_i() { return (int)          -1; }
+static long         return_l_from_l() { return (long)         -1; }
 
-static unsigned char  return_uc_from_c() { return (char)  -1; }
-static unsigned char  return_uc_from_s() { return (short) -1; }
-static unsigned char  return_uc_from_i() { return (int)   -1; }
-static unsigned char  return_uc_from_l() { return (long)  -1; }
-static unsigned short return_us_from_c() { return (char)  -1; }
-static unsigned short return_us_from_s() { return (short) -1; }
-static unsigned short return_us_from_i() { return (int)   -1; }
-static unsigned short return_us_from_l() { return (long)  -1; }
-static unsigned int   return_ui_from_c() { return (char)  -1; }
-static unsigned int   return_ui_from_s() { return (short) -1; }
-static unsigned int   return_ui_from_i() { return (int)   -1; }
-static unsigned int   return_ui_from_l() { return (long)  -1; }
-static unsigned long  return_ul_from_c() { return (char)  -1; }
-static unsigned long  return_ul_from_s() { return (short) -1; }
-static unsigned long  return_ul_from_i() { return (int)   -1; }
-static unsigned long  return_ul_from_l() { return (long)  -1; }
+static unsigned char  return_uc_from_c() { return (signed char)  -1; }
+static unsigned char  return_uc_from_s() { return (short)        -1; }
+static unsigned char  return_uc_from_i() { return (int)          -1; }
+static unsigned char  return_uc_from_l() { return (long)         -1; }
+static unsigned short return_us_from_c() { return (signed char)  -1; }
+static unsigned short return_us_from_s() { return (short)        -1; }
+static unsigned short return_us_from_i() { return (int)          -1; }
+static unsigned short return_us_from_l() { return (long)         -1; }
+static unsigned int   return_ui_from_c() { return (signed char)  -1; }
+static unsigned int   return_ui_from_s() { return (short)        -1; }
+static unsigned int   return_ui_from_i() { return (int)          -1; }
+static unsigned int   return_ui_from_l() { return (long)         -1; }
+static unsigned long  return_ul_from_c() { return (signed char)  -1; }
+static unsigned long  return_ul_from_s() { return (short)        -1; }
+static unsigned long  return_ul_from_i() { return (int)          -1; }
+static unsigned long  return_ul_from_l() { return (long)         -1; }
 
 static unsigned char  return_uc_from_uc() { return (unsigned char)  -1; }
 static unsigned char  return_uc_from_us() { return (unsigned short) -1; }
@@ -102,22 +100,22 @@ static unsigned long  return_ul_from_us() { return (unsigned short) -1; }
 static unsigned long  return_ul_from_ui() { return (unsigned int)   -1; }
 static unsigned long  return_ul_from_ul() { return (unsigned long)  -1; }
 
-static char  return_c_from_uc() { return (unsigned char)  -1; }
-static char  return_c_from_us() { return (unsigned short) -1; }
-static char  return_c_from_ui() { return (unsigned int)   -1; }
-static char  return_c_from_ul() { return (unsigned long)  -1; }
-static short return_s_from_uc() { return (unsigned char)  -1; }
-static short return_s_from_us() { return (unsigned short) -1; }
-static short return_s_from_ui() { return (unsigned int)   -1; }
-static short return_s_from_ul() { return (unsigned long)  -1; }
-static int   return_i_from_uc() { return (unsigned char)  -1; }
-static int   return_i_from_us() { return (unsigned short) -1; }
-static int   return_i_from_ui() { return (unsigned int)   -1; }
-static int   return_i_from_ul() { return (unsigned long)  -1; }
-static long  return_l_from_uc() { return (unsigned char)  -1; }
-static long  return_l_from_us() { return (unsigned short) -1; }
-static long  return_l_from_ui() { return (unsigned int)   -1; }
-static long  return_l_from_ul() { return (unsigned long)  -1; }
+static signed char  return_c_from_uc() { return (unsigned char)  -1; }
+static signed char  return_c_from_us() { return (unsigned short) -1; }
+static signed char  return_c_from_ui() { return (unsigned int)   -1; }
+static signed char  return_c_from_ul() { return (unsigned long)  -1; }
+static short        return_s_from_uc() { return (unsigned char)  -1; }
+static short        return_s_from_us() { return (unsigned short) -1; }
+static short        return_s_from_ui() { return (unsigned int)   -1; }
+static short        return_s_from_ul() { return (unsigned long)  -1; }
+static int          return_i_from_uc() { return (unsigned char)  -1; }
+static int          return_i_from_us() { return (unsigned short) -1; }
+static int          return_i_from_ui() { return (unsigned int)   -1; }
+static int          return_i_from_ul() { return (unsigned long)  -1; }
+static long         return_l_from_uc() { return (unsigned char)  -1; }
+static long         return_l_from_us() { return (unsigned short) -1; }
+static long         return_l_from_ui() { return (unsigned int)   -1; }
+static long         return_l_from_ul() { return (unsigned long)  -1; }
 
 static void test_return_mixed_integers() {
     // Test conversions when returning integers
@@ -228,6 +226,8 @@ void test_open_read_write_close() {
 
     assert_int(0, memcmp(data, "foo", 3), "read/write bytes match");
 }
+
+#ifdef __x86_64__
 
 int (*null_global_func_ptr)(int);
 
@@ -568,7 +568,6 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv);
 
-    #ifdef __x86_64__
     assert_int(1, nfc(0),                      "nested function calls 1");
     assert_int(2, nfc(1),                      "nested function calls 2");
     assert_int(3, nfc(nfc(1)),                 "nested function calls 3");
@@ -582,6 +581,8 @@ int main(int argc, char **argv) {
     test_void_return();
     test_func_returns_are_lvalues();
     test_open_read_write_close();
+
+    #ifdef __x86_64__
     test_function_pointers();
     test_sizeof_function_pointer();
     test_function_pointer_comparisons();

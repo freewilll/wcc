@@ -158,6 +158,7 @@ char *operation_string(int operation) {
         case IR_SAVE_BIT_FIELD:      return "IR_SAVE_BIT_FIELD";
         case IR_START_CALL:          return "IR_START_CALL";
         case IR_ARG:                 return "IR_ARG";
+        case IR_PUSH_ARG:            return "IR_PUSH_ARG";
         case IR_ARG_STACK_PADDING:   return "IR_ARG_STACK_PADDING";
         case IR_CALL:                return "IR_CALL";
         case IR_CALL_ARG_REG:        return "IR_CALL_ARG_REG";
@@ -219,7 +220,7 @@ void make_value_target_size(Value *v) {
 
     if (v->is_string_literal)
         v->target_size = 4;
-    else if (v->vreg || v->global_symbol || v->stack_index) {
+    else if (v->vreg || v->global_symbol || v->stack.index) {
         if (v->type->type == TYPE_PTR)
             v->target_size = 4;
         else if (v->type->type <= TYPE_INT128)

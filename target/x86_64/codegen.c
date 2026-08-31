@@ -95,14 +95,14 @@ char *register_name(int preg) {
 // -2           -12       second local variable / spilled register e.g. int
 // -3           -16       second local variable / spilled register e.g. int
 static int get_stack_offset(Value *v) {
-    int stack_index = v->stack_index;
+    int stack_index = v->stack.index;
 
     if (stack_index > 0) {
         return 8 * (stack_index + 1);
     }
     else if (stack_index < 0) {
-        if (!v->stack_offset && !debug_instsel_tiling) panic("Unexpected zero stack offset");
-        return -v->stack_offset;
+        if (!v->stack.offset && !debug_instsel_tiling) panic("Unexpected zero stack offset");
+        return -v->stack.offset;
     }
     else
         panic("Unexpected zero stack_index");
@@ -277,7 +277,7 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                         }
                     }
                 }
-                else if (v->stack_index) {
+                else if (v->stack.index) {
                     int stack_offset = get_stack_offset(v);
                     if (v->type->type == TYPE_LONG_DOUBLE) {
                         if (low)
@@ -370,6 +370,12 @@ void add_final_instructions(Function *function) {
     SizedSavedRegisters *ssr = make_saved_registers(function, PC_INT);
     ir = insert_push_callee_saved_registers(ir, function->ir, ssr);
 
+    int max_function_call_value = make_max_function_call_value(function);
+
+    // Keep track of how many pushes have been done for each function.
+    // This is necessary to ensure the stack is align at each call site.
+    int *function_call_arg_push_counts = wcalloc(max_function_call_value + 1, sizeof(int));
+
     while (ir) {
         added_end_of_function = 0;
 
@@ -391,9 +397,11 @@ void add_final_instructions(Function *function) {
                         alignment_pushes++;
 
                     // Align the stack. This is matched with an adjustment when the function call ends
-                    int need_aligned_call_push = ((cur_stack_push_count + ir->src1->function_call.function_call_arg_push_count) % 2 == 1);
+                    int *function_call_arg_push_count = &function_call_arg_push_counts[ir->src1->int_value];
+                    *function_call_arg_push_count = (ir->src1->function_call.function_call_stack_size + 7) / 8;
+                    int need_aligned_call_push = ((cur_stack_push_count + *function_call_arg_push_count) % 2 == 1);
                     if (need_aligned_call_push) {
-                        ir->src1->function_call.function_call_arg_push_count++;
+                        *function_call_arg_push_count += 1;
                         alignment_pushes++;
                     }
 
@@ -401,7 +409,7 @@ void add_final_instructions(Function *function) {
                     // combined with padding at the end of the stack. Eliminate both alignments
                     // to save 16 bytes to stack space.
                     if (alignment_pushes == 2) {
-                        ir->src1->function_call.function_call_arg_push_count -= 2;
+                        *function_call_arg_push_count -= 2;
                         alignment_pushes = 0;
                     }
 
@@ -418,7 +426,8 @@ void add_final_instructions(Function *function) {
                 ir->operation.id = IR_NOP;
 
                 // Adjust the stack for any args that are on in stack
-                int function_call_arg_push_count = ir->src1->function_call.function_call_arg_push_count;
+                int function_call_arg_push_count = function_call_arg_push_counts[ir->src1->int_value];
+                // int function_call_arg_push_count = ir->src1->function_call.function_call_arg_push_count;
                 if (function_call_arg_push_count > 0) {
                     cur_stack_push_count -= function_call_arg_push_count;
                     ir = add_add_rsp(ir, function_call_arg_push_count * 8);
@@ -502,6 +511,7 @@ void add_final_instructions(Function *function) {
         insert_end_of_function(ir, ssr);
 
     free_sized_saved_registers(ssr);
+    wfree(function_call_arg_push_counts);
 }
 
 // Merge any consecutive add/sub stack operations that aren't involved in jmp instructions.

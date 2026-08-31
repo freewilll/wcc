@@ -34,10 +34,7 @@ void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *typ
         (is_single_int_register && cva->single_int_register_arg_count >= 8) || (is_single_fp_register && cva->single_fp_register_arg_count >= 8);
 
     int alignment = get_type_alignment(type);
-
-    // TODO aarch64
-    if (in_stack)
-        panic("TODO aarch64 params in stack");
+    if (alignment < 8) alignment = 8;
 
     if (!in_stack && is_single_int_register)
         cvl->int_register = cva->single_int_register_arg_count < 8 ? cva->single_int_register_arg_count : -1;
@@ -45,7 +42,15 @@ void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *typ
     else if (!in_stack && is_single_fp_register)
         cvl->fp_register = cva->single_fp_register_arg_count < 8 ? cva->single_fp_register_arg_count : -1;
 
-    if (debug_function_param_allocation && !in_stack && (is_single_int_register || is_single_fp_register)) {
+    else {
+        // It's on the stack
+        add_type_to_cvl_in_stack(cva, cvl, type, alignment);
+
+        if (debug_call_value_allocation)
+            printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", cva->locations->length, alignment, cvl->stack_offset, cvl->stack_padding);
+    }
+
+    if (debug_call_value_allocation && !in_stack && (is_single_int_register || is_single_fp_register)) {
         if (cvl->int_register != -1)
             printf("  arg %2d with alignment %2d     int reg %5d\n", cva->locations->length, alignment, cvl->int_register);
         else
@@ -127,6 +132,25 @@ static void add_function_return_moves(Function *function) {
         ir->src1 = 0;
         ir->src2 = 0;
     }
+}
+
+// Arguments in function calls that go to the stack are placed in a reserved stack
+// SA_FUNCTION_ARGS area. Codegen needs this to distinguish params on the stack
+// from args on the stack.
+void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac) {
+    Value *arg = tac->src1;
+    CallValueLocations *cvl = arg->function_call.function_call_arg_locations;
+    int stack_offset = cvl->locations[0].stack_offset;
+
+    Value *dst = new_value();
+    dst->type = dup_type(tac->src2->type);
+    dst->stack.index = stack_offset / 8 + 1; // Conventionally the first stack_index entry starts at 1
+    dst->stack.area = SA_FUNCTION_ARGS;
+
+    tac->operation.id = IR_MOVE;
+    tac->dst = dst;
+    tac->src1 = tac->src2;
+    tac->src2 = 0;
 }
 
 void process_target_functions(Function *function) {

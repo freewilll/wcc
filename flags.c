@@ -28,7 +28,7 @@ int warn_assignment_types_incompatible = 0;
 int warn_extern_initializer = 0;
 int warn_excess_initializers = 0;
 
-int debug_function_param_allocation = 0;
+int debug_call_value_allocation = 0;
 int debug_function_arg_mapping = 0;
 int debug_function_param_mapping = 0;
 int debug_ssa_mapping_local_stack_indexes = 0;

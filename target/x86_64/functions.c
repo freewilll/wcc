@@ -40,7 +40,7 @@ static int make_int_struct_or_union_move_from_register_to_stack_instructions(
         dst->type = new_type(TYPE_CHAR + i);
         dst->type->is_unsigned = 1;
         dst->is_lvalue = 1;
-        dst->stack_index = stack_index;
+        dst->stack.index = stack_index;
         dst->offset = pl->stru_offset + offset;
 
         shift_register = dup_value(shift_register);
@@ -118,9 +118,9 @@ static int make_sse_struct_or_union_move_from_register_to_stack_instructions(
 
 // Move struct/union data from registers or memory to the destination of a function call
 static void add_function_call_result_moves_for_struct_or_union(Function *function, Tac *ir) {
-    if (ir->dst->stack_index == 0) panic("Expected a stack index for a function call returning a struct/union");
+    if (ir->dst->stack.index == 0) panic("Expected a stack index for a function call returning a struct/union");
 
-    int stack_index = ir->dst->stack_index;
+    int stack_index = ir->dst->stack.index;
     Type *type = ir->dst->type;
 
     Type *function_type = ir->src1->type;
@@ -453,21 +453,21 @@ int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, Call
     Value *v = new_value();
     v->type = dup_type(type);
     v->is_lvalue = 1;
-    v->stack_index = -(++function->stack_register_count);
+    v->stack.index = -(++function->stack_register_count);
     new_tac_before(ir, IR_DECL_LOCAL_COMP_OBJ, 0, v, 0, 0);
 
     for (int loc = 0; loc < pl->count; loc++) {
         CallValueLocation *location = &(pl->locations[loc]);
 
         if (location->int_register != -1)
-            make_int_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->int_register, v->stack_index, register_set, 0);
+            make_int_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->int_register, v->stack.index, register_set, 0);
         else if (location->fp_register != -1)
-            make_sse_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->fp_register, v->stack_index, register_set, 0);
+            make_sse_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->fp_register, v->stack.index, register_set, 0);
         else
             panic("Got unexpected stack offset in add_struct_or_union_param_move()");
     }
 
-    return v->stack_index;
+    return v->stack.index;
 }
 
 // If the function returns a struct/union in memory, then the caller puts a pointer to
@@ -578,7 +578,7 @@ static void process_function_va_start(Function *function, Tac *ir) {
     overflow->type = make_pointer_to_void();
     overflow->vreg = 0;
     overflow->offset = 0;
-    overflow->stack_index = OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX;
+    overflow->stack.index = OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX;
     ir = new_tac_after(ir, IR_ADDRESS_OF, tmp_dst, overflow, 0);
 
     dst = dup_value(dst);
@@ -889,22 +889,13 @@ void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *typ
     else {
         // It's on the stack
 
-        if (alignment > cva->biggest_alignment) cva->biggest_alignment = alignment;
-        int padding = ((cva->offset + alignment  - 1) & (~(alignment - 1))) - cva->offset;
-        cva->offset += padding;
+        add_type_to_cvl_in_stack(cva, cvl, type, alignment);
 
-        cvl->stack_offset = cva->offset;
-        cvl->stack_padding = padding;
-
-        int type_size = get_type_size(type);
-        if (type_size < 8) type_size = 8;
-        cva->offset += type_size;
-
-        if (debug_function_param_allocation)
+        if (debug_call_value_allocation)
             printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", cva->locations->length, alignment, cvl->stack_offset, cvl->stack_padding);
     }
 
-    if (debug_function_param_allocation && !in_stack && (is_single_int_register || is_single_fp_register)) {
+    if (debug_call_value_allocation && !in_stack && (is_single_int_register || is_single_fp_register)) {
         if (cvl->int_register != -1)
             printf("  arg %2d with alignment %2d     int reg %5d\n", cva->locations->length, alignment, cvl->int_register);
         else
@@ -1059,7 +1050,7 @@ void add_type_to_cva(CallValueAllocation *cva, Type *type) {
                 // Part of the struct/union overflowed into the stack due to a shortage
                 // of registers. Roll back & put the whole thing in the stack.
                 if (on_stack && eight_bytes_count > 1) {
-                    if (debug_function_param_allocation) printf("         ran out of registers, rewinding ... \n");
+                    if (debug_call_value_allocation) printf("         ran out of registers, rewinding ... \n");
                     *cva = *backup_cva;
                     add_single_call_value_location(cva, type);
                     free_call_value_locations(cvl);
@@ -1088,12 +1079,16 @@ int *make_original_stack_indexes(Function *function) {
     int *result = wcalloc(function->vreg_count + 1, sizeof(int *));
 
     for (Tac *tac = function->ir; tac; tac = tac->next)
-        if (tac->operation.id == X86_OP_MOV && tac->src1 && tac->src1->function_call.function_param_original_stack_index)
-            result[tac->dst->vreg] = tac->src1->function_call.function_param_original_stack_index;
+        if (tac->operation.id == X86_OP_MOV && tac->src1 && tac->src1->function_call.function_param_original_stack.index)
+            result[tac->dst->vreg] = tac->src1->function_call.function_param_original_stack.index;
 
     return result;
 }
 
+// Convert IR_ARG instructions for moves to the stack to IR_PUSH_ARG. Instrsel instructions will encode those.
+void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac) {
+    tac->operation.id = IR_PUSH_ARG;
+}
 
 // Process target function calls, args, params and return values
 void process_target_functions(Function *function) {

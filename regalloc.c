@@ -130,7 +130,7 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
             stack_index = -*stack_register_count - 1;
             (*stack_register_count)++;
         }
-        vreg_locations[vreg].stack_index = stack_index;
+        vreg_locations[vreg].stack.index = stack_index;
 
         if (debug_graph_coloring) printf("  spilled vreg %d to stack index %d\n", vreg, stack_index);
     }
@@ -258,7 +258,7 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
         for (int i = live_range_reserved_pregs_offset + 1; i <= vreg_count; i++) {
             printf("%-3d ", i);
             if (vreg_locations[i].preg == -1) printf("   "); else printf("%3d", vreg_locations[i].preg);
-            if (vreg_locations[i].stack_index) printf("   "); else printf("%3d", vreg_locations[i].stack_index);
+            if (vreg_locations[i].stack.index) printf("   "); else printf("%3d", vreg_locations[i].stack.index);
             printf("\n");
         }
     }
@@ -279,13 +279,13 @@ static void assign_vreg_locations(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst && tac->dst->vreg) {
             vl = &function_vl[tac->dst->vreg];
-            if (vl->stack_index) {
+            if (vl->stack.index) {
                 if (tac->dst->live_range_preg)
                     panic("Unexpectedly spilled a register for preg %s vreg %d in tac->dst",
                         register_name(preg_map[tac->dst->live_range_preg - 1]), tac->dst->vreg);
 
                 tac->dst->vreg = 0;
-                tac->dst->stack_index = vl->stack_index;
+                tac->dst->stack.index = vl->stack.index;
                 tac->dst->spilled = 1;
             }
             else
@@ -294,13 +294,13 @@ static void assign_vreg_locations(Function *function) {
 
         if (tac->src1 && tac->src1->vreg) {
             vl = &function_vl[tac->src1->vreg];
-            if (vl->stack_index) {
+            if (vl->stack.index) {
                 if (tac->src1->live_range_preg)
                     panic("Unexpectedly spilled a register for preg %s vreg %d in tac->src1",
                         register_name(preg_map[tac->src1->live_range_preg - 1]), tac->src1->vreg);
 
                 tac->src1->vreg = 0;
-                tac->src1->stack_index = vl->stack_index;
+                tac->src1->stack.index = vl->stack.index;
                 tac->src1->spilled = 1;
             }
             else
@@ -309,13 +309,13 @@ static void assign_vreg_locations(Function *function) {
 
         if (tac->src2 && tac->src2->vreg) {
             vl = &function_vl[tac->src2->vreg];
-            if (vl->stack_index) {
+            if (vl->stack.index) {
                 if (tac->src2->live_range_preg)
                     panic("Unexpectedly spilled a register for preg %s vreg %d in tac->src2",
                         register_name(preg_map[tac->src2->live_range_preg - 1]), tac->src2->vreg);
 
                 tac->src2->vreg = 0;
-                tac->src2->stack_index = vl->stack_index;
+                tac->src2->stack.index = vl->stack.index;
                 tac->src2->spilled = 1;
             }
             else
@@ -333,7 +333,7 @@ void init_vreg_locations(Function *function) {
     VregLocation *vreg_locations = wmalloc((vreg_locations_count + 1) * sizeof(VregLocation));
     for (int i = 1; i <= vreg_count; i++) {
         vreg_locations[i].preg = -1;
-        vreg_locations[i].stack_index = 0;
+        vreg_locations[i].stack.index = 0;
     }
 
     function->vreg_locations = vreg_locations;

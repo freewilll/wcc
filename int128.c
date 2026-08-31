@@ -102,7 +102,7 @@ static SplitValue split_value(Function *function, Value *value) {
         return split_value;
     }
 
-    else if (value->stack_index) {
+    else if (value->stack.index) {
         split_value.low = dup_value(value);
         split_value.high = dup_value(value);
         split_value.high->offset += 8;
@@ -214,7 +214,7 @@ static Tac *transform_move(Function *function, Tac *tac) {
         return split_instruction(function, tac);
     }
 
-    else if (tac->dst->stack_index && tac->src1->is_constant) {
+    else if (tac->dst->stack.index && tac->src1->is_constant) {
         // Assign an int or long constant to an int128 in the stack
         return split_instruction(function, tac);
     }
@@ -239,7 +239,7 @@ static Tac *transform_move(Function *function, Tac *tac) {
     }
 
     // vreg = stack
-    else if (tac->dst->vreg && tac->src1->stack_index) {
+    else if (tac->dst->vreg && tac->src1->stack.index) {
         if (is_non_128_bit_integer_type(tac->dst->type))
             panic("int128: Should not get here, a stack int128 is loaded into a register first");
 
@@ -251,7 +251,7 @@ static Tac *transform_move(Function *function, Tac *tac) {
     }
 
     // stack = vreg
-    else if (tac->dst->stack_index && tac->src1->vreg) {
+    else if (tac->dst->stack.index && tac->src1->vreg) {
         if (is_non_128_bit_integer_type(tac->dst->type))
             panic("int128: Should not get here, a stack int128 is loaded into split registers first");
 

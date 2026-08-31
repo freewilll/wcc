@@ -165,7 +165,7 @@ void remove_vreg_self_moves(Function *function) {
 // This removes instructions that copy a stack location to itself by replacing them with noops.
 static void remove_stack_self_moves(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation.id == X86_OP_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->stack_index && tac->dst->stack_index == tac->src1->stack_index) {
+        if (tac->operation.id == X86_OP_MOV && tac->dst && tac->dst->stack.index && tac->src1 && tac->src1->stack.index && tac->dst->stack.index == tac->src1->stack.index) {
             tac->operation.id = IR_NOP;
             tac->dst = 0;
             tac->src1 = 0;

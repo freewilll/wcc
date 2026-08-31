@@ -42,7 +42,7 @@ int uncached_non_terminal_for_value(Value *v) {
     if (!v->target_size) make_value_target_size(v);
     if (v->non_terminal) return v->non_terminal;
 
-    int is_local = !v->global_symbol && !v->stack_index;
+    int is_local = !v->global_symbol && !v->stack.index;
     int is_pointer = v->type && v->type->type == TYPE_PTR;
 
          if (v->is_string_literal)                                            result =  STL;
@@ -1674,57 +1674,57 @@ void define_rules(void) {
     r = add_rule(MLD5, IR_CALL, MPF, 0, 5); add_op(r, X86_OP_CALL, DST, SRC1, 0, 0); add_op(r, X86_OP_MOVC, DST, DST, 0, "fstpt %v1L");
 
     // Constants in pushed argument. pushq immediate can only be 32 bit
-    r = add_rule(0, IR_ARG, CI4, XC1, 2); add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
-    r = add_rule(0, IR_ARG, CI4, XC2, 2); add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
-    r = add_rule(0, IR_ARG, CI4, XC3, 2); add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, XC1, 2); add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, XC2, 2); add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, XC3, 2); add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
 
     // Stack management
     r = add_rule(0, IR_ALLOCATE_STACK, CI4, 0, 2); add_op(r, X86_OP_ALLOCATE_STACK, 0, SRC1, SRC2, "subq $%v1q, %%rsp"); fin_rule(r);
     r = add_rule(RI4, IR_MOVE_STACK_PTR, 0, 0, 2); add_op(r, X86_OP_MOVE_STACK_PTR, DST, 0, 0, "movq %%rsp, %vdq"); fin_rule(r);
 
     // imm64 needs to be loaded into a register first
-    r = add_rule(0, IR_ARG, CI4, XC4, 2);
+    r = add_rule(0, IR_PUSH_ARG, CI4, XC4, 2);
     add_allocate_register_in_slot (r, 1, TYPE_LONG);   // Allocate quad register in slot 1
     add_op(r, X86_OP_MOVC, SV1, SRC2, 0, "movabsq $%v1q, %vdq");
     add_op(r, X86_OP_ARG,  SV1, 0,    0, "pushq %vdq");
     fin_rule(r);
 
     // Long double constant arg
-    r = add_rule(0, IR_ARG, CI4, CO5, 2);
+    r = add_rule(0, IR_PUSH_ARG, CI4, CO5, 2);
     add_op(r, X86_OP_MOV, SRC2,  SRC2, 0,    "movabsq %v1H, %%r10");
     add_op(r, X86_OP_ARG, 0,     SRC1, SRC1, "pushq %%r10");
     add_op(r, X86_OP_MOV, SRC2,  SRC2, 0,    "movabsq %v1L, %%r10");
     add_op(r, X86_OP_ARG, 0,     SRC1, SRC1, "pushq %%r10");
 
     // Long double memory arg
-    r = add_rule(0, IR_ARG, CI4, MLD5, 2);
+    r = add_rule(0, IR_PUSH_ARG, CI4, MLD5, 2);
     add_op(r, X86_OP_ARG, 0,    SRC1, SRC2, "pushq %v2H");
     add_op(r, X86_OP_ARG, 0,    SRC1, SRC2, "pushq %v2L");
 
     // SSE constant arg
-    r = add_rule(0, IR_ARG, CI4, CO3, 2); add_sse_function_call_arg_op(r, "movabsq %v1f, %vdq");
-    r = add_rule(0, IR_ARG, CI4, CO4, 2); add_sse_function_call_arg_op(r, "movabsq %v1d, %vdq");
+    r = add_rule(0, IR_PUSH_ARG, CI4, CO3, 2); add_sse_function_call_arg_op(r, "movabsq %v1f, %vdq");
+    r = add_rule(0, IR_PUSH_ARG, CI4, CO4, 2); add_sse_function_call_arg_op(r, "movabsq %v1d, %vdq");
 
     // SSE register arg
-    r = add_rule(0, IR_ARG, CI4, RO3, 2); add_op(r, X86_OP_ARG, 0, 0, 0, "subq    $8, %%rsp"); add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "movq %v2F, (%%rsp)");
-    r = add_rule(0, IR_ARG, CI4, RO4, 2); add_op(r, X86_OP_MOV, 0, 0, 0, "subq    $8, %%rsp"); add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "movq %v2D, (%%rsp)");
+    r = add_rule(0, IR_PUSH_ARG, CI4, RO3, 2); add_op(r, X86_OP_ARG, 0, 0, 0, "subq    $8, %%rsp"); add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "movq %v2F, (%%rsp)");
+    r = add_rule(0, IR_PUSH_ARG, CI4, RO4, 2); add_op(r, X86_OP_MOV, 0, 0, 0, "subq    $8, %%rsp"); add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "movq %v2D, (%%rsp)");
 
     // Add rules for sign/zero extention of an arg, but at a high cost, to encourage other rules to take precedence
-    r = add_rule(0, IR_ARG, CI4, RI1, 10); add_op(r, X86_OP_MOVS, SRC2, SRC2, 0 , "movsbq %v1b, %v1q"); add_int_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, RI2, 10); add_op(r, X86_OP_MOVS, SRC2, SRC2, 0 , "movswq %v1w, %v1q"); add_int_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, RI3, 10); add_op(r, X86_OP_MOVS, SRC2, SRC2, 0 , "movslq %v1l, %v1q"); add_int_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, RI4, 2);                                                               add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RI1, 10); add_op(r, X86_OP_MOVS, SRC2, SRC2, 0 , "movsbq %v1b, %v1q"); add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RI2, 10); add_op(r, X86_OP_MOVS, SRC2, SRC2, 0 , "movswq %v1w, %v1q"); add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RI3, 10); add_op(r, X86_OP_MOVS, SRC2, SRC2, 0 , "movslq %v1l, %v1q"); add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RI4, 2);                                                               add_int_function_call_arg_op(r);
 
-    r = add_rule(0, IR_ARG, CI4, RU1, 10); add_op(r, X86_OP_MOVZ, SRC2, SRC2, 0 , "movzbq %v1b, %v1q"); add_int_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, RU2, 10); add_op(r, X86_OP_MOVZ, SRC2, SRC2, 0 , "movzwq %v1w, %v1q"); add_int_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, RU3, 10); add_op(r, X86_OP_MOVZ, SRC2, SRC2, 0 , "movl   %v1l, %v1l"); add_int_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, RU4, 2);                                                               add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RU1, 10); add_op(r, X86_OP_MOVZ, SRC2, SRC2, 0 , "movzbq %v1b, %v1q"); add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RU2, 10); add_op(r, X86_OP_MOVZ, SRC2, SRC2, 0 , "movzwq %v1w, %v1q"); add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RU3, 10); add_op(r, X86_OP_MOVZ, SRC2, SRC2, 0 , "movl   %v1l, %v1l"); add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RU4, 2);                                                               add_int_function_call_arg_op(r);
 
-    r = add_rule(0, IR_ARG, CI4, RP1, 2);                                                               add_int_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, RP2, 2);                                                               add_int_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, RP3, 2);                                                               add_int_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, RP4, 2);                                                               add_int_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, RPF, 2);                                                               add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RP1, 2);                                                               add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RP2, 2);                                                               add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RP3, 2);                                                               add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RP4, 2);                                                               add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_PUSH_ARG, CI4, RPF, 2);                                                               add_int_function_call_arg_op(r);
 
     // Long double return rules
     r = add_rule(0, IR_LOAD_LONG_DOUBLE, CO5,  0, 1); add_op(r, X86_OP_MOVC, DST, SRC1, 0, "fldt %v1C");

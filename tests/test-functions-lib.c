@@ -28,6 +28,7 @@ char *cva_result_str(CallValueAllocation *cva) {
     char *result = malloc(256);
     char *b = result;
 
+    // Add integer registers
     for (int i = 0; i < 8; i++) {
         int allocated = 0;
         for (int j = 0; j < cva->locations->length; j++) {
@@ -42,6 +43,7 @@ char *cva_result_str(CallValueAllocation *cva) {
         if (!allocated) b += sprintf(b, " ");
     }
 
+    // Add floating point registers
     b += sprintf(b, " | ");
     for (int i = 0; i < 8; i++) {
         int allocated = 0;
@@ -57,11 +59,13 @@ char *cva_result_str(CallValueAllocation *cva) {
         if (!allocated) b += sprintf(b, " ");
     }
 
+    // Add stack and padding
     b += sprintf(b, " | %03x %03x | ", cva->size, cva->padding);
     b[0] = 0;
     int first = 1;
     int stack_offset = 0;
     for (int i = 0; i < cva->locations->length; i++)
+        // Output a space for each additional 8 bytes for stack occupations longer than 8 bytes
         if (((CallValueLocations *) cva->locations->elements[i])->locations[0].stack_offset != -1) {
             while (stack_offset < ((CallValueLocations *) cva->locations->elements[i])->locations[0].stack_offset) {
                 b += sprintf(b, " ");

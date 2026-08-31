@@ -3,9 +3,11 @@
 #include "wcc.h"
 #include "aarch64.h"
 
-static int cur_function_stack_size;                 // The stack size of the current function
-static int cur_function_has_function_calls;         // If the current function makes any function calls
-static int cur_function_stack_space_for_x29_x30;    // Amount of stack space allocated for x29 and x30
+static int cur_function_stack_size;                     // The stack size of the current function
+static int cur_function_has_function_calls;             // If the current function makes any function calls
+static int cur_function_stack_space_for_x29_x30;        // Amount of stack space allocated for x29 and x30
+static int function_call_args_stack_size;               // The size of the argument stack for the current function
+static int cur_function_has_function_param_in_stack;    // Does the current function have any params in the stack
 
 static void append_register_name(char *buffer, int preg, int size) {
     if (preg >= REG_R00 && preg <= REG_R30) {
@@ -48,43 +50,58 @@ char *register_name(int preg) {
 // - 16 bytes of local variables
 // - 16 bytes of reserved space for function calls
 // - 2 function args pushed to the stack.
+// - 2 params pushed to the stack
 // During execution, sp has to always be aligned to 16 bytes.
 //
-// stack index  offset    what
-//  +3          +56       Pushed arg #1
-//  +2          +48       Pushed arg #0
-// ----------- Stack at the point of the function call -----------
-//              +48       Pushed x29 and x30 (optional)
+// stack area   stack index  offset    what
+// unspecified  +2           r29+24      Caller pushed arg #1
+// unspecified  +1           r29+16      Caller pushed arg #0
+//                           r29+0=sp+48 Pushed x29 and x30 (only if the function has params or function calls)
 // ----------- Callee saved variables -----------
-//              +32       Callee saved registers, e.g. 1 pair
+// unspecified               sp+32       Callee saved registers, e.g. 1 pair
 // ----------- Local variables -----------
-//              +24       Padding
-// -1           +20       Second local variable
-// -2           +16       First local variable, e.g. an int
-// ----------- Reserved space for function calls -----------
-//              +8        Arg 1
-//              +0        Arg 0
+// unspecified               sp+24       Padding
+// unspecified  -1           sp+20       Second local variable
+// unspecified  -2           sp+16       First local variable, e.g. an int
+// ----------- Reserved space for function calls, size function_call_args_stack_size -----------
+// func args    +2           sp+8        Pushed Arg 1
+// func args    +1           sp+0        Pushed Arg 0
 static void process_stack_offset(Tac *tac, Value *v, int *stack_offsets) {
     int result;
 
-    int stack_index = v->stack_index;
+    int stack_index = v->stack.index;
 
     if (stack_index < 0) {
-        result = cur_function_stack_size - v->stack_offset;
+        result = function_call_args_stack_size + cur_function_stack_size - v->stack.offset;
+
+        if (v->spilled) {
+            v->stack.offset = result;
+        }
+        else {
+            v->stack.offset = result + v->offset;
+            v->offset = 0;
+        }
     }
+
     else if (stack_index >= 0) {
-        // Function parameter
-        panic("TODO aarch64: function parameters on the stack");
+        // Function arg in an outgoing function call or incoming function call parameter
+        // Conventionally the first stack_index entry starts at 1
+        if (v->stack.area == SA_FUNCTION_ARGS) {
+            v->stack.offset = (stack_index - 1) * 8;
+        }
+        else if (v->stack.area == SA_UNSPECIFIED) {
+            // These are incoming function parameters on the stack.
+            // They start at sp + 16 and grow upwards.
+            // The 16 is because of the pushed r29 and r30 registers. r29 is set to the SP
+            // at that point.
+            // The instructions end up looking like [x29, 16], [x29, 24] etc for param 1, param 2 etc
+            // Stack indexes for args and params conventionally start at 1.
+            v->stack.offset = (stack_index + 1) * 8 + v->stack.offset;
+        }
+        else {
+            panic("Unknown stack area %d\n", v->stack.area);
+        }
     }
-
-    if (v->spilled) {
-        v->stack_offset = result;
-    }
-    else {
-        v->stack_offset = result + v->offset;
-        v->offset = 0;
-    }
-
 }
 
 // Some instructions inherit an offset from previous instructions.
@@ -95,9 +112,26 @@ static void process_stack_offset(Tac *tac, Value *v, int *stack_offsets) {
     (v)->offset = 0; \
 }
 
+// Function calls all share the same stack. Determine the largest size
+static void determine_function_arg_stack_size(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+
+        if (tac->operation.id == IR_END_CALL) {
+            int stack_size = tac->src1->function_call.function_call_stack_size;
+            if (stack_size > function_call_args_stack_size) function_call_args_stack_size = stack_size;
+        }
+    }
+
+    // Round up to 16 bytes
+    function_call_args_stack_size = (function_call_args_stack_size + 0xf) & ~0xf;
+
+    if (debug_stack_frame_layout)
+        printf("Function call arg stack area size is %#x\n", function_call_args_stack_size);
+}
+
 // Convert stack_offset, which has negative values for locals and positive values for passed arguments, into
 // an offset relative to the sp.
-void make_aarch64_stack_offsets(Function *function) {
+static void update_ir_stack_offsets(Function *function) {
     int *stack_offsets = NULL;
 
     if (debug_stack_frame_layout) stack_offsets= wmalloc((function->stack_register_count + 1) * sizeof(int));
@@ -105,9 +139,9 @@ void make_aarch64_stack_offsets(Function *function) {
     cur_function_stack_size = function->stack_size;
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->dst  && tac->dst ->stack_index) process_stack_offset(tac, tac->dst,  stack_offsets);
-        if (tac->src1 && tac->src1->stack_index) process_stack_offset(tac, tac->src1, stack_offsets);
-        if (tac->src2 && tac->src2->stack_index) process_stack_offset(tac, tac->src2, stack_offsets);
+        if (tac->dst  && tac->dst ->stack.index) process_stack_offset(tac, tac->dst,  stack_offsets);
+        if (tac->src1 && tac->src1->stack.index) process_stack_offset(tac, tac->src1, stack_offsets);
+        if (tac->src2 && tac->src2->stack.index) process_stack_offset(tac, tac->src2, stack_offsets);
 
         REMOVE_OFFSET(tac->dst);
         REMOVE_OFFSET(tac->src1);
@@ -126,6 +160,11 @@ void make_aarch64_stack_offsets(Function *function) {
     }
 
     wfree(stack_offsets);
+}
+
+void make_aarch64_stack_offsets(Function *function) {
+    update_ir_stack_offsets(function);
+    determine_function_arg_stack_size(function);
 }
 
 char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
@@ -201,6 +240,17 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                     sprintf(buffer, ", %d", v->offset);
                 }
 
+                // For stack function param stack accesses using x29
+                if (v->stack.offset) {
+                    while (*buffer) buffer++;
+                    sprintf(buffer, ", %d", v->stack.offset);
+                }
+            }
+            else if (v->stack.index) {
+                if (v->stack.offset)
+                    sprintf(buffer, "sp, %d", v->stack.offset);
+                else
+                    sprintf(buffer, "sp");
             }
             else if (v->is_constant) {
                 if (is_floating_point_type(v->type)) {
@@ -221,16 +271,10 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                 }
                 else {
                     if (v->load_from_got)
-                        panic("TODO aarch64 load from GIT");
+                        panic("TODO aarch64 load from GOT");
                     else
                         sprintf(buffer, "%s", v->global_symbol->global_identifier);
                 }
-            }
-            else if (v->stack_index) {
-                if (v->stack_offset)
-                    sprintf(buffer, "sp, %d", v->stack_offset);
-                else
-                sprintf(buffer, "sp");
             }
             else if (v->label)
                 sprintf(buffer, ".L%d", v->label);
@@ -336,14 +380,29 @@ static Tac *insert_pop_callee_saved_registers(Tac *ir, SizedSavedRegisters *ssr)
     return ir;
 }
 
-static Tac *insert_function_prologue(Function *function, Tac *ir) {
+static Tac *insert_x29_and_x30_save(Function *function, Tac *ir) {
     // Insert optional x29 and x30 stack saves and allocate stack for locals
     if (cur_function_stack_space_for_x29_x30)
         ir = insert_target_instruction(ir, AARCH64_OP_STP, 0, 0, 0, "stp x29, x30, [sp, -16]!");
 
+    if (cur_function_has_function_param_in_stack)
+        ir = insert_target_instruction(ir, AARCH64_OP_MOV, new_preg_value(REG_R29), new_preg_value(REG_SP), 0, "mov x29, sp");
+
+    return ir;
+}
+
+static Tac *insert_x29_and_x30_restore(Function *function, Tac *ir) {
+    // Restore x29 and x30
+    if (cur_function_stack_space_for_x29_x30)
+        ir = insert_target_instruction(ir, AARCH64_OP_LDP, 0, 0, 0, "ldp x29, x30, [sp], 16");
+
+    return ir;
+}
+
+static Tac *insert_function_prologue(Function *function, Tac *ir) {
     // Allocate stack space for locals
-    if (cur_function_stack_size) {
-        Value *v = new_integral_constant(TYPE_LONG, cur_function_stack_size);
+    if (function_call_args_stack_size + cur_function_stack_size) {
+        Value *v = new_integral_constant(TYPE_LONG, function_call_args_stack_size + cur_function_stack_size);
         ir = insert_target_instruction(ir, AARCH64_OP_SUB, 0, 0, v, "sub sp, sp, %v2x");
         ir = insert_constant_load_for_add_sub_using_preg(ir, REG_R16);
     }
@@ -352,20 +411,18 @@ static Tac *insert_function_prologue(Function *function, Tac *ir) {
 }
 
 static Tac *insert_end_of_function(Function *function, Tac *ir, SizedSavedRegisters *ssr_int, SizedSavedRegisters *ssr_fp) {
-    if (cur_function_stack_size) {
+    if (function_call_args_stack_size + cur_function_stack_size) {
         // Reclaim the function' local's stack space
-        Value *v1 = new_integral_constant(TYPE_LONG, cur_function_stack_size);
+        Value *v1 = new_integral_constant(TYPE_LONG, function_call_args_stack_size + cur_function_stack_size);
         ir = insert_target_instruction(ir, AARCH64_OP_ADD, 0, 0, v1, "add sp, sp, %v2x");
         ir = insert_constant_load_for_add_sub_using_preg(ir, REG_R16);
     }
 
-    // Restore x29 and x30
-    if (cur_function_stack_space_for_x29_x30)
-        ir = insert_target_instruction(ir, AARCH64_OP_LDP, 0, 0, 0, "ldp x29, x30, [sp], 16");
-
     // Restore callee saved registers
     ir = insert_pop_callee_saved_registers(ir, ssr_fp);
     ir = insert_pop_callee_saved_registers(ir, ssr_int);
+
+    ir = insert_x29_and_x30_restore(function, ir);
 
     // Add the return instruction
     ir = insert_target_instruction(ir, AARCH64_OP_RET_FROM_FUNC, 0, 0, 0, "ret");
@@ -373,13 +430,23 @@ static Tac *insert_end_of_function(Function *function, Tac *ir, SizedSavedRegist
     return ir;
 }
 
+// Determine if x29 and x30 need pushing
 static void prepare_x29_x30_stack_saves(Function *function) {
     // Determine if the function has any function calls
     cur_function_has_function_calls = 0;
-    for (Tac *tac = function->ir; tac; tac = tac->next)
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation.id == AARCH64_OP_CALL) cur_function_has_function_calls = 1;
+    }
 
-    cur_function_stack_space_for_x29_x30 = cur_function_has_function_calls ? 16 : 0;
+    // Determine if the function uses any pushed params for function calls. If so,
+    // x29 is set to sp and must be preserved
+    cur_function_has_function_param_in_stack = 0;
+    #define CHECK_FUNCTION_PARAM(v) if ((v) && v->stack.area == SA_UNSPECIFIED && v->stack.index > 0) cur_function_has_function_param_in_stack = 1;
+    LOOP_OVER_FUNCTION_IR(function) {
+        DO_ON_ALL_TAC_VALUES(tac, CHECK_FUNCTION_PARAM);
+    }
+
+    cur_function_stack_space_for_x29_x30 = cur_function_has_function_param_in_stack || cur_function_has_function_calls ? 16 : 0;
 }
 
 static void register_floating_point_literals(Function *function) {
@@ -393,8 +460,8 @@ static void register_floating_point_literals(Function *function) {
     }
 }
 
-// Ensure the first instruction is a nop it's conventient to append after
-// the first instruction
+// Ensure the first instruction is a nop, since it's conventient to append after
+// the first instruction.
 static void prepend_nop(Function *function) {
     Tac *tac = new_instruction(IR_NOP);
     tac->next = function->ir;
@@ -409,6 +476,7 @@ void add_final_instructions(Function *function) {
     add_address_of_instructions(function);
     expand_adrp_instructions(function);
     expand_indirect_offsets(function);
+    split_function_param_stack_register(function);
     register_floating_point_literals(function);
 
     prepare_x29_x30_stack_saves(function);
@@ -422,6 +490,8 @@ void add_final_instructions(Function *function) {
     // can't be loaded/saved together with a pair load (ldp).
     SizedSavedRegisters *saved_registers_int = make_saved_registers(function, PC_INT);
     SizedSavedRegisters *saved_registers_fp = make_saved_registers(function, PC_FP);
+
+    ir = insert_x29_and_x30_save(function, ir);
 
     ir = insert_push_callee_saved_registers(ir, saved_registers_int);
     ir = insert_push_callee_saved_registers(ir, saved_registers_fp);

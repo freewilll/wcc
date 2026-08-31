@@ -471,10 +471,9 @@ static void insert_store_global_instructions(Function *function, Tac *tac) {
 
 // At this point, the total function stack size is known and stack offsets have been updated.
 // Split instructions with r, [sp, offset] with large offsets so that the offset is loaded separately.
-// TODO aarch64: deal with stack offsets for pushed vars in a function call
 static void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
     int size = tac->src1->target_size;
-    int offset = tac->src1->stack_offset;
+    int offset = tac->src1->stack.offset;
 
     if (offset < 0) panic("Got a negative stack_index: %d", offset);
 
@@ -506,7 +505,7 @@ static void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
     pre_tac->target_template = "add %vdx, %v1x, %v2x";
 
     // Replace [sp + offset] with [r17]
-    tac->src1->stack_offset = 0;
+    tac->src1->stack.offset = 0;
     tac->src1->offset = 0;
     tac->src1->preg = REG_R17;
 }
@@ -514,7 +513,7 @@ static void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
 void add_load_memory_instructions(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Split ldr r, [sp + offset] with large offsets so that the offset is loaded separately
-        if (tac->operation.id == AARCH64_OP_LDR && tac->src1->stack_offset) {
+        if (tac->operation.id == AARCH64_OP_LDR && tac->src1->stack.offset) {
             insert_offset_instructions_for_ldr_str_stack_access(tac);
         }
 
@@ -528,7 +527,7 @@ void add_load_memory_instructions(Function *function) {
 void add_store_memory_instructions(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Split str r, [sp + offset] with large offsets so that the offset is loaded separately
-        if (tac->operation.id == AARCH64_OP_STR && tac->src1->stack_offset) {
+        if (tac->operation.id == AARCH64_OP_STR && tac->src1->stack.offset) {
             insert_offset_instructions_for_ldr_str_stack_access(tac);
         }
 
@@ -551,7 +550,7 @@ void add_address_of_instructions(Function *function) {
         sp->preg = REG_SP;
 
         // Make a value for the offset
-        int offset = tac->src1->stack_offset;
+        int offset = tac->src1->stack.offset;
 
         if (offset) {
             Value *offset_value = new_integral_constant(TYPE_LONG, offset);
@@ -578,7 +577,7 @@ void expand_adrp_instructions(Function *function) {
     }
 }
 
-// Adjust AARCH64_OP_LDR instructions that looks like lrd* [preg, offset] with unencodable offset.
+// Adjust AARCH64_OP_LDR instructions that looks like ldr* [preg, offset] with unencodable offset.
 //
 // Replace the instduction with::
 // mov x16, offset   # Constant encoding omitted for brevity
@@ -615,12 +614,24 @@ void expand_indirect_offsets(Function *function) {
     }
 }
 
+// For function parameters, all preceding code deals with REG_SP. At this point all stack
+// manipulations are done. x29 is set to the stack pointer at the point just after x29 and x39
+// are pushed. It is then used for fetching function paramers pushed to the stack.
+// SA_UNSPECIFIED distinguishes args, which uses the SA_FUNCTION_ARGS area from params,
+// which usesd the SA_UNSPECIFIED area.
+void split_function_param_stack_register(Function *function) {
+    #define SPLIT_FUNC_PARAM(v) if ((v) && v->stack.area == SA_UNSPECIFIED && v->stack.index > 0) v->preg = REG_R29;
+
+    LOOP_OVER_FUNCTION_IR(function) {
+        DO_ON_ALL_TAC_VALUES(tac, SPLIT_FUNC_PARAM);
+    }
+}
+
 static void remove_self_register_copies(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next)
         if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
             if (tac->operation.id == AARCH64_OP_MOV && !tac->operation.is_convert_move) tac->operation.id = IR_NOP;
 }
-
 
 void perform_peephole_optimization(Function *function) {
     // remove_stack_self_moves(function); // TODO aarch64

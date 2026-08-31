@@ -15,11 +15,17 @@ void test_scalar_params() {
     test_param_allocation(PI, PI, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  "01       |          | 000 000 | ");
     test_param_allocation(PI, PI, PI, PI, PI, PI, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  "012345   |          | 000 000 | ");
     test_param_allocation(PI, PI, PI, PI, PI, PI, PI, PI, 0,  0,  0,  0,  0,  0,  0,  0,  "01234567 |          | 000 000 | ");
+    test_param_allocation(PI, PI, PI, PI, PI, PI, PI, PI, PI, PI, PI, PI, PI, PI, PI, PI, "01234567 |          | 040 000 | 89abcdef");
     test_param_allocation(PF, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "         | 0        | 000 000 | ");
     test_param_allocation(PF, PF, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "         | 01       | 000 000 | ");
     test_param_allocation(PF, PF, PF, PF, PF, PF, PF, PF, 0,  0,  0,  0,  0,  0,  0,  0,  "         | 01234567 | 000 000 | ");
+    test_param_allocation(PF, PF, PF, PF, PF, PF, PF, PF, PF, PF, PF, PF, PF, PF, PF, PF, "         | 01234567 | 040 000 | 89abcdef");
+    test_param_allocation(PL, PL, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "         | 01       | 000 000 | ");
+    test_param_allocation(PL, PL, PL, PL, PL, PL, PL, PL, 0,  0,  0,  0,  0,  0,  0,  0,  "         | 01234567 | 000 000 | ");
+    test_param_allocation(PL, PL, PL, PL, PL, PL, PL, PL, PL, PL, PL, PL, PL, PL, PL, PL, "         | 01234567 | 080 000 | 8 9 a b c d e f");
+    test_param_allocation(PI, PF, PL, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  "0        | 12       | 000 000 | ");
     test_param_allocation(PI, PF, PL, PI, PF, PL, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  "03       | 1245     | 000 000 | ");
-    // TODO aarch64
+    test_param_allocation(PI, PF, PL, PI, PF, PL, PI, PF, PL, PI, PF, PL, PI, PF, PL, PI, "0369cf   | 124578ab | 020 000 | d e");
 }
 
 int main(int argc, char **argv) {

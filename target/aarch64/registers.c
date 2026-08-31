@@ -160,7 +160,7 @@ static void add_spill_load(Tac *tac, Value *value, int temp_preg) {
     static char *fp_templates[] = {NULL, NULL, "ldr %vdS, [%v1x]", "ldr %vdD, [%v1x]"};
 
     int size = value->target_size;
-    int offset = value->stack_offset;
+    int offset = value->stack.offset;
 
     if (size < 1 || size > 4) panic("Expected a target size between 1 and 4: %d", size);
     if (offset < 0) panic("Got a negative stack_index: %d", offset);
@@ -215,7 +215,7 @@ static void add_spill_load(Tac *tac, Value *value, int temp_preg) {
     }
 
     // Modify original value
-    value->stack_offset = 0;
+    value->stack.offset = 0;
     value->offset = 0;
     value->preg = temp_preg;
 }
@@ -226,7 +226,7 @@ static Tac *add_spill_store(Tac *tac) {
     static char *fp_templates[] = {NULL, NULL, "str %v2S, [%v1x]", "str %v2D, [%v1x]"};
 
     int size = tac->dst->target_size;
-    int offset = tac->dst->stack_offset;
+    int offset = tac->dst->stack.offset;
 
     if (size < 1 || size > 4) panic("Expected a target size between 1 and 4: %d", size);
     if (offset < 0) panic("Got a negative stack_index: %d", offset);
@@ -287,7 +287,7 @@ static Tac *add_spill_store(Tac *tac) {
     }
 
     // Modify original value
-    tac->dst->stack_offset = 0;
+    tac->dst->stack.offset = 0;
     tac->dst->preg = r14_value->preg;
 
     return after_tac;

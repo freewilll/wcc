@@ -135,6 +135,7 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
             case IR_START_CALL:           c += printf("start call"); break;
             case IR_END_CALL:             c += printf("end call"); break;
             case IR_ARG:                  c += printf("arg"); break;
+            case IR_PUSH_ARG:             c += printf("push arg"); break;
             case IR_ARG_STACK_PADDING:    c += printf("arg stack padding"); break;
             case IR_CALL:                 c += printf("call"); break;
             case IR_CALL_ARG_REG:         c += printf("call arg reg"); break;
@@ -1200,7 +1201,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             int stack_index = -(++function->stack_register_count);
             Value *slot_value = new_value();
             slot_value->type = new_type(target_op->allocated_type);
-            slot_value->stack_index = stack_index;
+            slot_value->stack.index = stack_index;
 
             saved_values[target_op->allocate_stack_index_in_slot] = slot_value;
             if (debug_instsel_tiling)

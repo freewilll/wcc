@@ -8,6 +8,7 @@ int verbose;
 int passes;
 int failures;
 
+int gi1;
 float gf1;
 double gd1;
 long double gld;
@@ -48,9 +49,18 @@ void fc_int8(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8) {
     assert_int(12345678, 10000000 * i1 + 1000000 * i2 + 100000 * i3 + 10000 * i4 + 1000 * i5 + 100 * i6 + 10 * i7 + i8, "function call with 8 int args");
 }
 
-void fc_int_in_stack8(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8) {
-    &i1; &i2; &i3; &i3; &i4; &i5; &i6; &i7; &i8;
-    assert_int(12345678, 10000000 * i1 + 1000000 * i2 + 100000 * i3 + 10000 * i4 + 1000 * i5 + 100 * i6 + 10 * i7 + i8, "function call with 8 int args with local args in stack");
+void fc_int9(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8, int i9) {
+    assert_int(123456789, 100000000 * i1 + 10000000 * i2 + 1000000 * i3 + 100000 * i4 + 10000 * i5 + 1000 * i6 + 100 * i7 + 10 * i8 + i9, "function call with 9 int args");
+}
+
+void fc_int10(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8, int i9, int i10) {
+    assert_int(1234567891, 1000000000 * i1 + 100000000 * i2 + 10000000 * i3 + 1000000 * i4 + 100000 * i5 + 10000 * i6 + 1000 * i7 + 100 * i8 + 10 * i9 + i10, "function call with 10 int args");
+}
+
+// Test all the params being on the stack locally
+void fc_int_in_stack10(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8, int i9, int i10) {
+    &i1; &i2; &i3; &i3; &i4; &i5; &i6; &i7; &i8; &i9; &i10;
+    assert_int(1234567891, 1000000000 * i1 + 100000000 * i2 + 10000000 * i3 + 1000000 * i4 + 100000 * i5 + 10000 * i6 + 1000 * i7 + 100 * i8 + 10 * i9 + i10, "function call with 10 int args in local stack");
 }
 
 void test_int_args() {
@@ -63,12 +73,24 @@ void test_int_args() {
     fc_int6(1, 2, 3, 4, 5, 6);
     fc_int7(1, 2, 3, 4, 5, 6, 7);
     fc_int8(1, 2, 3, 4, 5, 6, 7, 8);
-    fc_int_in_stack8(1, 2, 3, 4, 5, 6, 7, 8);
+    fc_int9(1, 2, 3, 4, 5, 6, 7, 8, 9);
+    fc_int10(1, 2, 3, 4, 5, 6, 7, 8, 9, 1);
+    fc_int_in_stack10(1, 2, 3, 4, 5, 6, 7, 8, 9, 1);
 
-    // Test passing an int on the stack
+    // Test passing an int on the stack to an ABI reg
     int i = 1;
     &i;
-    fc_int1(1);
+    fc_int1(i);
+
+    // Test passing an int on the stack to a ABI stack
+    fc_int_in_stack10(1, 2, 3, 4, 5, 6, 7, 8, 9, i);
+
+    // Test passing an global int to an ABI reg
+    gi1 = 1;
+    fc_int_in_stack10(gi1, 2, 3, 4, 5, 6, 7, 8, 9, 1);
+
+    // Test passing an global int to a ABI stack
+    fc_int_in_stack10(1, 2, 3, 4, 5, 6, 7, 8, 9, gi1);
 }
 
 void fc_float0() {
@@ -107,9 +129,18 @@ void fc_float8(float f1, float f2, float f3, float f4, float f5, float f6, float
     assert_float(36.8, f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8, "function call with 8 fp args");
 }
 
-void fc_float_in_stack8(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8) {
-    &f1; &f2; &f3; &f3; &f4; &f5; &f6; &f7; &f8;
-    assert_float(36.8, f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8, "function call with 8 fp args");
+void fc_float9(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9) {
+    assert_float(45.9, f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8 + f9, "function call with 9 fp args");
+}
+
+void fc_float10(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, float f10) {
+    assert_float(56.0, f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8 + f9 + f10, "function call with 10 fp args");
+}
+
+// Test all the params being on the stack locally
+void fc_float_in_stack10(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, float f10) {
+    &f1; &f2; &f3; &f3; &f4; &f5; &f6; &f7; &f8; &f9; &f10;
+    assert_float(56.0, f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8 + f9 + f10, "function call with 10 fp args in local stack");
 }
 
 void test_fp_args() {
@@ -122,31 +153,81 @@ void test_fp_args() {
     fc_float6(1.1, 2.1, 3.1, 4.1, 5.1, 6.1);
     fc_float7(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1);
     fc_float8(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1);
-    fc_float_in_stack8(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1);
+    fc_float9(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1);
+    fc_float10(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1);
+    fc_float_in_stack10(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1);
 
-    // Test passing a float on the stack
-    float f = 1;
+    // Test passing a float on the stack to an ABI reg
+    float f = 1.1;
     &f;
-    fc_float1(1.1);
+    fc_float1(f);
+
+    // Test passing an int on the stack to a ABI stack
+    f = 10.1;
+    fc_float_in_stack10(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, f);
+
+    // Test passing an global int to an ABI reg
+    gf1 = 1.1;
+    fc_float_in_stack10(gf1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1);
+
+    // Test passing an global int to a ABI stack
+    gf1 = 10.1;
+    fc_float_in_stack10(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, gf1);
 }
 
-int int_sum(int i, int j) {
-    return i + j;
+int int_return() {
+    return 1;
 }
 
-float fp_sum(float i, float j) {
-    return i + j;
+int int_in_stack_return() {
+    int i = 1;
+    &i;
+    return i;
 }
 
-void test_int_return_reg_reg() {
-    assert_int(3, int_sum(1, 2), "test_int_ret_reg_reg");
+int int_in_global_return() {
+    gi1 = 1;
+    return gi1;
 }
 
-void test_fp_return_reg_reg() {
-    assert_float(3.3, fp_sum(1.2, 2.1), "test_fp_ret_reg_reg");
+float fp_return() {
+    return 1.1;
 }
 
-#ifdef __x86_64__
+float fp_in_stack_return() {
+    float f = 1.1;
+    &f;
+    return f;
+}
+
+float fp_in_global_return() {
+    gf1 = 1.1;
+    return gf1;
+}
+
+void test_int_return() {
+    assert_int(1, int_return(), "test int return");
+    assert_int(1, int_in_stack_return(), "test int in stack return");
+    assert_int(1, int_in_global_return(), "test int in global return");
+
+    // Test storing a returned int in the stack
+    int i;
+    &i;
+    i = int_return();
+    assert_int(1, i, "test int return to int in stack");
+}
+
+void test_fp_return() {
+    assert_float(1.1, fp_return(), "test fp return");
+    assert_float(1.1, fp_in_stack_return(), "test fp in stack return");
+    assert_float(1.1, fp_in_global_return(), "test fp in global return");
+
+    // Test storing a returned float in the stack
+    float f;
+    &f;
+    f = fp_return();
+    assert_float(1.1, f, "test fp return to fp in stack");
+}
 
 int f(int i, int j) {
     return i + 2 * j;
@@ -164,40 +245,40 @@ void test_direct_register_use() {
     i = f(f(f(1, 3), 1), 1); assert_int(11, i, "direct register use 6"); // 1 1 2
 }
 
-void test_pushed_param_c(int a1, int a2, int a3, int a4, int a5, int a6, char c) {
-    assert_int(1, c, "Sign extension of pushed char param");
+void test_pushed_param_c(int expected, int a2, int a3, int a4, int a5, int a6, int a7, int a8, signed char c) {
+    assert_int(expected, c, "Sign extension of pushed char param");
 }
 
-void test_pushed_param_s(int a1, int a2, int a3, int a4, int a5, int a6, short s) {
-    assert_int(1, s, "Sign extension of pushed char param");
+void test_pushed_param_s(int expected, int a2, int a3, int a4, int a5, int a6, int a7, int a8, short s) {
+    assert_int(expected, s, "Sign extension of pushed short param");
 }
 
-void test_pushed_param_i(int a1, int a2, int a3, int a4, int a5, int a6, int i) {
-    assert_int(1, i, "Sign extension of pushed char param");
+void test_pushed_param_i(int expected, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int i) {
+    assert_int(expected, i, "Sign extension of pushed int param");
 }
 
-void test_pushed_param_l(int a1, int a2, int a3, int a4, int a5, int a6, long l) {
-    assert_int(1, l, "Sign extension of pushed char param");
+void test_pushed_param_l(int expected, int a2, int a3, int a4, int a5, int a6, int a7, int a8, long l) {
+    assert_int(expected, l, "Sign extension of pushed long param");
 }
 
-void test_pushed_param_uc(int a1, int a2, int a3, int a4, int a5, int a6, unsigned char uc) {
-    assert_int(1, uc, "Sign extension of pushed unsigned char param");
+void test_pushed_param_uc(int expected, int a2, int a3, int a4, int a5, int a6, int a7, int a8, unsigned char uc) {
+    assert_int(expected, uc, "Sign extension of pushed unsigned char param");
 }
 
-void test_pushed_param_us(int a1, int a2, int a3, int a4, int a5, int a6, unsigned short us) {
-    assert_int(1, us, "Sign extension of pushed unsigned char param");
+void test_pushed_param_us(int expected, int a2, int a3, int a4, int a5, int a6, int a7, int a8, unsigned short us) {
+    assert_int(expected, us, "Sign extension of pushed unsigned short param");
 }
 
-void test_pushed_param_ui(int a1, int a2, int a3, int a4, int a5, int a6, unsigned int ui) {
-    assert_int(1, ui, "Sign extension of pushed unsigned char param");
+void test_pushed_param_ui(int expected, int a2, int a3, int a4, int a5, int a6, int a7, int a8, unsigned int ui) {
+    assert_int(expected, ui, "Sign extension of pushed unsigned int param");
 }
 
-void test_pushed_param_ul(int a1, int a2, int a3, int a4, int a5, int a6, unsigned long ul) {
-    assert_int(1, ul, "Sign extension of pushed unsigned char param");
+void test_pushed_param_ul(int expected, int a2, int a3, int a4, int a5, int a6, int a7, int a8, unsigned long ul) {
+    assert_int(expected, ul, "Sign extension of pushed unsigned long param");
 }
 
 void test_sign_extension_pushed_params() {
-    char c;
+    signed char c;
     short s;
     int i;
     long l;
@@ -207,16 +288,26 @@ void test_sign_extension_pushed_params() {
     unsigned int ui;
     unsigned long ul;
 
-    c = s = i = l = uc = us = ui = ul = 1;
-    test_pushed_param_c(0, 0, 0, 0, 0, 0, c);
-    test_pushed_param_s(0, 0, 0, 0, 0, 0, s);
-    test_pushed_param_i(0, 0, 0, 0, 0, 0, i);
-    test_pushed_param_l(0, 0, 0, 0, 0, 0, l);
-    test_pushed_param_uc(0, 0, 0, 0, 0, 0, uc);
-    test_pushed_param_us(0, 0, 0, 0, 0, 0, us);
-    test_pushed_param_ui(0, 0, 0, 0, 0, 0, ui);
-    test_pushed_param_ul(0, 0, 0, 0, 0, 0, ul);
+    c = -1;
+    s = -1;
+    i = -1;
+    l = -1;
+    uc = -1;
+    us = -1;
+    ui = -1;
+    ul = -1;
+
+    test_pushed_param_c( -1,    0, 0, 0, 0, 0, 0, 0, c);
+    test_pushed_param_s( -1,    0, 0, 0, 0, 0, 0, 0, s);
+    test_pushed_param_i( -1,    0, 0, 0, 0, 0, 0, 0, i);
+    test_pushed_param_l( -1,    0, 0, 0, 0, 0, 0, 0, l);
+    test_pushed_param_uc(255,   0, 0, 0, 0, 0, 0, 0, uc);
+    test_pushed_param_us(65535, 0, 0, 0, 0, 0, 0, 0, us);
+    test_pushed_param_ui(-1,    0, 0, 0, 0, 0, 0, 0, ui);
+    test_pushed_param_ul(-1,    0, 0, 0, 0, 0, 0, 0, ul);
 }
+
+#ifdef __x86_64__
 
 // These tests stack layout is correct from an ABI point of view by checking
 // convoluted combinations of ints and double longs beyond the 6 single-register-arg limit
@@ -539,6 +630,8 @@ void test_float_double_call_return_value() {
     gd1 = 6.0; assert_double(6.0, return_double_global(),      "Double global return value");
 }
 
+#endif
+
 int max_with_default_ints(a, b) { return a > b ? a : b; }
 int max_int_with_declared_ints(a, b) int a, b; { return a > b ? a : b; }
 double max_double_with_declared_doubles(a, b) double a, b; { return a > b ? a : b; }
@@ -548,6 +641,8 @@ int test_parameterless_functions() {
     assert_int(2, max_int_with_declared_ints(1, 2), "Max with declared ints");
     assert_double(2.1, max_double_with_declared_doubles(1.1, 2.1), "Max with declared doubles");
 }
+
+#ifdef __x86_64__
 
 void f0(__int128 i128)  {
     ASSERT_INT128(1, 2, i128, "func with int128");
@@ -647,12 +742,12 @@ int main(int argc, char **argv) {
 
     test_int_args();
     test_fp_args();
-    test_int_return_reg_reg();
-    test_fp_return_reg_reg();
-
-    #ifdef __x86_64__
+    test_int_return();
+    test_fp_return();
     test_direct_register_use();
     test_sign_extension_pushed_params();
+
+    #ifdef __x86_64__
     test_long_double_stack_zero_offset();
     test_long_double_stack_eight_offset();
     test_long_double_pushed_params();
@@ -660,7 +755,11 @@ int main(int argc, char **argv) {
     test_long_double_stack_index_pushed_register_rename_bug();
     test_float_double_params();
     test_float_double_call_return_value();
+
+    #endif
     test_parameterless_functions();
+    #ifdef __x86_64__
+
     test_int128_in_registers();
     test_int128_in_stack();
     #endif

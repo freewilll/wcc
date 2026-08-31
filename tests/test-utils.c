@@ -39,8 +39,8 @@ void assert_value(Value *v1, Value *v2) {
         assert_long(v1->global_symbol->identifier[1], v2->global_symbol->identifier[1]);
     else if (v1->label)
         assert_long(v1->label, v2->label);
-    else if (v1->stack_index)
-        assert_long(v1->stack_index, v2->stack_index);
+    else if (v1->stack.index)
+        assert_long(v1->stack.index, v2->stack.index);
     else if (v1->function_call.function_symbol)
         assert_long(v1->function_call.function_symbol->identifier[1], v2->function_call.function_symbol->identifier[1]);
     else
@@ -258,7 +258,7 @@ Value *S(int stack_index) {
     v = new_value();
     v->type = new_type(TYPE_LONG);
     v->local_index = 0;
-    v->stack_index = stack_index;
+    v->stack.index = stack_index;
     v->is_lvalue = 1;
 
     return v;
@@ -269,7 +269,7 @@ Value *Ssz(int stack_index, int type) {
 
     v = new_value();
     v->type = new_type(type);
-    v->stack_index = stack_index;
+    v->stack.index = stack_index;
 
     return v;
 }

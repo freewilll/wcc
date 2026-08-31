@@ -120,10 +120,22 @@ typedef struct circular_linked_list {
     struct circular_linked_list *next;
 } CircularLinkedList;
 
-// One of preg or stack_index must have a value. (preg != 0) != (stack_index < 0)
+typedef enum  stack_area {
+    SA_UNSPECIFIED,         // The default zero
+    SA_FUNCTION_ARGS,       // Target specific: stack area for stack args used in function calls
+} StackArea;
+
+typedef struct stack_location {
+    int index;      // stack index in case of a pushed function argument, & usage or register spill
+                    // < 0 is for locals, temporaries and spills. >= 1 is for pushed arguments and params, that start at 1.
+    StackArea area; // Used in aarch64 to distinguish between pushed args and pushed params
+    int offset;
+} StackLocation;
+
+// One of preg or stack must have a value. (preg != 0) != (stack.index < 0)
 typedef struct vreg_location {
-    int preg;         // Physical register starting at 0. -1 is unused.
-    int stack_index;  // Stack index starting at -1. 0 is unused.
+    int preg;               // Physical register starting at 0. -1 is unused.
+    StackLocation stack;
 } VregLocation;
 
 typedef struct vreg_i_graph {
@@ -305,7 +317,7 @@ typedef struct call_value_allocation {
     int single_int_register_arg_count;  // Amount of allocated integer registers
     int single_fp_register_arg_count;   // Amount of allocated floating point registers
     int biggest_alignment;              // Alignment of largest param
-    int offset;                         // If on the stack, offset within the FPA
+    int offset;                         // If on the stack, offset within the CVA
     int padding;                        // Final padding on the stack
     int size;                           // Size on the stack, including padding
     List *locations;
@@ -322,12 +334,12 @@ typedef struct function_call_value {
     int is_overflow_arg_area_address;                    // Set to indicate this value must point to the saved register save overflow for variadic functions
     Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
     Type *function_type;                                 // Type of the function in a function call
-    int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
+    StackLocation function_param_original_stack;         // Original stack details for function parameter pushed onto the stack
     int function_call_arg_index;                         // Index of the argument (0=leftmost)
-    CallValueLocations *function_call_arg_locations; // Destination of the arg, either a single int or FP register, or in the case of a struct, a list of locations
+    CallValueLocations *function_call_arg_locations;     // Destination of the arg, either a single int or FP register, or in the case of a struct, a list of locations
     int function_call_fp_register_arg_index;             // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
     int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
-    int function_call_arg_push_count;                    // Number of arguments pushed on the stack
+    int function_call_stack_size;                        // The size of the stack in a function call
     int function_call_fp_register_arg_count;             // Number of floaing point arguments in registers
 } FunctionCallValue;
 
@@ -352,9 +364,7 @@ typedef struct value {
     unsigned int has_struct_or_union_return_value:1;     // Is it a function call that returns a struct/union?
     unsigned int load_from_got:1;                        // Load from Global Offset Table (GOT)
     int local_index;                                     // Used by parser for local variable, temporaries and function arguments
-    int stack_index;                                     // stack index in case of a pushed function argument, & usage or register spill
-                                                         // < 0 is for locals, temporaries and spills. >= 2 is for pushed arguments, that start at 2.
-    int stack_offset;                                    // Position on the stack
+    StackLocation stack;                                 // If the value is in the stack, details of where
     int string_literal_index;                            // Index in the string_literals array in the case of a string literal
     long int_value;                                      // Value in the case of an integer constant
     long double fp_value;                                // Value in the case of a floating point constant
@@ -413,11 +423,20 @@ typedef struct three_address_code {
     Origin *origin;                     // Filename and line number where the tac was created
 } Tac;
 
+// Useful macros for dealing with tac and looping over an IR
+#define LOOP_OVER_FUNCTION_IR(function) for (Tac *tac = (function)->ir; tac; tac = tac->next)
+
+#define DO_ON_ALL_TAC_VALUES(tac, func) \
+    func((tac)->dst); \
+    func((tac)->src1); \
+    func((tac)->src2);
+
 void init_function_allocations(void);
 void free_function(Function *function, int remove_from_allocations);
 void free_functions(void);
 Function *new_function(char *identifier);
 void reverse_function_call_args_order(Function *function);
+void add_type_to_cvl_in_stack(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int alignment);
 void add_single_call_value_location(CallValueAllocation *cva, Type *type);
 CallValueAllocation *initialize_function_return_value_cva(Type *function_type);
 void process_function_call_arg_allocations(Function *function);
@@ -427,7 +446,6 @@ void load_struct_scalar_into_value(Function *function, Tac *ir, Value *param, Ca
 Value *load_struct_scalar_into_new_vreg(Function *function, Tac *ir, Value *param, CallValueLocation *pl, Type *type);
 Value *make_long_temp_vreg(Function *function);
 void add_function_call_arg_move_for_struct_or_union_on_stack(Function *function, Tac *ir);
-void remove_IR_ARG_instructions_that_have_been_handled(Function *function);
 void add_function_call_arg_moves(Function *function);
 void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset);
 void remap_stack_index(int *stack_index_remap, Value *v);
@@ -618,7 +636,8 @@ enum {
     IR_LOAD_FROM_GOT,         // Load object from global offset table (for PIC)
     IR_ADDRESS_OF_FROM_GOT,   // & an object from global offset table (for PIC)
     IR_START_CALL,            // Function call
-    IR_ARG,                   // Function call argument
+    IR_ARG,                   // Function call argument, used in early phases up to function arg processing
+    IR_PUSH_ARG,              // Push a function call argument
     IR_ARG_STACK_PADDING,     // Extra padding push to align arguments pushed onto the stack
     IR_CALL_ARG_REG,          // Placeholder for fake read/write of a physical register to keep a live range alive
     IR_CALL,                  // Start of function call
@@ -817,7 +836,7 @@ extern int warn_assignment_types_incompatible;
 extern int warn_extern_initializer;
 extern int warn_excess_initializers;
 
-extern int debug_function_param_allocation;
+extern int debug_call_value_allocation;
 extern int debug_function_arg_mapping;
 extern int debug_function_param_mapping;
 extern int debug_ssa_mapping_local_stack_indexes;
@@ -1608,6 +1627,7 @@ int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, Call
 void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva);
 int *make_original_stack_indexes(Function *function);
 int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *param, int preg_class, int register_index, CallValueLocation *location, RegisterSet *register_set);
+void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac);
 void process_target_functions(Function *function);
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
 

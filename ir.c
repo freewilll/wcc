@@ -23,7 +23,7 @@ static int new_local_index(Function *function) {
 
 void init_value(Value *v) {
     v->preg = -1;
-    v->stack_index = 0;
+    v->stack.index = 0;
     v->ssa_subscript = -1;
     v->live_range = -1;
 }
@@ -87,7 +87,7 @@ Value *dup_value(Value *src) {
 }
 
 void assign_register_to_value(Value *v, int vreg) {
-    v->stack_index = 0;
+    v->stack.index = 0;
     v->is_lvalue = 0;
     v->vreg = vreg;
 }
@@ -97,7 +97,7 @@ Value *new_value_in_stack(int type, int stack_index, int offset) {
 
     value->type = new_type(type);
     value->is_lvalue = 1;
-    value->stack_index = stack_index;
+    value->stack.index = stack_index;
     value->offset = offset;
 
     return value;
@@ -173,13 +173,13 @@ void sanity_test_ir_linkage(Function *function) {
 }
 
 #define CHECK_VREG_AND_STACK_INDEX(tac, value) \
-    if ((value) && (value)->vreg && (value)->stack_index) { \
+    if ((value) && (value)->vreg && (value)->stack.index) { \
         printf("Instruction:\n"); \
         print_instruction(stdout, tac, 0); \
         printf("Value: "); \
         print_value(stdout, value, 0); \
         printf("\n"); \
-        panic("Value has both a vreg (%d) and a stack_index (%d)", (value)->vreg, (value)->stack_index); \
+        panic("Value has both a vreg (%d) and a stack_index (%d)", (value)->vreg, (value)->stack.index); \
     }
 
 // Ensure values don't have a stack_index and vreg set at the same time
@@ -211,15 +211,15 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
         c += fprintf(f, "p%d", v->preg);
     else if (v->local_index)
         c += fprintf(f, "L[%d]", v->local_index);
-    else if (v->stack_index)
-        c += fprintf(f, "S[%d]", v->stack_index);
+    else if (v->stack.index)
+        c += fprintf(f, "S[%d]", v->stack.index);
     else if (v->vreg) {
         c += fprintf(f, "r%d", v->vreg);
         if (v->ssa_subscript != -1) c += fprintf(f, "_%d", v->ssa_subscript);
         if (v->live_range_preg) c += fprintf(f, "_LRpreg%d", v->live_range_preg);
     }
-    else if (v->stack_index)
-        c += fprintf(f, "s[%d]", v->stack_index);
+    else if (v->stack.index)
+        c += fprintf(f, "s[%d]", v->stack.index);
     else if (v->global_symbol)
         c += fprintf(f, "%s", v->global_symbol->global_identifier);
     else if (v->is_string_literal)
@@ -292,6 +292,10 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
 
     else if (o == IR_ARG) {
         fprintf(f, "arg for call %ld ", tac->src1->int_value);
+        print_value(f, tac->src2, 1);
+    }
+    else if (o == IR_PUSH_ARG) {
+        fprintf(f, "push arg for call %ld ", tac->src1->int_value);
         print_value(f, tac->src2, 1);
     }
     else if (o == IR_ARG_STACK_PADDING) {
@@ -695,9 +699,9 @@ void make_stack_register_count(Function *function) {
     int min = 0;
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Map registers forced onto the stack due to use of &
-        if (tac-> dst && tac-> dst->stack_index < 0 && tac-> dst->stack_index < min) min = tac-> dst->stack_index;
-        if (tac->src1 && tac->src1->stack_index < 0 && tac->src1->stack_index < min) min = tac->src1->stack_index;
-        if (tac->src2 && tac->src2->stack_index < 0 && tac->src2->stack_index < min) min = tac->src2->stack_index;
+        if (tac-> dst && tac-> dst->stack.index < 0 && tac-> dst->stack.index < min) min = tac-> dst->stack.index;
+        if (tac->src1 && tac->src1->stack.index < 0 && tac->src1->stack.index < min) min = tac->src1->stack.index;
+        if (tac->src2 && tac->src2->stack.index < 0 && tac->src2->stack.index < min) min = tac->src2->stack.index;
     }
     function->stack_register_count = -min;
 }
@@ -709,7 +713,7 @@ void make_stack_register_count(Function *function) {
 // right size and alignment (16 and 16).
 #define MAP_LOCAL_INDEX_TO_STACK_INDEX(tac, v) \
     if ((v) && (v)->local_index < 0) { \
-        (v)->stack_index = -stack_index_map[-(v)->local_index] - 1; \
+        (v)->stack.index = -stack_index_map[-(v)->local_index] - 1; \
         if ((v)->type->type == TYPE_INT128) { \
             Type *array_type = new_type(TYPE_ARRAY); \
             array_type->array_length = 1; \
@@ -755,9 +759,9 @@ void allocate_value_stack_indexes(Function *function) {
 
         // Map function call parameters
         // Local indexes and start indexes start at 1.
-        if (tac->dst  && tac->dst ->local_index > 0) tac->dst ->stack_index = tac->dst ->local_index;
-        if (tac->src1 && tac->src1->local_index > 0) tac->src1->stack_index = tac->src1->local_index;
-        if (tac->src2 && tac->src2->local_index > 0) tac->src2->stack_index = tac->src2->local_index;
+        if (tac->dst  && tac->dst ->local_index > 0) tac->dst ->stack.index = tac->dst ->local_index;
+        if (tac->src1 && tac->src1->local_index > 0) tac->src1->stack.index = tac->src1->local_index;
+        if (tac->src2 && tac->src2->local_index > 0) tac->src2->stack.index = tac->src2->local_index;
     }
 
     // From this point onwards, local_index has no meaning and downstream code must not use it.
@@ -819,7 +823,6 @@ static Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Va
     Value *arg_value = dup_value(function_call_value);
     arg_value->function_call.function_call_arg_index = int_arg_index;
 
-
     CallValueAllocation *cva = init_call_value_allocaton(NULL);
     CallValueLocations *cvl = wmalloc(sizeof(CallValueLocations));
     append_to_list(cva->locations, cvl);
@@ -840,9 +843,9 @@ static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, 
     function_value->int_value = call_value->int_value;
     function_value->function_call.function_symbol = symbol;
     function_value->type = symbol->type;
-    function_value->function_call.function_call_arg_push_count = 0;
+    function_value->function_call.function_call_stack_size = 0;
     function_value->function_call.function_call_fp_register_arg_count = 0;
-    call_value->function_call.function_call_arg_push_count = 0;
+    call_value->function_call.function_call_stack_size = 0;
     call_value->function_call.function_call_arg_stack_padding = 0;
     ir = new_tac_after(ir, IR_CALL, 0, function_value, 0);
 

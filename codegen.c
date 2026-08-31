@@ -235,15 +235,15 @@ void free_sized_saved_registers(SizedSavedRegisters *ssr) {
 }
 
 static void process_stack_offset(Value *value, int *stack_alignments, int *stack_sizes) {
-    if (value && value->stack_index < 0) {
+    if (value && value->stack.index < 0) {
         // When in doubt, pick the biggest of size & alignment. There can be
         // mismatches during struct/union manipulation, where a bit of the stack
         // is loaded/saved into up 8 bytes.
 
         int value_alignment = get_type_alignment(value->type);
-        if (value_alignment > stack_alignments[-value->stack_index]) stack_alignments[-value->stack_index] = value_alignment;
+        if (value_alignment > stack_alignments[-value->stack.index]) stack_alignments[-value->stack.index] = value_alignment;
         int value_size = get_type_size(value->type);
-        if (value_size > stack_sizes[-value->stack_index]) stack_sizes[-value->stack_index] = value_size;
+        if (value_size > stack_sizes[-value->stack.index]) stack_sizes[-value->stack.index] = value_size;
     }
 }
 
@@ -304,14 +304,14 @@ void make_stack_offsets(Function *function) {
         // Special case for functions with a va_list. A src1 with stack_index OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX
         // needs to be reassigned with address where the pushed varargs start.
         // Function param stack indexes start at 1.
-        if (tac->src1 && tac->src1->stack_index == OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX) {
-            tac->src1->stack_index = 1 + (function->cva->size >> 3);
+        if (tac->src1 && tac->src1->stack.index == OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX) {
+            tac->src1->stack.index = 1 + (function->cva->size >> 3);
         }
         else
-            if (tac->src1 && tac->src1->stack_index < 0) tac->src1->stack_offset = stack_offsets[-tac->src1->stack_index];
+            if (tac->src1 && tac->src1->stack.index < 0) tac->src1->stack.offset = stack_offsets[-tac->src1->stack.index];
 
-        if (tac ->dst && tac ->dst->stack_index < 0) tac ->dst->stack_offset = stack_offsets[-tac ->dst->stack_index];
-        if (tac->src2 && tac->src2->stack_index < 0) tac->src2->stack_offset = stack_offsets[-tac->src2->stack_index];
+        if (tac ->dst && tac ->dst->stack.index < 0) tac ->dst->stack.offset = stack_offsets[-tac ->dst->stack.index];
+        if (tac->src2 && tac->src2->stack.index < 0) tac->src2->stack.offset = stack_offsets[-tac->src2->stack.index];
     }
 
     wfree(stack_alignments);

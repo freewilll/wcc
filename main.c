@@ -260,7 +260,7 @@ int main(int argc, char **argv) {
                 argv += 2;
             }
 
-            else if (argc > 0 && !strcmp(argv[0], "--debug-function-param-allocation"       )) { debug_function_param_allocation = 1;        argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-call-value-allocation"           )) { debug_call_value_allocation = 1;            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-function-arg-mapping"            )) { debug_function_arg_mapping = 1;             argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-function-param-mapping"          )) { debug_function_param_mapping = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-mapping-local-stack-indexes" )) { debug_ssa_mapping_local_stack_indexes = 1;  argc--; argv++; }
@@ -473,7 +473,7 @@ int main(int argc, char **argv) {
         printf("\n");
         printf("Debug flags:\n");
         printf("--print-filenames\n");
-        printf("--debug-function-param-allocation\n");
+        printf("--debug-call-value-allocation\n");
         printf("--debug-function-arg-mapping\n");
         printf("--debug-function-param-mapping\n");
         printf("--debug-ssa-mapping-local-stack-indexes\n");
@@ -505,7 +505,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    get_debug_env_value("DEBUG_FUNCTION_PARAM_ALLOCATION", &debug_function_param_allocation);
+    get_debug_env_value("DEBUG_FUNCTION_PARAM_ALLOCATION", &debug_call_value_allocation);
     get_debug_env_value("DEBUG_FUNCTION_ARG_MAPPING", &debug_function_arg_mapping);
     get_debug_env_value("DEBUG_FUNCTION_PARAM_MAPPING", &debug_function_param_mapping);
     get_debug_env_value("DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES", &debug_ssa_mapping_local_stack_indexes);

@@ -143,6 +143,20 @@ void reverse_function_call_args_order(Function *function) {
     wfree(call_starts);
 }
 
+// Add a type to a call value location and return its alignment
+void add_type_to_cvl_in_stack(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int alignment) {
+    if (alignment > cva->biggest_alignment) cva->biggest_alignment = alignment;
+    int padding = ((cva->offset + alignment  - 1) & (~(alignment - 1))) - cva->offset;
+    cva->offset += padding;
+
+    cvl->stack_offset = cva->offset;
+    cvl->stack_padding = padding;
+
+    int type_size = get_type_size(type);
+    if (type_size < 8) type_size = 8;
+    cva->offset += type_size;
+}
+
 // Initialize a CVL and call add_type_to_cvl to allocate space for a type.
 void add_single_call_value_location(CallValueAllocation *cva, Type *type) {
     CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
@@ -193,6 +207,7 @@ void process_function_call_arg_allocations(Function *function) {
                 }
             }
         }
+
         else if (ir->operation.id == IR_ARG) {
             Symbol *symbol = ir->src1->function_call.function_symbol;
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
@@ -212,6 +227,7 @@ void process_function_call_arg_allocations(Function *function) {
             arg->function_call.function_call_arg_locations = cvl;
             if (cvl->locations[0].stack_padding >= 8) new_tac_after(ir, IR_ARG_STACK_PADDING, 0, 0, 0);
         }
+
         else if (ir->operation.id == IR_CALL) {
             Symbol *symbol = ir->src1->function_call.function_symbol;
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
@@ -236,7 +252,7 @@ void process_function_call_arg_allocations(Function *function) {
 
             finalize_call_value_allocation(cva);
             arg->function_call.function_call_arg_stack_padding = cva->padding;
-            arg->function_call.function_call_arg_push_count = (cva->size + 7) / 8;
+            arg->function_call.function_call_stack_size = cva->size;
         }
     }
 }
@@ -334,15 +350,15 @@ static void add_function_call_arg_move_for_struct_or_union_to_stack(Function *fu
     src->type = make_pointer_to_void();
 
     if (debug_function_arg_mapping)
-        printf("Adding memory copy for struct/union SI=%d rounded-up-size=%d\n", src->stack_index, rounded_up_size);
+        printf("Adding memory copy for struct/union SI=%d rounded-up-size=%d\n", src->stack.index, rounded_up_size);
 
     add_memory_copy(function, ir, dst, src, size);
 }
 
 // Add instructions to copy an int128 from a register/stack to the stack
 static void add_function_call_arg_move_for_int128_to_stack(Function *function, Tac *ir) {
-    if (ir->src2->stack_index)
-        panic("Got unexpected stack index %d in add_function_call_arg_move_for_int128_to_stack", ir->src2->stack_index);
+    if (ir->src2->stack.index)
+        panic("Got unexpected stack index %d in add_function_call_arg_move_for_int128_to_stack", ir->src2->stack.index);
 
     SplitVreg *split_vreg = function->int128_register_mappings[ir->src2->vreg];
     if (!split_vreg) panic("NULL pointer when fetching split vreg for int128 for vreg %d", ir->src2->vreg);
@@ -358,8 +374,8 @@ static void add_function_call_arg_move_for_int128_to_stack(Function *function, T
     src2_high->type->type =TYPE_LONG;
     src2_high->vreg = split_vreg->high;
 
-    new_tac_before(ir, IR_ARG, 0, ir->src1, src2_high, 1);
-    new_tac_before(ir, IR_ARG, 0, ir->src1, src2_low, 1);
+    new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_high, 1);
+    new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_low, 1);
 }
 
 // Lookup corresponding location for preg_class/register
@@ -398,8 +414,7 @@ static Value *make_function_call_arg_value_for_int128(Function *function, CallVa
 }
 
 // Insert IR_MOVE instructions before IR_ARG instructions for
-// - the first 6 single-register args.
-// - the first 8 floating point args.
+// any args that go into ABI registers.
 // The dst of the move will be constrained so that the correct physical register is allocated to it.
 // This function takes nested calls into account, which can happen if e.g. a memcpy is done to
 // copy a struct arg over.
@@ -540,6 +555,37 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
     wfree(cvls);
 }
 
+// Nuke all IR_ARG instructions that have had code added that moves the value into a register.
+// Call target specific code for remaining IR_ARG instructions that correspond with writes
+// to the stack.
+static void finalize_IR_ARG_instructions(Function *function) {
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if (ir->operation.id == IR_ARG) {
+            int removed = 0;
+            CallValueLocations *pl = ir->src1->function_call.function_call_arg_locations;
+
+            for (int loc = 0; loc < pl->count; loc++) {
+                if (pl->locations[loc].int_register != -1 || pl->locations[loc].fp_register != -1) {
+                    ir->operation.id = IR_NOP;
+                    ir->dst = 0;
+                    ir->src1 = 0;
+                    ir->src2 = 0;
+                    removed = 1;
+                    break;
+                }
+            }
+
+
+            if (!removed) {
+                // The argument is on the stack
+                convert_target_arg_move_to_stack_instructions(function, ir);
+            }
+        }
+    }
+
+    // From this point onwards, IR_ARG are no longer present.
+}
+
 // Process IR_ARG insructions. They are either loaded into a register, pushed onto the
 // stack with an IR_ARG, or, in the case of a struct/union pushed onto the stack with
 // generated code.
@@ -547,11 +593,11 @@ void add_function_call_arg_moves(Function *function) {
     add_function_call_arg_moves_for_preg_class(function, PC_INT);
     add_function_call_arg_moves_for_preg_class(function, PC_FP);
 
-    remove_IR_ARG_instructions_that_have_been_handled(function);
+    finalize_IR_ARG_instructions(function);
 
     // Add memory copies for struct and unions
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation.id == IR_ARG) {
+        if (ir->operation.id == IR_PUSH_ARG) {
             if (ir->src2->type->type == TYPE_INT128) {
                 CallValueLocations *pls = ir->src1->function_call.function_call_arg_locations;
                 if (pls->count != 1) panic("Unexpected int128 to stack move with locations->count != 1");
@@ -569,30 +615,11 @@ void add_function_call_arg_moves(Function *function) {
 
     // Process any added memcpy calls due to struct and union copies
     add_function_call_arg_moves_for_preg_class(function, PC_INT);
-    remove_IR_ARG_instructions_that_have_been_handled(function);
+    finalize_IR_ARG_instructions(function);
 
     if (debug_function_arg_mapping) {
         printf("After function call arg mapping\n");
         print_ir(function, 0);
-    }
-}
-
-// Nuke all IR_ARG instructions that have had code added that moves the value into a register
-void remove_IR_ARG_instructions_that_have_been_handled(Function *function) {
-    for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation.id == IR_ARG) {
-            CallValueLocations *pl = ir->src1->function_call.function_call_arg_locations;
-
-            for (int loc = 0; loc < pl->count; loc++) {
-                if (pl->locations[loc].int_register != -1 || pl->locations[loc].fp_register != -1) {
-                    ir->operation.id = IR_NOP;
-                    ir->dst = 0;
-                    ir->src1 = 0;
-                    ir->src2 = 0;
-                    break;
-                }
-            }
-        }
     }
 }
 
@@ -623,8 +650,8 @@ void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset) {
 
 // Convert a stack_index if stack_index_map isn't -1
 void remap_stack_index(int *stack_index_remap, Value *v) {
-    if (v && v->stack_index >= 0 && !v->has_been_renamed && stack_index_remap[v->stack_index] != -1) {
-        v->stack_index = stack_index_remap[v->stack_index];
+    if (v && v->stack.index >= 0 && !v->has_been_renamed && stack_index_remap[v->stack.index] != -1) {
+        v->stack.index = stack_index_remap[v->stack.index];
         v->has_been_renamed = 1;
     }
 }
@@ -661,7 +688,7 @@ Tac *make_param_move_to_stack_tac(Function *function, Type *type, int single_reg
     Tac *tac = new_instruction(IR_MOVE);
     tac->dst = new_value();
     tac->dst->type = dup_type(type);
-    tac->dst->stack_index = -(++function->stack_register_count);
+    tac->dst->stack.index = -(++function->stack_register_count);
 
     tac->src1 = new_value();
     tac->src1->type = dup_type(tac->dst->type);
@@ -675,41 +702,41 @@ Tac *make_param_move_to_stack_tac(Function *function, Type *type, int single_reg
 static void check_param_value_has_used_in_an_address_of(int *has_address_of, Tac *tac, Value *v) {
     if (!v) return;
     if (tac->operation.id != IR_ADDRESS_OF) return;
-    if (v->stack_index <= 0) return;
-    has_address_of[v->stack_index - 1] = 1;
+    if (v->stack.index <= 0) return;
+    has_address_of[v->stack.index - 1] = 1;
     return;
 }
 
 // Convert stack_index in value v to a parameter register
 static void convert_register_param_stack_index_to_register(Function *function, RegisterParamLocations *register_param_vregs, Value *v) {
-    if (!v || v->stack_index <= 0) return;
+    if (!v || v->stack.index <= 0) return;
 
-    if (register_param_vregs[v->stack_index - 1].low != -1 && v->offset == 0) {
-        assign_register_to_value(v, register_param_vregs[v->stack_index - 1].low);
+    if (register_param_vregs[v->stack.index - 1].low != -1 && v->offset == 0) {
+        assign_register_to_value(v, register_param_vregs[v->stack.index - 1].low);
     }
-    else if (register_param_vregs[v->stack_index - 1].high != -1 && v->offset == 8) {
-        assign_register_to_value(v, register_param_vregs[v->stack_index -1 ].high);
+    else if (register_param_vregs[v->stack.index - 1].high != -1 && v->offset == 8) {
+        assign_register_to_value(v, register_param_vregs[v->stack.index -1 ].high);
         v->offset = 0;
     }
 }
 
 // Convert stack_index in value v to a parameter in the stack
 static void convert_register_param_stack_index_to_stack(Function *function, int *register_param_stack_indexes, Value *v) {
-    if (v && v->stack_index > 0 && register_param_stack_indexes[v->stack_index - 1]) {
-        v->stack_index = register_param_stack_indexes[v->stack_index - 1];
+    if (v && v->stack.index > 0 && register_param_stack_indexes[v->stack.index - 1]) {
+        v->stack.index = register_param_stack_indexes[v->stack.index - 1];
         v->is_lvalue = 0;
     }
 }
 
 // Convert a value that has a stack index >= 2, i.e. it's a pushed parameter into a vreg
 static void convert_pushed_param_stack_index_to_register(Function *function, RegisterParamLocations *stack_param_vregs, Value *v) {
-    if (!v || v->function_call.function_param_original_stack_index || v->stack_index <= 0) return;
+    if (!v || v->function_call.function_param_original_stack.index || v->stack.index <= 0) return;
 
-    if (stack_param_vregs[v->stack_index - 1].low != -1  && v->offset == 0) {
-        assign_register_to_value(v, stack_param_vregs[v->stack_index - 1].low);
+    if (stack_param_vregs[v->stack.index - 1].low != -1  && v->offset == 0) {
+        assign_register_to_value(v, stack_param_vregs[v->stack.index - 1].low);
     }
-    else if (stack_param_vregs[v->stack_index - 1].high != -1  && v->offset == 8) {
-        assign_register_to_value(v, stack_param_vregs[v->stack_index - 1].high);
+    else if (stack_param_vregs[v->stack.index - 1].high != -1  && v->offset == 8) {
+        assign_register_to_value(v, stack_param_vregs[v->stack.index - 1].high);
         v->offset = 0;
     }
 }
@@ -725,7 +752,7 @@ static void convert_pushed_param_stack_index_to_register(Function *function, Reg
 // For register - register moves, intermediate registers are allocated.  Either, the
 // moves will go to a new physical register, or, when possible, will remain in the
 // original registers. They might get spilled, in which case
-// function_param_original_stack_index is used rather than allocating more space.
+// function_param_original_stack.index is used rather than allocating more space.
 //
 // Return values for structs & unions with size > 16 bytes are passed in memory,
 // with rdi containing a pointer to the memory.
@@ -800,14 +827,14 @@ void add_function_param_moves(Function *function) {
                 insert_tac_before(ir, tac_high, 0);
 
                 Tac *tac_low = make_param_move_to_stack_tac(function, long_type, low_arg_register);
-                register_param_stack_indexes[i] = tac_low->dst->stack_index;
+                register_param_stack_indexes[i] = tac_low->dst->stack.index;
                 tac_low->src1->vreg = ++function->vreg_count;
                 tac_low->src1->type->type = TYPE_LONG;
                 insert_tac_before(ir, tac_low, 0);
 
                 if (debug_function_param_mapping)
                     printf("Param %d, reg param reg %d / %d -> local SI %d / %d\n",
-                        i, tac_low->src1->vreg, tac_high->src1->vreg, tac_low->dst->stack_index, tac_high->dst->stack_index);
+                        i, tac_low->src1->vreg, tac_high->src1->vreg, tac_low->dst->stack.index, tac_high->dst->stack.index);
             }
             else {
                 int low_arg_register = cvl.locations[0].int_register;
@@ -852,10 +879,10 @@ void add_function_param_moves(Function *function) {
             if (has_address_of[i]) {
                 // Add a move instruction to save the register to the stack
                 Tac *tac = make_param_move_to_stack_tac(function, type, single_register_arg_count);
-                register_param_stack_indexes[i] = tac->dst->stack_index;
+                register_param_stack_indexes[i] = tac->dst->stack.index;
                 tac->src1->vreg = ++function->vreg_count;
                 insert_tac_before(ir, tac, 0);
-                if (debug_function_param_mapping) printf("Param %d reg param reg %d -> local SI %d\n", i, tac->src1->vreg, tac->dst->stack_index);
+                if (debug_function_param_mapping) printf("Param %d reg param reg %d -> local SI %d\n", i, tac->src1->vreg, tac->dst->stack.index);
             }
             else {
                 // Add a move instruction to copy register to another register
@@ -915,15 +942,15 @@ void add_function_param_moves(Function *function) {
 
             Tac *tac_low = make_param_move_to_register_tac(function, long_type, i, 0);
             stack_param_vregs[stack_index - 1].low = tac_low->dst->vreg;
-            tac_low->src1->function_call.function_param_original_stack_index = stack_index;
-            tac_low->src1->stack_index = stack_index;
+            tac_low->src1->function_call.function_param_original_stack.index = stack_index;
+            tac_low->src1->stack.index = stack_index;
             tac_low->src1->has_been_renamed = 1; // Stop remap_stack_index() from changing the stack index again
             insert_tac_before(ir, tac_low, 0);
 
             Tac *tac_high = make_param_move_to_register_tac(function, long_type, i, 0);
             stack_param_vregs[stack_index - 1].high = tac_high->dst->vreg;
-            tac_high->src1->function_call.function_param_original_stack_index = stack_index + 1;
-            tac_high->src1->stack_index = stack_index;
+            tac_high->src1->function_call.function_param_original_stack.index = stack_index + 1;
+            tac_high->src1->stack.index = stack_index;
             tac_high->src1->offset = 8;
             tac_high->src1->has_been_renamed = 1; // Stop remap_stack_index() from changing the stack index again
             insert_tac_before(ir, tac_high, 0);
@@ -932,8 +959,8 @@ void add_function_param_moves(Function *function) {
         else if (!has_address_of[i] && (!long_doubles_are_in_the_stack || type->type != TYPE_LONG_DOUBLE) && type->type != TYPE_STRUCT_OR_UNION) {
             Tac *tac = make_param_move_to_register_tac(function, type, i, 0);
             stack_param_vregs[stack_index - 1].low = tac->dst->vreg;
-            tac->src1->function_call.function_param_original_stack_index = stack_index;
-            tac->src1->stack_index = stack_index;
+            tac->src1->function_call.function_param_original_stack.index = stack_index;
+            tac->src1->stack.index = stack_index;
             tac->src1->has_been_renamed = 1; // Stop remap_stack_index() from changing the stack index again
             insert_tac_before(ir, tac, 0);
         }
@@ -963,7 +990,7 @@ void add_function_param_moves(Function *function) {
 
 // Initialize data structures for the function param & arg allocation processor
 CallValueAllocation *init_call_value_allocaton(char *function_identifier) {
-    if (debug_function_param_allocation) printf("\nInitializing param allocation for function %s\n", function_identifier);
+    if (debug_call_value_allocation) printf("\nInitializing param allocation for function %s\n", function_identifier);
 
     CallValueAllocation *cva = wcalloc(1, sizeof(CallValueAllocation));
     append_to_list(allocated_function_param_allocatons, cva);
@@ -991,7 +1018,7 @@ void finalize_call_value_allocation(CallValueAllocation *cva) {
     cva->padding = ((cva->offset + cva->biggest_alignment  - 1) & (~(cva->biggest_alignment - 1))) - cva->offset;
     cva->size = cva->offset + cva->padding;
 
-    if (debug_function_param_allocation) {
+    if (debug_call_value_allocation) {
         printf("  --------------------------------------------------------------\n");
         printf("  total                        size   0x%04x with padding 0x%04x\n", cva->size, cva->padding);
     }

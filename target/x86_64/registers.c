@@ -207,12 +207,12 @@ void add_spill_code(Function *function) {
 
         // Allow all moves where either dst is a register and src is on the stack
         if (tac->operation.id == X86_OP_MOV || tac->operation.id == X86_OP_MOVS || tac->operation.id == X86_OP_MOVZ)
-            if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->stack_index) continue;
+            if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->stack.index) continue;
 
         // Allow non sign-extends moves if the dst is on the stack and the src is a register
-        if (tac->operation.id == X86_OP_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->preg != -1) continue;
+        if (tac->operation.id == X86_OP_MOV && tac->dst && tac->dst->stack.index && tac->src1 && tac->src1->preg != -1) continue;
 
-        int dst_eq_src1 = (tac->dst && tac->src1 && tac->dst->stack_index == tac->src1->stack_index);
+        int dst_eq_src1 = (tac->dst && tac->src1 && tac->dst->stack.index == tac->src1->stack.index);
 
         if (tac->src1 && tac->src1->spilled)  {
             if (debug_instsel_spilling) printf("Adding spill load\n");

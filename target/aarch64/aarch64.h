@@ -199,6 +199,7 @@ void add_store_memory_instructions(Function *function);
 void add_address_of_instructions(Function *function);
 void expand_adrp_instructions(Function *function);
 void expand_indirect_offsets(Function *function);
+void split_function_param_stack_register(Function *function);
 void make_aarch64_stack_offsets(Function *function);
 
 #endif

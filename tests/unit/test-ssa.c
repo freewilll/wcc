@@ -820,7 +820,7 @@ void test_coalesce() {
     i(0, IR_MOVE, vsz(1, TYPE_LONG), c(1),              0                );
     i(0, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), 0                );
     i(0, IR_START_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
-    i(0, IR_ARG,  0,                 make_arg_src1(),   vsz(2, TYPE_LONG));
+    i(0, IR_PUSH_ARG,  0,                 make_arg_src1(),   vsz(2, TYPE_LONG));
     i(0, IR_END_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
     finish_register_allocation_ir(function);
     assert_tac(ir_start,       IR_MOVE, vsz(2, TYPE_LONG), c(1), 0);
@@ -832,7 +832,7 @@ void test_coalesce() {
     i(0, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), 0               );
     i(0, IR_ADD, vsz(3, TYPE_LONG),  vsz(1, TYPE_LONG), vsz(2, TYPE_LONG));
     i(0, IR_START_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
-    i(0, IR_ARG,  0,                 make_arg_src1(),   vsz(2, TYPE_LONG));
+    i(0, IR_PUSH_ARG,  0,                 make_arg_src1(),   vsz(2, TYPE_LONG));
     i(0, IR_END_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
     finish_register_allocation_ir(function);
 
@@ -849,7 +849,7 @@ void test_coalesce_promotion() {
     i(0, IR_MOVE, vsz(1, TYPE_INT),  c(1),             0               );
     i(0, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_INT), 0               );
     i(0, IR_START_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
-    i(0, IR_ARG,  0,                 make_arg_src1(),  vsz(2, TYPE_LONG));
+    i(0, IR_PUSH_ARG,  0,                 make_arg_src1(),  vsz(2, TYPE_LONG));
     i(0, IR_END_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
     finish_register_allocation_ir(function);
     assert_tac(ir_start, IR_MOVE, vsz(1, TYPE_INT), c(1), 0   );
@@ -898,17 +898,17 @@ void test_top_down_register_allocation() {
     function->stack_register_count = 0;
     run_allocate_registers_top_down(function, 0);
     vl = function->vreg_locations;
-    assert(-4, vl[1].stack_index);
-    assert(-3, vl[2].stack_index);
-    assert(-2, vl[3].stack_index);
-    assert(-1, vl[4].stack_index);
+    assert(-4, vl[1].stack.index);
+    assert(-3, vl[2].stack.index);
+    assert(-2, vl[3].stack.index);
+    assert(-1, vl[4].stack.index);
 
     // Only one register is available. All nodes are constrained.
     // The most expensive non interfering nodes get the register
     function->stack_register_count = 0;
     run_allocate_registers_top_down(function, 1);
     vl = function->vreg_locations;
-    assert(-1, vl[1].stack_index);
+    assert(-1, vl[1].stack.index);
     assert(0,  vl[2].preg);
     assert(0,  vl[3].preg);
     assert(0,  vl[4].preg);
@@ -941,7 +941,7 @@ void test_top_down_register_allocation() {
     function->stack_register_count = 0;
     run_allocate_registers_top_down(function, 2);
     vl = function->vreg_locations;
-    assert(-1, vl[1].stack_index);
+    assert(-1, vl[1].stack.index);
     assert(1,  vl[2].preg);
     assert(0,  vl[3].preg);
     assert(0,  vl[4].preg);

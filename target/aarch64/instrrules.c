@@ -36,7 +36,7 @@ int uncached_non_terminal_for_value(Value *v) {
     if (v->non_terminal) return v->non_terminal;
 
     int is_global = !!v->global_symbol;
-    int is_in_stack = !!v->stack_index;
+    int is_in_stack = !!v->stack.index;
     int is_local = !is_global && !is_in_stack;
     int is_pointer = v->type && v->type->type == TYPE_PTR;
 
