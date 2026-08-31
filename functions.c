@@ -401,6 +401,8 @@ static Value *make_function_call_arg_value_for_int128(Function *function, CallVa
 // - the first 6 single-register args.
 // - the first 8 floating point args.
 // The dst of the move will be constrained so that the correct physical register is allocated to it.
+// This function takes nested calls into account, which can happen if e.g. a memcpy is done to
+// copy a struct arg over.
 static void add_function_call_arg_moves_for_preg_class(Function *function, int preg_class) {
     int function_calls_size = make_max_function_call_id(function) + 1;
     int register_count = preg_class == PC_INT ? 6 : 8; // TODO aarch64 unhardcode this
