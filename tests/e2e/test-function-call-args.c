@@ -307,8 +307,6 @@ void test_sign_extension_pushed_params() {
     test_pushed_param_ul(-1,    0, 0, 0, 0, 0, 0, 0, ul);
 }
 
-#ifdef __x86_64__
-
 // These tests stack layout is correct from an ABI point of view by checking
 // convoluted combinations of ints and double longs beyond the 6 single-register-arg limit
 void test_long_double_stack_zero_offset() {
@@ -369,31 +367,34 @@ void test_long_double_stack_eight_offset() {
     assert_int(0, strcmp(buffer, "1.10000 1 2 3 4 5 6 7 1.200000 1"), "Long double eight sprintf 4");
 }
 
-char *long_double_pushed_args_i_ld(int i, long double ld) {
+// Make long parameter lists brief
+#define LD long double
+
+char *long_double_pushed_args_i_ld(int i, LD ld) {
     char *buffer = malloc(100);
     sprintf(buffer, "%d %5.5Lf", i, ld);
     return buffer;
 }
 
-char *long_double_pushed_args_i_ld_rep4(int i1, long double ld1, int i2, long double ld2, int i3, long double ld3, int i4, long double ld4) {
+char *long_double_pushed_args_i_ld_rep4(int i1, LD ld1, int i2, LD ld2, int i3, LD ld3, int i4, LD ld4) {
     char *buffer = malloc(100);
     sprintf(buffer, "%d %5.5Lf %d %5.5Lf %d %5.5Lf %d %5.5Lf", i1, ld1, i2, ld2, i3, ld3, i4, ld4);
     return buffer;
 }
 
-char *long_double_pushed_args_ld_i_rep4(long double ld1, int i1, long double ld2, int i2, long double ld3, int i3, long double ld4, int i4) {
+char *long_double_pushed_args_ld_i_rep4(LD ld1, int i1, LD ld2, int i2, LD ld3, int i3, LD ld4, int i4) {
     char *buffer = malloc(100);
     sprintf(buffer, "%5.5Lf %d %5.5Lf %d %5.5Lf %d %5.5Lf %d", ld1, i1, ld2, i2, ld3, i3, ld4, i4);
     return buffer;
 }
 
-char *long_double_pushed_args_6i_ld(int i1, int i2, int i3, int i4, int i5, int i6, long double ld) {
+char *long_double_pushed_args_6i_ld(int i1, int i2, int i3, int i4, int i5, int i6, LD ld) {
     char *buffer = malloc(100);
     sprintf(buffer, "%d %d %d %d %d %d %5.5Lf", i1, i2, i3, i4, i5, i6, ld);
     return buffer;
 }
 
-char *long_double_pushed_args_7i_ld(int i1, int i2, int i3, int i4, int i5, int i6, int i7, long double ld) {
+char *long_double_pushed_args_7i_ld(int i1, int i2, int i3, int i4, int i5, int i6, int i7, LD ld) {
     char *buffer = malloc(100);
     sprintf(buffer, "%d %d %d %d %d %d %d %5.5Lf", i1, i2, i3, i4, i5, i6, i7, ld);
     return buffer;
@@ -405,18 +406,27 @@ char *long_double_pushed_args_6i_2pc_1i(int i1, int i2, int i3, int i4, int i5, 
     return buffer;
 }
 
-char *long_double_pushed_args_6ld_6i(
-        long double ld1, long double ld2, long double ld3, long double ld4, long double ld5, long double ld6,
-        int i1, int i2, int i3, int i4, int i5, int i6) {
-
+char *long_double_pushed_args_6ld_6i(LD ld1, LD ld2, LD ld3, LD ld4, LD ld5, LD ld6, int i1, int i2, int i3, int i4, int i5, int i6) {
     char *buffer = malloc(100);
     sprintf(buffer, "%5.5Lf %5.5Lf %5.5Lf %5.5Lf %5.5Lf %5.5Lf %d %d %d %d %d %d", ld1, ld2, ld3, ld4, ld5, ld6, i1, i2, i3, i4, i5, i6);
     return buffer;
 }
 
+void long_double10(LD ld1, LD ld2, LD ld3, LD ld4, LD ld5, LD ld6, LD ld7, LD ld8, LD ld9, LD ld10) {
+    assert_long_double(9.1L, ld9, "long double param in stack to reg 1");
+    assert_long_double(10.1L, ld10, "long double param in stack to reg 2");
+}
+
+void long_double_in_stack10(LD ld1, LD ld2, LD ld3, LD ld4, LD ld5, LD ld6, LD ld7, LD ld8, LD ld9, LD ld10) {
+    &ld9; &ld10;
+    assert_long_double(9.1L, ld9, "long double param in stack to stack 1");
+    assert_long_double(10.1L, ld10, "long double param in stack to stack 2");
+}
+
 void test_long_double_pushed_params() {
     char *buffer;
 
+    // These tests are x86_64 specific, where all long doubles are pushed to the stack.
     buffer = long_double_pushed_args_i_ld(1, 1.1L);
     assert_int(0, strcmp(buffer, "1 1.10000"), "Long double call args i, ld");
 
@@ -437,6 +447,33 @@ void test_long_double_pushed_params() {
 
     buffer = long_double_pushed_args_6ld_6i(1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 1, 2, 3, 4, 5, 6);
     assert_int(0, strcmp(buffer, "1.10000 2.10000 3.10000 4.10000 5.10000 6.10000 1 2 3 4 5 6"), "Long double call args 6ld 6i");
+
+    // These tests are more geared at aarch64 where long doubles only get pushed if they are arg/param 9 and onwards.
+
+    // Test long double in the stack used as an arg
+    long double ld = 1.1;
+    &ld;
+    buffer = long_double_pushed_args_i_ld(1, ld);
+    assert_int(0, strcmp(buffer, "1 1.10000"), "Long double call args i, ld with ld in the stack");
+
+    // Test long double in a global used as an arg
+    gld = 1.1;
+    buffer = long_double_pushed_args_i_ld(1, gld);
+    assert_int(0, strcmp(buffer, "1 1.10000"), "Long double call args i, ld, where ld is a global");
+
+    // Push an arg in a reg to the stack
+    long_double10(1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L, 10.1L);
+    long_double_in_stack10(1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L, 10.1L);
+
+    // Push an arg in the stack to the stack
+    ld = 9.1;
+    long_double10(1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, ld, 10.1L);
+    long_double_in_stack10(1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, ld, 10.1L);
+
+    // Push an arg in a global to the stack
+    gld = 9.1;
+    long_double10(1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, gld, 10.1L);
+    long_double_in_stack10(1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, gld, 10.1L);
 }
 
 long double cst1() {
@@ -470,6 +507,11 @@ void test_long_double_function_call_return_value() {
     buffer = malloc(100);
     sprintf(buffer, "%5.5Lf", gld);
     assert_int(0, strcmp(buffer, "1.10000"), "Long double assignment from function call");
+
+    long double ld2;
+    ld2 = cst1();
+    sprintf(buffer, "%5.5Lf", ld2);
+    assert_int(0, strcmp(buffer, "1.10000"), "Long double in stack assignment from function call");
 }
 
 void tldsiprrb(long double i, long double j, long double k) {
@@ -630,8 +672,6 @@ void test_float_double_call_return_value() {
     gd1 = 6.0; assert_double(6.0, return_double_global(),      "Double global return value");
 }
 
-#endif
-
 int max_with_default_ints(a, b) { return a > b ? a : b; }
 int max_int_with_declared_ints(a, b) int a, b; { return a > b ? a : b; }
 double max_double_with_declared_doubles(a, b) double a, b; { return a > b ? a : b; }
@@ -747,19 +787,18 @@ int main(int argc, char **argv) {
     test_direct_register_use();
     test_sign_extension_pushed_params();
 
-    #ifdef __x86_64__
     test_long_double_stack_zero_offset();
     test_long_double_stack_eight_offset();
     test_long_double_pushed_params();
     test_long_double_function_call_return_value();
     test_long_double_stack_index_pushed_register_rename_bug();
+
     test_float_double_params();
     test_float_double_call_return_value();
 
-    #endif
     test_parameterless_functions();
-    #ifdef __x86_64__
 
+    #ifdef __x86_64__
     test_int128_in_registers();
     test_int128_in_stack();
     #endif

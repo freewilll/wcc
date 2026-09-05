@@ -114,6 +114,8 @@ static void process_stack_offset(Tac *tac, Value *v, int *stack_offsets) {
 
 // Function calls all share the same stack. Determine the largest size
 static void determine_function_arg_stack_size(Function *function) {
+    function_call_args_stack_size = 0;
+
     for (Tac *tac = function->ir; tac; tac = tac->next) {
 
         if (tac->operation.id == IR_END_CALL) {
