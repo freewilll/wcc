@@ -15,12 +15,12 @@ void assert(long expected, long actual) {
 }
 
 void n() {
-    ir_start = ir_start->next;
+    global_ir_start = global_ir_start->next;
 }
 
 void nop() {
-    assert(IR_NOP, ir_start->operation.id);
-    ir_start = ir_start->next;
+    assert(IR_NOP, global_ir_start->operation.id);
+    global_ir_start = global_ir_start->next;
 }
 
 Function *new_function_with_type(void) {
@@ -34,16 +34,16 @@ Function *new_function_with_type(void) {
 void assert_rx86_preg_op_with_function_pc(int function_param_count, char *expected) {
     char *got;
 
-    if (!ir_start && expected) {
+    if (!global_ir_start && expected) {
         printf("Expected %s, got nothing\n", expected);
         failures++;
         return;
     }
-    else if (!ir_start && !expected) return;
+    else if (!global_ir_start && !expected) return;
 
     got = 0;
-    while (ir_start && !got) {
-        got = render_target_operation(ir_start, function_param_count, 1);
+    while (global_ir_start && !got) {
+        got = render_target_operation(global_ir_start, function_param_count, 1);
         n();
     }
 
@@ -133,7 +133,7 @@ void test_instrsel_tree_merging() {
     finish_ir(function);
 
     // Ensure both "CMP" instructions operate on registers
-    tac = ir_start;
+    tac = global_ir_start;
     for (j = 0; j < 2; j++) {
         while (tac && tac->operation.id != X86_OP_CMP) tac = tac->next;
         assert(1, !!tac);
@@ -797,10 +797,10 @@ void test_instrsel_function_call_rearranging() {
     i(0, IR_MOVE,       g(1), v(1),  0);
     finish_ir(function);
 
-    assert_tac(ir_start,                   IR_START_CALL, 0,    c(0),  0);
-    assert_tac(ir_start->next,             X86_OP_CALL,   0,    fu(1), 0);
-    assert_tac(ir_start->next->next,       IR_END_CALL,   0,    c(0),  0);
-    assert_tac(ir_start->next->next->next, X86_OP_MOV,    g(1), v(1),  0);
+    assert_tac(global_ir_start,                   IR_START_CALL, 0,    c(0),  0);
+    assert_tac(global_ir_start->next,             X86_OP_CALL,   0,    fu(1), 0);
+    assert_tac(global_ir_start->next->next,       IR_END_CALL,   0,    c(0),  0);
+    assert_tac(global_ir_start->next->next->next, X86_OP_MOV,    g(1), v(1),  0);
 }
 
 void test_misc_commutative_operations() {

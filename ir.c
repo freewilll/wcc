@@ -106,14 +106,14 @@ Value *new_value_in_stack(int type, int stack_index, int offset) {
 void add_tac_to_ir(Tac *tac) {
     tac->next = 0;
 
-    if (!ir_start) {
-        ir_start = tac;
-        ir = tac;
+    if (!global_ir_start) {
+        global_ir_start = tac;
+        global_ir = tac;
     }
     else {
-        tac->prev = ir;
-        ir->next = tac;
-        ir = tac;
+        tac->prev = global_ir;
+        global_ir->next = tac;
+        global_ir = tac;
     }
 }
 

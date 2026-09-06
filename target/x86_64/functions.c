@@ -473,7 +473,7 @@ int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, Call
 // If the function returns a struct/union in memory, then the caller puts a pointer to
 // the target in rdi. Make a copy of rdi in return_value_pointer for use in the
 // return value code. The function returns 1 if rdi has been used in this way.
-static int setup_return_for_struct_or_union(Function *function) {
+static int setup_return_for_struct_or_union(Function *function, Tac *ir) {
     CallValueAllocation *cva = function->type->function->return_value_cva;
     if (!cva) panic("In setup_return_for_struct_or_union() got an empty RV cva");
     if (CVA_CVL(cva, 0).locations[0].stack_offset == -1) return 0;
@@ -499,7 +499,7 @@ static int setup_return_for_struct_or_union(Function *function) {
 // For functions with variadic arguments, move registers into the register save area.
 // The register save area has been allocated on the stack by the parser with the
 // value set in function->register_save_area.
-void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva) {
+void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva, Tac *ir) {
     // Add moves for ints registers to register save area
     for (int i = cva->single_int_register_arg_count; i < 6; i++) {
         Value *src = new_value();
@@ -915,11 +915,11 @@ Set *allocate_return_value_live_ranges(void) {
 // In x86_64, for functions that return a large struct,
 // rdi contains the address where the return struct must be copied to.
 // Returns the amount of prepended parameters that were added.
-int prepend_function_params(Function *function) {
+int prepend_function_params(Function *function, Tac *ir) {
     int cva_start = 0;
 
     if (function->type->target->type == TYPE_STRUCT_OR_UNION) {
-        cva_start = setup_return_for_struct_or_union(function);
+        cva_start = setup_return_for_struct_or_union(function, ir);
         if (cva_start) add_type_to_cva(function->cva, function->return_value_pointer->type);
     }
 

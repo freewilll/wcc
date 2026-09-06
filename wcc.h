@@ -820,7 +820,8 @@ extern Value *cur_loop_break_dst;       // Target jmp of break statement in the 
 extern Typedef **all_typedefs;   // All typedefs
 extern int all_typedefs_count;   // Number of typedefs
 
-extern Tac *ir_start, *ir;               // intermediate representation for currently parsed function
+extern Tac *global_ir_start;             // Start of the current global IR. Used by the parser and instrsel
+extern Tac *global_ir;                   // Last item of global_ir_start
 extern int label_count;                  // Global label count, always growing
 extern int cur_loop;                     // Current loop being parsed
 extern int loop_count;                   // Loop counter
@@ -1622,11 +1623,11 @@ void perform_peephole_optimization(Function *function);
 
 // Target functions related code
 Set *allocate_return_value_live_ranges(void);
-int prepend_function_params(Function *function);
+int prepend_function_params(Function *function, Tac *ir);
 void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int force_stack);
 void add_type_to_cva(CallValueAllocation *cva, Type *type);
 int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, CallValueLocations *pl, RegisterSet *register_set);
-void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva);
+void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva, Tac *ir);
 int *make_original_stack_indexes(Function *function);
 int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *param, int preg_class, int register_index, CallValueLocation *location, RegisterSet *register_set);
 void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac);

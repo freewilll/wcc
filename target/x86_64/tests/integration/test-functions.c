@@ -33,10 +33,10 @@ static Tac *run_function_params_compiler(const char *code) {
                 run_compiler_phases(function, symbol->identifier, PH_BEGIN, PH_PARAM);
 
                 // Move ir_start to first non-labelled non-noop for convenience
-                ir_start = function->ir;
-                while (ir_start && ir_start->operation.id == IR_NOP && !ir_start->label) ir_start = ir_start->next;
-                function->ir = ir_start;
-                return ir_start;
+                global_ir_start = function->ir;
+                while (global_ir_start && global_ir_start->operation.id == IR_NOP && !global_ir_start->label) global_ir_start = global_ir_start->next;
+                function->ir = global_ir_start;
+                return global_ir_start;
             }
         }
     }

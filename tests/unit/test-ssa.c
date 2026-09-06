@@ -49,9 +49,9 @@ void run_arithmetic_optimization(int operation, Value *dst, Value *src1, Value *
 
     opt_optimize_arithmetic_operations = 1;
     function = new_function_with_type();
-    ir_start = 0;
+    global_ir_start = NULL;
     i(0, operation, dst, src1, src2);
-    function->ir = ir_start;
+    function->ir = global_ir_start;
     optimize_arithmetic_operations(function);
 }
 
@@ -66,140 +66,140 @@ void run_long_double_arithmetic_optimization(int operation, Value *src1, Value *
 void test_int_arithmetic_optimization_mul() {
     // v2 = 0 * v1
     run_int_arithmetic_optimization(IR_MUL, c(0), v(1));
-    assert(1, ir_start->src1->is_constant);
-    assert(0, ir_start->src1->int_value);
-    assert(0, (int) ir_start->src2);
+    assert(1, global_ir_start->src1->is_constant);
+    assert(0, global_ir_start->src1->int_value);
+    assert(0, (int) global_ir_start->src2);
 
     // v2 = v1 * 0
     run_int_arithmetic_optimization(IR_MUL, v(1), c(0));
-    assert(1, ir_start->src1->is_constant);
-    assert(0, ir_start->src1->int_value);
-    assert(0, (int) ir_start->src2);
+    assert(1, global_ir_start->src1->is_constant);
+    assert(0, global_ir_start->src1->int_value);
+    assert(0, (int) global_ir_start->src2);
 
     // v2 = 1 * v1
     run_int_arithmetic_optimization(IR_MUL, c(1), v(1));
-    assert(IR_MOVE, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
+    assert(IR_MOVE, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
 
     // v2 = v1 * 1
     run_int_arithmetic_optimization(IR_MUL, v(1), c(1));
-    assert(IR_MOVE, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
+    assert(IR_MOVE, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
 
     // v2 = 2 * v1
     run_int_arithmetic_optimization(IR_MUL, c(2), v(1));
-    assert(IR_BSHL, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
-    assert(1, ir_start->src2->is_constant);
-    assert(1, ir_start->src2->int_value);
+    assert(IR_BSHL, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
+    assert(1, global_ir_start->src2->is_constant);
+    assert(1, global_ir_start->src2->int_value);
 
     // v2 = v1 * 2
     run_int_arithmetic_optimization(IR_MUL, v(1), c(2));
-    assert(IR_BSHL, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
-    assert(1, ir_start->src2->is_constant);
-    assert(1, ir_start->src2->int_value);
+    assert(IR_BSHL, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
+    assert(1, global_ir_start->src2->is_constant);
+    assert(1, global_ir_start->src2->int_value);
 
     // v2 = v1 * 4
     run_int_arithmetic_optimization(IR_MUL, v(1), c(4));
-    assert(IR_BSHL, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
-    assert(1, ir_start->src2->is_constant);
-    assert(2, ir_start->src2->int_value);
+    assert(IR_BSHL, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
+    assert(1, global_ir_start->src2->is_constant);
+    assert(2, global_ir_start->src2->int_value);
 }
 
 void test_int_arithmetic_optimization_div() {
     // v2 = v1 / 1
     run_int_arithmetic_optimization(IR_DIV, uv(1), c(1));
-    assert(IR_MOVE, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
+    assert(IR_MOVE, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
 
     // signed v2 = v1 / 2 is unchanged
     run_int_arithmetic_optimization(IR_DIV, v(1), c(2));
-    assert(IR_DIV, ir_start->operation.id);
+    assert(IR_DIV, global_ir_start->operation.id);
 
     // signed v2 = v1 / 3 is unchanged
     run_int_arithmetic_optimization(IR_DIV, v(1), c(3));
-    assert(IR_DIV, ir_start->operation.id);
+    assert(IR_DIV, global_ir_start->operation.id);
 
     // signed v2 = v1 / 4 is unchanged
     run_int_arithmetic_optimization(IR_DIV, v(1), c(4));
-    assert(IR_DIV, ir_start->operation.id);
+    assert(IR_DIV, global_ir_start->operation.id);
 
     // unsigned v2 = v1 / 2
     run_int_arithmetic_optimization(IR_DIV, uv(1), c(2));
-    assert(IR_BSHR, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
-    assert(1, ir_start->src2->is_constant);
-    assert(1, ir_start->src2->int_value);
+    assert(IR_BSHR, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
+    assert(1, global_ir_start->src2->is_constant);
+    assert(1, global_ir_start->src2->int_value);
 
     // unsigned v2 = v1 / 3 is unchanged
     run_int_arithmetic_optimization(IR_DIV, uv(1), c(3));
-    assert(IR_DIV, ir_start->operation.id);
+    assert(IR_DIV, global_ir_start->operation.id);
 
     // unsigned v2 = v1 / 4
     run_int_arithmetic_optimization(IR_DIV, uv(1), c(4));
-    assert(IR_BSHR, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
-    assert(1, ir_start->src2->is_constant);
-    assert(2, ir_start->src2->int_value);
+    assert(IR_BSHR, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
+    assert(1, global_ir_start->src2->is_constant);
+    assert(2, global_ir_start->src2->int_value);
 }
 
 void test_int_arithmetic_optimization_mod() {
     // v2 = v1 % 1
     run_int_arithmetic_optimization(IR_MOD, v(1), c(1));
-    assert(IR_MOVE, ir_start->operation.id);
-    assert(0, ir_start->src1->vreg);
+    assert(IR_MOVE, global_ir_start->operation.id);
+    assert(0, global_ir_start->src1->vreg);
 
     // v2 = v1 % 2
     run_int_arithmetic_optimization(IR_MOD, v(1), c(2));
-    assert(IR_BAND, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
-    assert(1, ir_start->src2->is_constant);
-    assert(1, ir_start->src2->int_value);
+    assert(IR_BAND, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
+    assert(1, global_ir_start->src2->is_constant);
+    assert(1, global_ir_start->src2->int_value);
 
     // v2 = v1 % 4
     run_int_arithmetic_optimization(IR_MOD, v(1), c(4));
-    assert(IR_BAND, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
-    assert(1, ir_start->src2->is_constant);
-    assert(3, ir_start->src2->int_value);
+    assert(IR_BAND, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
+    assert(1, global_ir_start->src2->is_constant);
+    assert(3, global_ir_start->src2->int_value);
 
     // v2 = v1 % 8
     run_int_arithmetic_optimization(IR_MOD, v(1), c(8));
-    assert(IR_BAND, ir_start->operation.id);
-    assert(1, ir_start->src1->vreg);
-    assert(1, ir_start->src2->is_constant);
-    assert(7, ir_start->src2->int_value);
+    assert(IR_BAND, global_ir_start->operation.id);
+    assert(1, global_ir_start->src1->vreg);
+    assert(1, global_ir_start->src2->is_constant);
+    assert(7, global_ir_start->src2->int_value);
 }
 
 void test_long_double_arithmetic_optimization() {
     // v2 = 0 * v1
     run_long_double_arithmetic_optimization(IR_MUL, cld(0.0L), vsz(TYPE_LONG_DOUBLE, 1));
-    assert(1, ir_start->src1->is_constant);
-    assert(0, ir_start->src1->int_value);
-    assert(0, (int) ir_start->src2);
+    assert(1, global_ir_start->src1->is_constant);
+    assert(0, global_ir_start->src1->int_value);
+    assert(0, (int) global_ir_start->src2);
 
     // v2 = v1 * 0
     run_long_double_arithmetic_optimization(IR_MUL, vsz(TYPE_LONG_DOUBLE, 1), cld(0.0L));
-    assert(1, ir_start->src1->is_constant);
-    assert(0, ir_start->src1->int_value);
-    assert(0, (int) ir_start->src2);
+    assert(1, global_ir_start->src1->is_constant);
+    assert(0, global_ir_start->src1->int_value);
+    assert(0, (int) global_ir_start->src2);
 
     // v2 = 1 * v1
     run_long_double_arithmetic_optimization(IR_MUL, cld(1.0L), vsz(TYPE_LONG_DOUBLE, 1));
-    assert(IR_MOVE, ir_start->operation.id);
-    assert(0, (int) ir_start->src2);
+    assert(IR_MOVE, global_ir_start->operation.id);
+    assert(0, (int) global_ir_start->src2);
 
     // v2 = v1 * 1
     run_long_double_arithmetic_optimization(IR_MUL, vsz(TYPE_LONG_DOUBLE, 1), cld(1.0L));
-    assert(IR_MOVE, ir_start->operation.id);
-    assert(0, (int) ir_start->src2);
+    assert(IR_MOVE, global_ir_start->operation.id);
+    assert(0, (int) global_ir_start->src2);
 
     // v2 = v1 / 1
     run_long_double_arithmetic_optimization(IR_DIV, vsz(TYPE_LONG_DOUBLE, 1), cld(1.0L));
-    assert(IR_MOVE, ir_start->operation.id);
-    assert(0, (int) ir_start->src2);
+    assert(IR_MOVE, global_ir_start->operation.id);
+    assert(0, (int) global_ir_start->src2);
 }
 
 void test_arithmetic_optimization() {
@@ -215,7 +215,7 @@ void test_cfg_jmp() {
 
     function = new_function_with_type();
 
-    ir_start = 0;
+    global_ir_start = 0;
 
     Tac *t1 = i(0, IR_NOP, 0, 0,    0);
     Tac *t2 = i(0, IR_JMP, 0, l(1), 0);
@@ -223,7 +223,7 @@ void test_cfg_jmp() {
     Tac *t4 = i(0, IR_NOP, 0, 0,    0);
     Tac *t5 = i(1, IR_NOP, 0, 0,    0);
 
-    function->ir = ir_start;
+    function->ir = global_ir_start;
 
     make_vreg_count(function, 0);
     make_control_flow_graph(function);
@@ -291,7 +291,7 @@ void test_liveout1() {
 
     function = new_function_with_type();
 
-    ir_start = 0;
+    global_ir_start = 0;
     i(0, IR_NOP,         0,    0,    0   );
     i(0, IR_MOVE,        v(1), c(1), 0   );  // v(1) = i
     i(1, IR_JZ,          0,    v(1), l(2));
@@ -301,7 +301,7 @@ void test_liveout1() {
     i(0, IR_JZ,          0,    v(1), l(1));
     i(0, IR_MOVE_TO_PTR, 0,    v(2), c(1));
 
-    function->ir = ir_start;
+    function->ir = global_ir_start;
     function->type = new_type(TYPE_FUNCTION);
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
@@ -349,7 +349,7 @@ Function *make_ir2(int init_four_vars) {
     // d = 5
     // y = 6
     // z = 7
-    ir_start = 0;
+    global_ir_start = 0;
     i(0, IR_NOP,     0,    0,    0   );
 
     if (init_four_vars) {
@@ -383,7 +383,7 @@ Function *make_ir2(int init_four_vars) {
     i(8, IR_MOVE,    v(4), c(0), 0   );
     i(0, IR_JMP,     0,    l(7), 0   );
 
-    function->ir = ir_start;
+    function->ir = global_ir_start;
     function->type = new_type(TYPE_FUNCTION);
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
@@ -474,7 +474,7 @@ void test_idom3() {
 
     function = new_function_with_type();
 
-    ir_start = 0;
+    global_ir_start = 0;
     i(0, IR_NOP,         0,    0,    0   );
     i(0, IR_START_LOOP,  0,    c(0), c(1));
     i(1, IR_NOP,         0,    0,    0   );
@@ -485,7 +485,7 @@ void test_idom3() {
     i(2, IR_NOP,         0,    0,    0   ); // Unreachable
     i(0, IR_END_LOOP,    0,    c(0), c(1));
 
-    function->ir = ir_start;
+    function->ir = global_ir_start;
     function->type = new_type(TYPE_FUNCTION);
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
@@ -627,7 +627,7 @@ void test_phi_renumbering2() {
     Tac *tac;
 
     function = new_function_with_type();
-    ir_start = 0;
+    global_ir_start = 0;
 
     i(0, IR_NOP,  0,    0,    0  );
     i(0, IR_MOVE, v(1), c(0), 0  );
@@ -638,7 +638,7 @@ void test_phi_renumbering2() {
     i(1, IR_NOP,  0,    0,    0  );
     i(0, IR_MOVE, v(2), v(1), 0  );
 
-    function->ir = ir_start;
+    function->ir = global_ir_start;
     function->type = new_type(TYPE_FUNCTION);
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
@@ -659,7 +659,7 @@ Function *make_ir3(int loop_count) {
 
     function = new_function_with_type();
 
-    ir_start = 0;
+    global_ir_start = 0;
     i(0, IR_NOP,    0,    0,    0   );
     i(0, IR_MOVE,   v(1), c(1), 0   ); // a = 0
     i(0, IR_JZ,     0,    v(1), l(1)); // jz l1
@@ -678,7 +678,7 @@ Function *make_ir3(int loop_count) {
     i(0, IR_ADD,    0,    v(1), v(1)); // ... = a
     i(0, IR_ADD,    0,    v(4), v(4)); // ... = d
 
-    function->ir = ir_start;
+    function->ir = global_ir_start;
     function->type = new_type(TYPE_FUNCTION);
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
@@ -757,7 +757,7 @@ void test_interference_graph3() {
 
     function = new_function_with_type();
 
-    ir_start = 0;
+    global_ir_start = 0;
 
     i(0, IR_NOP,  0,    0,    0   );
     i(0, IR_MOVE, v(1), c(1), 0   ); // a   = 0
@@ -766,7 +766,7 @@ void test_interference_graph3() {
     i(0, IR_ADD,  0,    v(3), v(3)); // ... = c
     i(0, IR_ADD,  0,    v(1), v(1)); // ... = a
 
-    function->ir = ir_start;
+    function->ir = global_ir_start;
     function->type = new_type(TYPE_FUNCTION);
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
@@ -823,8 +823,8 @@ void test_coalesce() {
     i(0, IR_PUSH_ARG,  0,                 make_arg_src1(),   vsz(2, TYPE_LONG));
     i(0, IR_END_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
     finish_register_allocation_ir(function);
-    assert_tac(ir_start,       IR_MOVE, vsz(2, TYPE_LONG), c(1), 0);
-    assert_tac(ir_start->next, IR_NOP,  0,                 0,    0);
+    assert_tac(global_ir_start,       IR_MOVE, vsz(2, TYPE_LONG), c(1), 0);
+    assert_tac(global_ir_start->next, IR_NOP,  0,                 0,    0);
 
     // Don't coalesce if the registers interfere
     start_ir();
@@ -836,9 +836,9 @@ void test_coalesce() {
     i(0, IR_END_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
     finish_register_allocation_ir(function);
 
-    assert_tac(ir_start,             IR_MOVE, vsz(1, TYPE_LONG), c(1),              0                );
-    assert_tac(ir_start->next,       IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), 0                );
-    assert_tac(ir_start->next->next, IR_ADD,  vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), vsz(2, TYPE_LONG));
+    assert_tac(global_ir_start,             IR_MOVE, vsz(1, TYPE_LONG), c(1),              0                );
+    assert_tac(global_ir_start->next,       IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), 0                );
+    assert_tac(global_ir_start->next->next, IR_ADD,  vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), vsz(2, TYPE_LONG));
 }
 
 void test_coalesce_promotion() {
@@ -852,8 +852,8 @@ void test_coalesce_promotion() {
     i(0, IR_PUSH_ARG,  0,                 make_arg_src1(),  vsz(2, TYPE_LONG));
     i(0, IR_END_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
     finish_register_allocation_ir(function);
-    assert_tac(ir_start, IR_MOVE, vsz(1, TYPE_INT), c(1), 0   );
-    assert_tac(ir_start->next, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_INT), 0   );
+    assert_tac(global_ir_start, IR_MOVE, vsz(1, TYPE_INT), c(1), 0   );
+    assert_tac(global_ir_start->next, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_INT), 0   );
 }
 
 void run_allocate_registers_top_down(Function *function, int physical_register_count) {

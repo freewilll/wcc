@@ -5,7 +5,7 @@ Set *allocate_return_value_live_ranges(void) {
     return new_set(LIVE_RANGE_PREG_V07 + 1);
 }
 
-int prepend_function_params(Function *function) {
+int prepend_function_params(Function *function, Tac *ir) {
     return 0;
 }
 
@@ -13,7 +13,7 @@ int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, Call
     panic("TODO aarch64 add_struct_or_union_param_move");
 }
 
-void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva) {
+void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva, Tac *ir) {
     fprintf(stderr, "TODO aarch64 add_function_vararg_param_moves\n");
 }
 

@@ -3,7 +3,8 @@
 
 #include "wcc.h"
 
-Tac *ir_start, *ir;               // intermediate representation for currently parsed function
+Tac *global_ir_start;             // Start of the current global IR. Used by the parser and instrsel
+Tac *global_ir;                   // Last item of global_ir_start
 int label_count;                  // Global label count, always growing
 int cur_loop;                     // Current loop being parsed
 int loop_count;                   // Loop counter

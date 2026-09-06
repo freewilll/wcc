@@ -50,13 +50,13 @@ void assert_value(Value *v1, Value *v2) {
 void assert_target_op(char *expected) {
     char *got;
 
-    if (!ir_start) {
+    if (!global_ir_start) {
         printf("Expected %s, got nothing\n", expected);
         failures++;
         return;
     }
 
-    got = render_target_operation(ir_start, 0, 0);
+    got = render_target_operation(global_ir_start, 0, 0);
 
     if (!got && expected) {
         printf("Mismatch:\n  expected: %s\n  got:      null\n", expected);
@@ -73,7 +73,7 @@ void assert_target_op(char *expected) {
         failures++;
     }
 
-    ir_start = ir_start->next;
+    global_ir_start = global_ir_start->next;
 }
 
 void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2) {
@@ -342,12 +342,12 @@ void remove_reserved_physical_register_count_from_tac(Tac *ir) {
 }
 
 void start_ir() {
-    ir_start = 0;
+    global_ir_start = NULL;
     rule_coverage_file = "instrsel-tests.rulecov";
 }
 
 static void _finish_ir(Function *function, int stop_after_live_ranges, int stop_after_instruction_selection) {
-    function->ir = ir_start;
+    function->ir = global_ir_start;
     make_stack_register_count(function);
 
     if (stop_after_live_ranges) {
@@ -368,9 +368,9 @@ static void _finish_ir(Function *function, int stop_after_live_ranges, int stop_
     remove_reserved_physical_register_count_from_tac(function->ir);
 
     // Move ir_start to first non-noop for convenience
-    ir_start = function->ir;
-    while (ir_start && ir_start->operation.id == IR_NOP) ir_start = ir_start->next;
-    function->ir = ir_start;
+    global_ir_start = function->ir;
+    while (global_ir_start && global_ir_start->operation.id == IR_NOP) global_ir_start = global_ir_start->next;
+    function->ir = global_ir_start;
 }
 
 void finish_register_allocation_ir(Function *function) {

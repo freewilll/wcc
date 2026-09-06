@@ -1322,7 +1322,7 @@ static void tile_igraphs(Function *function) {
         }
     }
 
-    ir_start = 0;
+    global_ir_start = NULL;
 
     for (int i = 0; i < instr_count; i++) {
         if (!igraphs[i].node_count) continue;
@@ -1364,10 +1364,10 @@ static void tile_igraphs(Function *function) {
 
         if (tac && tac->label) {
             add_instruction(IR_NOP, 0, 0, 0);
-            ir_start->label = tac->label;
+            global_ir_start->label = tac->label;
         }
 
-        Tac *current_instruction_ir_start = ir;
+        Tac *current_instruction_ir_start = global_ir;
         make_intermediate_representation(function, &(igraphs[i]));
         if (debug_instsel_tiling) {
             Function *f = new_function(function->identifier);
@@ -1387,7 +1387,7 @@ static void tile_igraphs(Function *function) {
     if (debug_instsel_tiling) {
         printf("\nFinal IR for block:\n");
         Function *f = new_function(function->identifier);
-        f->ir = ir_start;
+        f->ir = global_ir_start;
         print_ir(f, 0);
     }
 }
@@ -1401,7 +1401,7 @@ void select_instructions(Function *function) {
 
     // new_ir_start is the start of the new IR
     Tac *new_ir_start = new_instruction(IR_NOP);
-    new_ir_start->origin = ir->origin;
+    new_ir_start->origin = global_ir->origin;
     Tac *new_ir_pos = new_ir_start;
 
     // Loop over all blocks
@@ -1426,9 +1426,9 @@ void select_instructions(Function *function) {
         tile_igraphs(function);
         free_igraphs(function);
 
-        if (ir_start) {
-            new_ir_pos->next = ir_start;
-            ir_start->prev = new_ir_pos;
+        if (global_ir_start) {
+            new_ir_pos->next = global_ir_start;
+            global_ir_start->prev = new_ir_pos;
         }
 
         while (new_ir_pos->next) new_ir_pos = new_ir_pos->next;

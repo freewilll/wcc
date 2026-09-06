@@ -3359,7 +3359,7 @@ static void parse_switch_statement(void) {
     // Add an entry to the implicit switch stack
     case_ir_start = new_instruction(IR_NOP);
     case_ir = case_ir_start;
-    Tac *root = ir;
+    Tac *root = global_ir;
     case_default_label = 0;
     cur_loop_break_dst = new_label_dst();
     case_values = new_longmap();
@@ -3374,16 +3374,16 @@ static void parse_switch_statement(void) {
     Tac *statement_ir_start = root->next;
     root->next = case_ir_start;
     case_ir_start->prev = root;
-    ir = case_ir_start;
-    while (ir->next) ir = ir->next;
+    global_ir = case_ir_start;
+    while (global_ir->next) global_ir = global_ir->next;
 
     // Add jump to default label, if present, otherwise to the break label
     add_parser_instruction(IR_JMP, 0, case_default_label ? case_default_label : cur_loop_break_dst, 0);
 
     // Add statement IR
-    ir->next = statement_ir_start;
-    if (statement_ir_start) statement_ir_start->prev = ir;
-    while (ir->next) ir = ir->next;
+    global_ir->next = statement_ir_start;
+    if (statement_ir_start) statement_ir_start->prev = global_ir;
+    while (global_ir->next) global_ir = global_ir->next;
 
     // Add final break label
     add_jmp_target_instruction(cur_loop_break_dst);
@@ -3430,12 +3430,12 @@ static void parse_case_statement(void) {
     Value *ldst = new_label_dst();
 
     // Add comparison & jump to current switch's case IR
-    Tac *org_ir = ir;
-    ir = case_ir;
+    Tac *org_ir = global_ir;
+    global_ir = case_ir;
     arithmetic_operation(IR_EQ, controlling_case_value->type);
     add_conditional_jump(IR_JNZ, ldst);
-    case_ir = ir;
-    ir = org_ir;
+    case_ir = global_ir;
+    global_ir = org_ir;
 
     add_jmp_target_instruction(ldst);
     if (cur_token != TOK_CASE && cur_token != TOK_RCURLY) parse_statement();
@@ -3670,8 +3670,8 @@ static void parse_statement(void) {
 // Parse function definition and possible declaration
 static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
     // Setup the intermediate representation with a dummy no operation instruction.
-    ir_start = 0;
-    ir_start = add_parser_instruction(IR_NOP, 0, 0, 0);
+    global_ir_start = 0;
+    global_ir_start = add_parser_instruction(IR_NOP, 0, 0, 0);
 
     int is_defined = original_symbol && original_symbol->function->is_defined;
 
@@ -3681,7 +3681,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         symbol->function = new_function(symbol->identifier);
 
         symbol->function->type = type;
-        symbol->function->ir = ir_start;
+        symbol->function->ir = global_ir_start;
         symbol->function->local_symbol_count = 0;
         symbol->function->labels = new_strmap();
         symbol->function->goto_backpatches = 0;

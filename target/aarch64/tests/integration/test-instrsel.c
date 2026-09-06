@@ -19,22 +19,22 @@ void assert_int(int expected, int actual, char *message) {
 }
 
 static void n() {
-    ir_start = ir_start->next;
+    global_ir_start = global_ir_start->next;
 }
 
 static void assert_preg_op(char *expected) {
     char *got;
 
-    if (!ir_start && expected) {
+    if (!global_ir_start && expected) {
         printf("Expected %s, got nothing\n", expected);
         failures++;
         return;
     }
-    else if (!ir_start && !expected) return;
+    else if (!global_ir_start && !expected) return;
 
     got = 0;
-    while (ir_start && !got) {
-        got = render_target_operation(ir_start, 0, 1);
+    while (global_ir_start && !got) {
+        got = render_target_operation(global_ir_start, 0, 1);
         n();
     }
 
@@ -70,11 +70,11 @@ void si(Function *function, int label, int operation, Value *dst, Value *src1, V
 // Rewind the IR so that it points to the first non-nop in the funciton.
 // This is usful for checking inserted code.
 void rewind_ir(void) {
-    ir_start = function->ir;
+    global_ir_start = function->ir;
 
-    while (ir_start->prev) ir_start = ir_start->prev;
-    while (ir_start && ir_start->operation.id == IR_NOP) ir_start = ir_start->next;
-    function->ir = ir_start;
+    while (global_ir_start->prev) global_ir_start = global_ir_start->prev;
+    while (global_ir_start && global_ir_start->operation.id == IR_NOP) global_ir_start = global_ir_start->next;
+    function->ir = global_ir_start;
 }
 
 void finish_spill_ir_and_memory_load_stores(void) {
@@ -690,8 +690,8 @@ void test_instrsel_add_sub_constant(void) {
 
     // Not encodable constant, it has to get loaded in a register
     si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  uc(0x00ffffff));
-    assert_long(AARCH64_OP_MOV_INT_CST, ir_start->operation.id);
-    ir_start = ir_start->next;
+    assert_long(AARCH64_OP_MOV_INT_CST, global_ir_start->operation.id);
+    global_ir_start = global_ir_start->next;
     assert_target_op("adds        r2x, r1x, r3x");
 }
 
@@ -853,8 +853,8 @@ void test_instrsel_logical_instruction_with_constant(void) {
 
     // Test case where a constant cannot be encoded and must be moved into a register first
     si(function, 0, IR_BOR, vsz(3, TYPE_INT), vsz(1, TYPE_INT), ci(5));
-    assert_long(AARCH64_OP_MOV_INT_CST, ir_start->operation.id);
-    ir_start = ir_start->next;
+    assert_long(AARCH64_OP_MOV_INT_CST, global_ir_start->operation.id);
+    global_ir_start = global_ir_start->next;
     assert_target_op("orr         r2w, r1w, r3w");
 
     // binary or
@@ -902,11 +902,11 @@ void test_instrsel_logical_instruction_with_constant(void) {
 // then sign extended to 64-bit, then stored.
 void test_constant_store_to_stack(void) {
     si(function, 0, IR_MOVE, Ssz(-1, TYPE_LONG), ci(1), 0);
-    assert_long(AARCH64_OP_MOV_INT_CST, ir_start->operation.id);
-    assert_long(TYPE_INT, ir_start->src1->type->type); // It starts of as an 32-bit integer ...
-    assert_long(3, ir_start->src1->target_size);
-    assert_long(4, ir_start->dst->target_size);  // ... and becomes 64-bit
-    ir_start = ir_start->next;
+    assert_long(AARCH64_OP_MOV_INT_CST, global_ir_start->operation.id);
+    assert_long(TYPE_INT, global_ir_start->src1->type->type); // It starts of as an 32-bit integer ...
+    assert_long(3, global_ir_start->src1->target_size);
+    assert_long(4, global_ir_start->dst->target_size);  // ... and becomes 64-bit
+    global_ir_start = global_ir_start->next;
     assert_target_op("str         r1x, [sp, 8]");
 }
 
@@ -1054,7 +1054,7 @@ void test_saved_registers() {
     i(0, IR_MOVE, v(2), c(1), 0);
     finish_spill_ir(function);
     add_final_instructions(function);
-    ir_start = function->ir;
+    global_ir_start = function->ir;
     assert_preg_op("str         x0, [sp, #-16]!");
     assert_preg_op("movz        x0, 1");
     assert_preg_op("mov         x0, x0");
@@ -1067,7 +1067,7 @@ void test_saved_registers() {
     finish_spill_ir(function);
     init_codegen();
     add_final_instructions(function);
-    ir_start = function->ir;
+    global_ir_start = function->ir;
     assert_preg_op("str         d0, [sp, #-16]!");
     assert_preg_op("sub         sp, sp, 16");
     assert_preg_op("ldr         d0, [sp, 8]");
@@ -1083,7 +1083,7 @@ void test_saved_registers() {
     finish_spill_ir(function);
     init_codegen();
     add_final_instructions(function);
-    ir_start = function->ir;
+    global_ir_start = function->ir;
     assert_preg_op("str         x0, [sp, #-16]!");
     assert_preg_op("str         d0, [sp, #-16]!");
     assert_preg_op("movz        x0, 1");

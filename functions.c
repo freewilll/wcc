@@ -75,8 +75,6 @@ void reverse_function_call_args_order(Function *function) {
     Tac **calls = wcalloc(max_function_call_value + 1, sizeof(Tac *));
     Tac **call_starts = wcalloc(max_function_call_value + 1, sizeof(Tac *));
 
-    ir = function->ir;
-
     // Collect function call details in one pass through the IR
     Tac *tac = function->ir;
     while (tac) {
@@ -758,7 +756,7 @@ void add_function_param_moves(Function *function) {
         print_ir(function, 0);
     }
 
-    ir = function->ir;
+    Tac *ir = function->ir;
 
     // Add a nop if nothing is there, which is used to insert instructions
     if (!ir->next) {
@@ -773,7 +771,7 @@ void add_function_param_moves(Function *function) {
     function->cva = cva;
 
     // cva_start is the index in cva->locations that has the first actual parameter
-    int cva_start = prepend_function_params(function);
+    int cva_start = prepend_function_params(function, ir);
 
     for (int i = 0; i < function->type->function->param_count; i++)
         add_type_to_cva(cva, function->type->function->param_types->elements[i]);
@@ -891,7 +889,7 @@ void add_function_param_moves(Function *function) {
         }
     }
 
-    if (function->type->function->is_variadic) add_function_vararg_param_moves(function, cva);
+    if (function->type->function->is_variadic) add_function_vararg_param_moves(function, cva, ir);
 
     // Adapt the function's IR to use the values in registers/stack
     for (Tac *ir = function->ir; ir; ir = ir->next) {
