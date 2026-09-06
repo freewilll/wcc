@@ -165,8 +165,8 @@ static void update_ir_stack_offsets(Function *function) {
 }
 
 void make_aarch64_stack_offsets(Function *function) {
-    update_ir_stack_offsets(function);
     determine_function_arg_stack_size(function);
+    update_ir_stack_offsets(function);
 }
 
 char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
@@ -237,15 +237,11 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
             else if (expect_preg && v->preg != -1) {
                 append_register_name(buffer, v->preg, size);
 
-                if (v->offset) {
-                    while (*buffer) buffer++;
-                    sprintf(buffer, ", %d", v->offset);
-                }
+                int offset = v->stack.offset + v->offset;
 
-                // For stack function param stack accesses using x29
-                if (v->stack.offset) {
+                if (offset) {
                     while (*buffer) buffer++;
-                    sprintf(buffer, ", %d", v->stack.offset);
+                    sprintf(buffer, ", %d", offset);
                 }
             }
             else if (v->stack.index) {

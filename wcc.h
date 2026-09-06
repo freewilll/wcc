@@ -438,6 +438,7 @@ Function *new_function(char *identifier);
 void reverse_function_call_args_order(Function *function);
 void add_type_to_cvl_in_stack(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int alignment);
 void add_single_call_value_location(CallValueAllocation *cva, Type *type);
+void add_int128_call_value_locations(CallValueAllocation *cva, Type *type);
 CallValueAllocation *initialize_function_return_value_cva(Type *function_type);
 void process_function_call_arg_allocations(Function *function);
 void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int count);
@@ -445,6 +446,7 @@ int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *par
 void load_struct_scalar_into_value(Function *function, Tac *ir, Value *param, CallValueLocation *pl, Type *type, Value *dst, int offset);
 Value *load_struct_scalar_into_new_vreg(Function *function, Tac *ir, Value *param, CallValueLocation *pl, Type *type);
 Value *make_long_temp_vreg(Function *function);
+void add_function_call_arg_move_for_struct_or_union_to_stack(Function *function, Tac *ir);
 void add_function_call_arg_move_for_struct_or_union_on_stack(Function *function, Tac *ir);
 void add_function_call_arg_moves(Function *function);
 void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset);

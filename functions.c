@@ -166,6 +166,35 @@ void add_single_call_value_location(CallValueAllocation *cva, Type *type) {
     add_type_to_cvl(cva, &(cvl->locations[0]), type, 0);
 }
 
+void add_int128_call_value_locations(CallValueAllocation *cva, Type *type) {
+    // An int-128 fits into two 8 bytes
+
+    CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
+    cvl->locations = wmalloc(sizeof(CallValueLocation) * 2);
+    cvl->count = 2;
+
+    CallValueAllocation *backup_cva = wmalloc(sizeof(CallValueAllocation));
+    *backup_cva = *cva;
+
+    add_type_to_cvl(cva, &(cvl->locations[0]), new_type(TYPE_INT), 0);
+    add_type_to_cvl(cva, &(cvl->locations[1]), new_type(TYPE_INT), 0);
+
+    cvl->locations[0].i128_part = 0;
+    cvl->locations[1].i128_part = 1;
+
+    int in_stack = cvl->locations[0].stack_offset != -1 || cvl->locations[1].stack_offset != -1;
+    if (in_stack) {
+        *cva = *backup_cva;
+        add_single_call_value_location(cva, type);
+        free_call_value_locations(cvl);
+    }
+    else {
+        append_to_list(cva->locations, cvl);
+    }
+
+    wfree(backup_cva);
+}
+
 // Initialize the return value CVA for a function, if needed
 CallValueAllocation *initialize_function_return_value_cva(Type *function_type) {
     if (function_type->target->type == TYPE_STRUCT_OR_UNION) {
@@ -329,7 +358,7 @@ Value *make_long_temp_vreg(Function *function) {
 }
 
 // Add instructions to copy a struct to the stack
-static void add_function_call_arg_move_for_struct_or_union_to_stack(Function *function, Tac *ir) {
+void add_function_call_arg_move_for_struct_or_union_to_stack(Function *function, Tac *ir) {
     int size = get_type_size(ir->src2->type);
     int rounded_up_size = (size + 7) & ~7;
 
@@ -353,29 +382,6 @@ static void add_function_call_arg_move_for_struct_or_union_to_stack(Function *fu
         printf("Adding memory copy for struct/union SI=%d rounded-up-size=%d\n", src->stack.index, rounded_up_size);
 
     add_memory_copy(function, ir, dst, src, size);
-}
-
-// Add instructions to copy an int128 from a register/stack to the stack
-static void add_function_call_arg_move_for_int128_to_stack(Function *function, Tac *ir) {
-    if (ir->src2->stack.index)
-        panic("Got unexpected stack index %d in add_function_call_arg_move_for_int128_to_stack", ir->src2->stack.index);
-
-    SplitVreg *split_vreg = function->int128_register_mappings[ir->src2->vreg];
-    if (!split_vreg) panic("NULL pointer when fetching split vreg for int128 for vreg %d", ir->src2->vreg);
-
-    if (debug_function_arg_mapping)
-        printf("Adding copy from vregs for int128 vreg=%d, split %d / %d\n", ir->src2->vreg, split_vreg->low, split_vreg->high);
-
-    Value *src2_low = dup_value(ir->src2);
-    src2_low->type->type =TYPE_LONG;
-    src2_low->vreg = split_vreg->low;
-
-    Value *src2_high = dup_value(ir->src2);
-    src2_high->type->type =TYPE_LONG;
-    src2_high->vreg = split_vreg->high;
-
-    new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_high, 1);
-    new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_low, 1);
 }
 
 // Lookup corresponding location for preg_class/register
@@ -558,32 +564,38 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
 // Nuke all IR_ARG instructions that have had code added that moves the value into a register.
 // Call target specific code for remaining IR_ARG instructions that correspond with writes
 // to the stack.
+// This can only be called after both int and fp IR_ARG arguments have been processed,
+// since small structs with both ints and fps both need to be processed first.
 static void finalize_IR_ARG_instructions(Function *function) {
-    for (Tac *ir = function->ir; ir; ir = ir->next) {
+    Tac *ir = function->ir;
+    while (ir) {
+        // New IR_ARG instructions may be inserted, due to inserted memmove calls.
+        // They will be handled in the next call. Any newly added IR_ARG
+        // must be ignored, so skip over them by continuing the next iteration at the
+        // existing ir->next.
+        Tac *next_ir = ir->next;
+
         if (ir->operation.id == IR_ARG) {
+
             int removed = 0;
             CallValueLocations *pl = ir->src1->function_call.function_call_arg_locations;
 
             for (int loc = 0; loc < pl->count; loc++) {
                 if (pl->locations[loc].int_register != -1 || pl->locations[loc].fp_register != -1) {
-                    ir->operation.id = IR_NOP;
-                    ir->dst = 0;
-                    ir->src1 = 0;
-                    ir->src2 = 0;
+                    make_instruction_a_nop(ir);
                     removed = 1;
                     break;
                 }
             }
-
 
             if (!removed) {
                 // The argument is on the stack
                 convert_target_arg_move_to_stack_instructions(function, ir);
             }
         }
-    }
 
-    // From this point onwards, IR_ARG are no longer present.
+        ir = next_ir;
+    }
 }
 
 // Process IR_ARG insructions. They are either loaded into a register, pushed onto the
@@ -595,24 +607,6 @@ void add_function_call_arg_moves(Function *function) {
 
     finalize_IR_ARG_instructions(function);
 
-    // Add memory copies for struct and unions
-    for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation.id == IR_PUSH_ARG) {
-            if (ir->src2->type->type == TYPE_INT128) {
-                CallValueLocations *pls = ir->src1->function_call.function_call_arg_locations;
-                if (pls->count != 1) panic("Unexpected int128 to stack move with locations->count != 1");
-                add_function_call_arg_move_for_int128_to_stack(function, ir);
-                make_instruction_a_nop(ir);
-            }
-            else if (ir->src2->type->type == TYPE_STRUCT_OR_UNION) {
-                CallValueLocations *pls = ir->src1->function_call.function_call_arg_locations;
-                if (pls->count != 1) panic("Unexpected struct/union to stack move with locations->count != 1");
-                add_function_call_arg_move_for_struct_or_union_to_stack(function, ir);
-                make_instruction_a_nop(ir);
-            }
-        }
-    }
-
     // Process any added memcpy calls due to struct and union copies
     add_function_call_arg_moves_for_preg_class(function, PC_INT);
     finalize_IR_ARG_instructions(function);
@@ -621,6 +615,8 @@ void add_function_call_arg_moves(Function *function) {
         printf("After function call arg mapping\n");
         print_ir(function, 0);
     }
+
+    // From this point onwards, IR_ARG are no longer present.
 }
 
 // Recurse through a type and make list of all scalars + their offsets

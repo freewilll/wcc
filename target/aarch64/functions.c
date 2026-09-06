@@ -63,10 +63,17 @@ void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *typ
 
 // Add a type to a call value allocation
 void add_type_to_cva(CallValueAllocation *cva, Type *type) {
-    if (type->type == TYPE_STRUCT_OR_UNION)
-        panic("TODO aarch64 add_type_to_cva for structs/unions");
+    if (type->type == TYPE_INT128) {
+        add_int128_call_value_locations(cva, type);
+    }
 
-    add_single_call_value_location(cva, type);
+    else if (type->type != TYPE_STRUCT_OR_UNION) {
+        // Create a single location for the arg
+        add_single_call_value_location(cva, type);
+    }
+    else {
+        panic("TODO aarch64 add_type_to_cva for structs/unions");
+    }
 }
 
 int *make_original_stack_indexes(Function *function) {
@@ -134,12 +141,52 @@ static void add_function_return_moves(Function *function) {
     }
 }
 
-// Arguments in function calls that go to the stack are placed in a reserved stack
-// SA_FUNCTION_ARGS area. Codegen needs this to distinguish params on the stack
-// from args on the stack.
-void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac) {
+// Add instructions to copy an int128 from a register/stack to the stack
+static void add_function_call_arg_move_for_int128_to_stack(Function *function, Tac *tac) {
+    if (tac->src2->stack.index)
+        panic("Got unexpected stack index %d in add_function_call_arg_move_for_int128_to_stack", tac->src2->stack.index);
+
     Value *arg = tac->src1;
     CallValueLocations *cvl = arg->function_call.function_call_arg_locations;
+    if (cvl->count != 1) panic("Unexpected int128 to stack move with locations->count != 1");
+    int stack_offset = cvl->locations[0].stack_offset;
+
+    SplitVreg *split_vreg = function->int128_register_mappings[tac->src2->vreg];
+    if (!split_vreg) panic("NULL pointer when fetching split vreg for int128 for vreg %d", tac->src2->vreg);
+
+    if (debug_function_arg_mapping)
+        printf("Adding copy from vregs for int128 vreg=%d, split %d / %d\n", tac->src2->vreg, split_vreg->low, split_vreg->high);
+
+    Value *src2_low = dup_value(tac->src2);
+    src2_low->type->type =TYPE_LONG;
+    src2_low->vreg = split_vreg->low;
+
+    Value *src2_high = dup_value(tac->src2);
+    src2_high->type->type =TYPE_LONG;
+    src2_high->vreg = split_vreg->high;
+
+    Value *dst_low = new_value();
+    dst_low->type = dup_type(tac->src2->type);
+    dst_low->type->type = TYPE_LONG;
+    dst_low->stack.index = stack_offset / 8 + 1; // Conventionally the first stack_index entry starts at 1
+    dst_low->stack.area = SA_FUNCTION_ARGS;
+
+    Value *dst_high = dup_value(dst_low);
+    dst_high->stack.index++;
+
+    tac->operation.id = IR_MOVE;
+    tac->dst = dst_low;
+    tac->src1 = src2_low;
+    tac->src2 = 0;
+
+    new_tac_after(tac, IR_MOVE, dst_high, src2_high, NULL);
+}
+
+// Move a single register to the arg stack
+static void add_single_register_arg_move_to_stack(Function *function, Tac *tac) {
+    Value *arg = tac->src1;
+    CallValueLocations *cvl = arg->function_call.function_call_arg_locations;
+    if (cvl->count != 1) panic("Unexpected int128 to stack move with locations->count != 1");
     int stack_offset = cvl->locations[0].stack_offset;
 
     Value *dst = new_value();
@@ -151,6 +198,24 @@ void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac)
     tac->dst = dst;
     tac->src1 = tac->src2;
     tac->src2 = 0;
+}
+
+// Arguments in function calls that go to the stack are placed in a reserved stack
+// SA_FUNCTION_ARGS area. Codegen needs this to distinguish params on the stack
+// from args on the stack.
+void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac) {
+    if (tac->src2->type->type == TYPE_INT128) {
+        // Add memory copies for int128
+        add_function_call_arg_move_for_int128_to_stack(function, tac);
+    }
+    else if (tac->src2->type->type == TYPE_STRUCT_OR_UNION) {
+        // Add memory copies for struct and unions
+        panic("TODO aarch64: arg move for struct or union");
+    }
+    else {
+        // Move a single register to the arg stack
+        add_single_register_arg_move_to_stack(function, tac);
+    }
 }
 
 void process_target_functions(Function *function) {

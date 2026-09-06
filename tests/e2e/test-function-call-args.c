@@ -682,8 +682,6 @@ int test_parameterless_functions() {
     assert_double(2.1, max_double_with_declared_doubles(1.1, 2.1), "Max with declared doubles");
 }
 
-#ifdef __x86_64__
-
 void f0(__int128 i128)  {
     ASSERT_INT128(1, 2, i128, "func with int128");
 }
@@ -701,13 +699,15 @@ void f4(int i1, int i2, int i3, int i4, __int128 i128)  {
     ASSERT_INT128(1, 2, i128, "func with i, i, i, i, int128 5");
 }
 
-void f5(int i1, int i2, int i3, int i4, int i5, __int128 i128)  {
-    assert_int(   -1,   i1,   "func with i, i, i, i, i, int128 1");
-    assert_int(   -2,   i2,   "func with i, i, i, i, i, int128 2");
-    assert_int(   -3,   i3,   "func with i, i, i, i, i, int128 3");
-    assert_int(   -4,   i4,   "func with i, i, i, i, i, int128 4");
-    assert_int(   -5,   i5,   "func with i, i, i, i, i, int128 5");
-    ASSERT_INT128(1, 2, i128, "func with i, i, i, i, i, int128 6");
+void f7(int i1, int i2, int i3, int i4, int i5, int i6, int i7, __int128 i128)  {
+    assert_int(   -1,   i1,   "func with i, i, i, i, i, i, i, int128 1");
+    assert_int(   -2,   i2,   "func with i, i, i, i, i, i, i, int128 2");
+    assert_int(   -3,   i3,   "func with i, i, i, i, i, i, i, int128 3");
+    assert_int(   -4,   i4,   "func with i, i, i, i, i, i, i, int128 4");
+    assert_int(   -5,   i5,   "func with i, i, i, i, i, i, i, int128 5");
+    assert_int(   -6,   i6,   "func with i, i, i, i, i, i, i, int128 6");
+    assert_int(   -7,   i7,   "func with i, i, i, i, i, i, i, int128 7");
+    ASSERT_INT128(1, 2, i128, "func with i, i, i, i, i, i, i, int128 8");
 }
 
 void two_int128s(__int128 i1, __int128 i2)  {
@@ -730,14 +730,16 @@ void f0_in_stack(__int128 i128)  {
     ASSERT_INT128(1, 2, i128, "func with int128");
 }
 
-void f5_in_stack(int i1, int i2, int i3, int i4, int i5, __int128 i128)  {
+void f7_in_stack(int i1, int i2, int i3, int i4, int i5, int i6, int i7, __int128 i128)  {
     &i128; // Force i128 into the stack
-    assert_int(   -1,   i1,   "func with i, i, i, i, i, int128 1");
-    assert_int(   -2,   i2,   "func with i, i, i, i, i, int128 2");
-    assert_int(   -3,   i3,   "func with i, i, i, i, i, int128 3");
-    assert_int(   -4,   i4,   "func with i, i, i, i, i, int128 4");
-    assert_int(   -5,   i5,   "func with i, i, i, i, i, int128 5");
-    ASSERT_INT128(1, 2, i128, "func with i, i, i, i, i, int128 6");
+    assert_int(   -1,   i1,   "func with i, i, i, i, i, i, i, int128 in stack 1");
+    assert_int(   -2,   i2,   "func with i, i, i, i, i, i, i, int128 in stack 2");
+    assert_int(   -3,   i3,   "func with i, i, i, i, i, i, i, int128 in stack 3");
+    assert_int(   -4,   i4,   "func with i, i, i, i, i, i, i, int128 in stack 4");
+    assert_int(   -5,   i5,   "func with i, i, i, i, i, i, i, int128 in stack 5");
+    assert_int(   -6,   i6,   "func with i, i, i, i, i, i, i, int128 in stack 6");
+    assert_int(   -7,   i7,   "func with i, i, i, i, i, i, i, int128 in stack 7");
+    ASSERT_INT128(1, 2, i128, "func with i, i, i, i, i, i, i, int128 in stack 8");
 }
 
 void test_int128_in_registers() {
@@ -748,9 +750,8 @@ void test_int128_in_registers() {
     f0_in_stack(i);
     f1(-1, i);
     f4(-1, -2, -3, -4, i);
-    f5(-1, -2, -3, -4, -5, i);
-    f5_in_stack(-1, -2, -3, -4, -5, i);
-
+    f7(-1, -2, -3, -4, -5, -6, -7, i);
+    f7_in_stack(-1, -2, -3, -4, -5, -6, -7, i);
     two_int128s(i, j);
 
     six_int128s(
@@ -768,11 +769,9 @@ void test_int128_in_stack() {
     &int128_in_stack;
     f0(int128_in_stack);
     f0_in_stack(int128_in_stack);
-    f5(-1, -2, -3, -4, -5, int128_in_stack);
-    f5_in_stack(-1, -2, -3, -4, -5, int128_in_stack);
+    f7(-1, -2, -3, -4, -5, -6, -7, int128_in_stack);
+    f7_in_stack(-1, -2, -3, -4, -5, -6, -7, int128_in_stack);
 }
-
-#endif
 
 int main(int argc, char **argv) {
     passes = 0;
@@ -798,10 +797,8 @@ int main(int argc, char **argv) {
 
     test_parameterless_functions();
 
-    #ifdef __x86_64__
     test_int128_in_registers();
     test_int128_in_stack();
-    #endif
 
     finalize();
 }

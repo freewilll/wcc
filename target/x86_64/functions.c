@@ -931,32 +931,7 @@ int prepend_function_params(Function *function) {
 // Structs are decomposed.
 void add_type_to_cva(CallValueAllocation *cva, Type *type) {
     if (type->type == TYPE_INT128) {
-        // An int-128 fits into two 8 bytes
-
-        CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
-        cvl->locations = wmalloc(sizeof(CallValueLocation) * 2);
-        cvl->count = 2;
-
-        CallValueAllocation *backup_cva = wmalloc(sizeof(CallValueAllocation));
-        *backup_cva = *cva;
-
-        add_type_to_cvl(cva, &(cvl->locations[0]), new_type(TYPE_INT), 0);
-        add_type_to_cvl(cva, &(cvl->locations[1]), new_type(TYPE_INT), 0);
-
-        cvl->locations[0].i128_part = 0;
-        cvl->locations[1].i128_part = 1;
-
-        int in_stack = cvl->locations[0].stack_offset != -1 || cvl->locations[1].stack_offset != -1;
-        if (in_stack) {
-            *cva = *backup_cva;
-            add_single_call_value_location(cva, type);
-            free_call_value_locations(cvl);
-        }
-        else {
-            append_to_list(cva->locations, cvl);
-        }
-
-        wfree(backup_cva);
+        add_int128_call_value_locations(cva, type);
     }
 
     else if (type->type != TYPE_STRUCT_OR_UNION) {
@@ -1085,9 +1060,49 @@ int *make_original_stack_indexes(Function *function) {
     return result;
 }
 
+// Add instructions to copy an int128 from a register/stack to the stack
+static void add_function_call_arg_move_for_int128_to_stack(Function *function, Tac *ir) {
+    if (ir->src2->stack.index)
+        panic("Got unexpected stack index %d in add_function_call_arg_move_for_int128_to_stack", ir->src2->stack.index);
+
+    SplitVreg *split_vreg = function->int128_register_mappings[ir->src2->vreg];
+    if (!split_vreg) panic("NULL pointer when fetching split vreg for int128 for vreg %d", ir->src2->vreg);
+
+    if (debug_function_arg_mapping)
+        printf("Adding copy from vregs for int128 vreg=%d, split %d / %d\n", ir->src2->vreg, split_vreg->low, split_vreg->high);
+
+    Value *src2_low = dup_value(ir->src2);
+    src2_low->type->type =TYPE_LONG;
+    src2_low->vreg = split_vreg->low;
+
+    Value *src2_high = dup_value(ir->src2);
+    src2_high->type->type =TYPE_LONG;
+    src2_high->vreg = split_vreg->high;
+
+    new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_high, 1);
+    new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_low, 1);
+}
+
 // Convert IR_ARG instructions for moves to the stack to IR_PUSH_ARG. Instrsel instructions will encode those.
 void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac) {
     tac->operation.id = IR_PUSH_ARG;
+
+    if (tac->src2->type->type == TYPE_INT128) {
+        // Add memory copies for int128
+
+        CallValueLocations *cvl = tac->src1->function_call.function_call_arg_locations;
+        if (cvl->count != 1) panic("Unexpected int128 to stack move with locations->count != 1");
+        add_function_call_arg_move_for_int128_to_stack(function, tac);
+        make_instruction_a_nop(tac);
+    }
+    else if (tac->src2->type->type == TYPE_STRUCT_OR_UNION) {
+        // Add memory copies for struct and unions
+
+        CallValueLocations *cvl = tac->src1->function_call.function_call_arg_locations;
+        if (cvl->count != 1) panic("Unexpected struct/union to stack move with locations->count != 1");
+        add_function_call_arg_move_for_struct_or_union_to_stack(function, tac);
+        make_instruction_a_nop(tac);
+    }
 }
 
 // Process target function calls, args, params and return values
