@@ -583,6 +583,8 @@ void transform_int128_instructions(Function *function) {
                 tac = transform_indirect(function, tac);
                 break;
             case IR_ARG:
+            case IR_CALL:
+            case IR_RETURN:
                 break; // Already handled
             case IR_ASHR:
                 tac = transform_bitshift(function, tac, IR_ASHR);

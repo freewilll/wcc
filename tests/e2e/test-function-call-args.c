@@ -773,6 +773,33 @@ void test_int128_in_stack() {
     f7_in_stack(-1, -2, -3, -4, -5, -6, -7, int128_in_stack);
 }
 
+// Return an int128 from registers
+__int128_t return_int128() {
+    __int128_t r = MAKE_SINT128(1, 2);
+    return r;
+}
+
+// Return an int128 from the stack
+__int128_t return_int128_from_stack() {
+    __int128_t r = MAKE_SINT128(1, 2);
+    &r;
+    return r;
+}
+
+void test_int128_return() {
+    // Call a function that returns an int128 and stored in in local registers
+    __int128_t r1, r2;
+    r1 = return_int128();
+    ASSERT_INT128(1, 2,  r1, "int128 returned to registers");
+    r1 = return_int128_from_stack();
+    ASSERT_INT128(1, 2,  r1, "int128 returned to registers returned from stack");
+
+    // Call a function that returns an int128 and stored in in the stack
+    r2 = return_int128();
+    &r2;
+    ASSERT_INT128(1, 2,  r2, "int128 returned to stack");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -799,6 +826,7 @@ int main(int argc, char **argv) {
 
     test_int128_in_registers();
     test_int128_in_stack();
+    test_int128_return();
 
     finalize();
 }

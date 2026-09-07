@@ -218,31 +218,25 @@ static void add_function_call_result_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation.id != IR_CALL || !ir->dst) continue;
 
-        if (ir->dst->type->type == TYPE_STRUCT_OR_UNION)
+        if (ir->dst && ir->dst->type->type == TYPE_INT128)
+            add_function_call_result_moves_for_int128(function, ir, LIVE_RANGE_PREG_RAX, LIVE_RANGE_PREG_RDX);
+
+        else if (ir->dst->type->type == TYPE_STRUCT_OR_UNION)
             add_function_call_result_moves_for_struct_or_union(function, ir);
 
         else if (ir->dst->type->type != TYPE_LONG_DOUBLE) {
             // Add move for integer, pointer, or SSE
-            Value *value = dup_value(ir->dst);
-            value->vreg = ++function->vreg_count;
-            Tac *tac = new_instruction(IR_MOVE);
-            tac->dst = ir->dst;
-
             int is_sse = is_sse_floating_point_type(ir->dst->type);
-            tac->src1 = value;
-            tac->src1->live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00 : LIVE_RANGE_PREG_RAX;
-            add_to_set(ir->src1->return_value_live_ranges, tac->src1->live_range_preg);
-
-            ir->dst = value;
-            insert_tac_before(ir->next, tac, 1);
+            int live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00 : LIVE_RANGE_PREG_RAX;
+            add_function_result_moves_for_scalar(function, ir, live_range_preg);
         }
     }
 }
 
 // Move struct or union of size <= 32 into rax/rdx or xmm0/xmm1
-static void add_function_return_moves_for_struct_or_union(Function *function, Tac *ir, char *identifier) {
+static void add_function_return_moves_for_struct_or_union(Function *function, Tac *ir) {
     // Determine registers
-    CallValueAllocation *cva = init_call_value_allocaton(identifier);
+    CallValueAllocation *cva = init_call_value_allocaton(function->identifier);
     add_type_to_cva(cva, ir->src1->type);
     CallValueLocations *cvl = cva->locations->elements[0];
 
@@ -309,26 +303,16 @@ static void add_function_return_moves(Function *function) {
             ir->src2 = 0;
         }
 
+        else if (ir->src1->type->type == TYPE_INT128)
+            add_function_return_moves_for_int128(function, ir, LIVE_RANGE_PREG_RAX, LIVE_RANGE_PREG_RDX);
+
         else if (ir->src1->type->type == TYPE_STRUCT_OR_UNION)
-            add_function_return_moves_for_struct_or_union(function, ir, function->identifier);
+            add_function_return_moves_for_struct_or_union(function, ir);
 
         else {
             int is_sse = is_sse_floating_point_type(function->type->target);
             int live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00 : LIVE_RANGE_PREG_RAX;
-
-            ir->src1->preferred_live_range_preg_index = live_range_preg;
-
-            ir->dst = new_value();
-            ir->dst->type = dup_type(function->type->target);
-            if (ir->dst->type->type == TYPE_ENUM) ir->dst->type = new_type(TYPE_INT);
-            ir->dst->vreg = ++function->vreg_count;
-            ir->dst->live_range_preg = live_range_preg;
-
-            new_tac_before(ir, IR_MOVE, ir->dst, ir->src1, 0, 1);
-
-            ir->dst = 0;
-            ir->src1 = 0;
-            ir->src2 = 0;
+            add_function_return_moves_for_scalar(function, ir, live_range_preg);
         }
 
         ir->src1 = 0;
@@ -1072,11 +1056,11 @@ static void add_function_call_arg_move_for_int128_to_stack(Function *function, T
         printf("Adding copy from vregs for int128 vreg=%d, split %d / %d\n", ir->src2->vreg, split_vreg->low, split_vreg->high);
 
     Value *src2_low = dup_value(ir->src2);
-    src2_low->type->type =TYPE_LONG;
+    src2_low->type->type = TYPE_LONG;
     src2_low->vreg = split_vreg->low;
 
     Value *src2_high = dup_value(ir->src2);
-    src2_high->type->type =TYPE_LONG;
+    src2_high->type->type = TYPE_LONG;
     src2_high->vreg = split_vreg->high;
 
     new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_high, 1);

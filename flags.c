@@ -31,6 +31,7 @@ int warn_excess_initializers = 0;
 int debug_call_value_allocation = 0;
 int debug_function_arg_mapping = 0;
 int debug_function_param_mapping = 0;
+int debug_function_return_value_mapping = 0;
 int debug_ssa_mapping_local_stack_indexes = 0;
 int debug_ssa = 0;
 int debug_ssa_liveout = 0;

@@ -97,21 +97,18 @@ static void add_function_call_result_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation.id != IR_CALL || !ir->dst) continue;
 
-        if (ir->dst && ir->dst->type->type == TYPE_STRUCT_OR_UNION)
+        if (ir->dst && ir->dst->type->type == TYPE_INT128)
+            add_function_call_result_moves_for_int128(function, ir, LIVE_RANGE_PREG_R00, LIVE_RANGE_PREG_R01);
+
+        else if (ir->dst && ir->dst->type->type == TYPE_STRUCT_OR_UNION)
             panic("TODO aarch64: add_function_call_result_moves() function return value in callee for composite types");
 
-        Value *value = dup_value(ir->dst);
-        value->vreg = ++function->vreg_count;
-        Tac *tac = new_instruction(IR_MOVE);
-        tac->dst = ir->dst;
-
-        int is_fp = is_floating_point_type(ir->dst->type);
-        tac->src1 = value;
-        tac->src1->live_range_preg = is_fp ? LIVE_RANGE_PREG_V00 : LIVE_RANGE_PREG_R00;
-        add_to_set(ir->src1->return_value_live_ranges, tac->src1->live_range_preg);
-
-        ir->dst = value;
-        insert_tac_before(ir->next, tac, 1);
+        else {
+            // Add move for integer, pointer, or FP
+            int is_fp = is_floating_point_type(ir->dst->type);
+            int live_range_preg = is_fp ? LIVE_RANGE_PREG_V00 : LIVE_RANGE_PREG_R00;
+            add_function_result_moves_for_scalar(function, ir, live_range_preg);
+        }
     }
 }
 
@@ -119,25 +116,17 @@ static void add_function_return_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation.id == IR_RETURN && !ir->src1) || ir->operation.id != IR_RETURN) continue;
 
-        if (ir->dst && (ir->dst->type->type == TYPE_STRUCT_OR_UNION))
+        else if (ir->src1->type->type == TYPE_INT128)
+            add_function_return_moves_for_int128(function, ir, LIVE_RANGE_PREG_R00, LIVE_RANGE_PREG_R01);
+
+        else if (ir->src1->type->type == TYPE_STRUCT_OR_UNION)
             panic("TODO aarch64: add_function_return_moves() function return value in caller for composite types");
 
-        int is_fp = is_floating_point_type(function->type->target);
-        int live_range_preg = is_fp ? LIVE_RANGE_PREG_V00 : LIVE_RANGE_PREG_R00;
-
-        ir->src1->preferred_live_range_preg_index = live_range_preg;
-
-        ir->dst = new_value();
-        ir->dst->type = dup_type(function->type->target);
-        if (ir->dst->type->type == TYPE_ENUM) ir->dst->type = new_type(TYPE_INT);
-        ir->dst->vreg = ++function->vreg_count;
-        ir->dst->live_range_preg = live_range_preg;
-
-        new_tac_before(ir, IR_MOVE, ir->dst, ir->src1, 0, 1);
-
-        ir->dst = 0;
-        ir->src1 = 0;
-        ir->src2 = 0;
+        else {
+            int is_fp = is_floating_point_type(function->type->target);
+            int live_range_preg = is_fp ? LIVE_RANGE_PREG_V00 : LIVE_RANGE_PREG_R00;
+            add_function_return_moves_for_scalar(function, ir, live_range_preg);
+        }
     }
 }
 

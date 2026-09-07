@@ -982,6 +982,114 @@ void add_function_param_moves(Function *function) {
     }
 }
 
+// Add a copy from split vregs to ABI registers for a int128 return value
+void add_function_return_moves_for_int128(Function *function, Tac *ir, int live_range_preg_low, int live_range_preg_high) {
+    SplitVreg *split_vreg = function->int128_register_mappings[ir->src1->vreg];
+    if (!split_vreg) panic("NULL pointer when fetching split vreg for int128 for vreg %d", ir->src1->vreg);
+
+    if (debug_function_return_value_mapping)
+        printf("Adding return for int128 vreg=%d, split %d / %d\n", ir->src1->vreg, split_vreg->low, split_vreg->high);
+
+    Value *dst_low = new_value();
+    dst_low = new_value();
+    dst_low->type = dup_type(function->type->target);
+    dst_low->type->type = TYPE_LONG;
+    dst_low->vreg = ++function->vreg_count;
+    dst_low->live_range_preg = live_range_preg_low;
+
+    Value *dst_high = new_value();
+    dst_high = new_value();
+    dst_high->type = dup_type(dst_low->type);
+    dst_high->vreg = ++function->vreg_count;
+    dst_high->live_range_preg = live_range_preg_high;
+
+    Value *src1_low = dup_value(ir->src1);
+    src1_low->type->type = TYPE_LONG;
+    src1_low->vreg = split_vreg->low;
+
+    Value *src1_high = dup_value(ir->src1);
+    src1_high->type->type = TYPE_LONG;
+    src1_high->vreg = split_vreg->high;
+
+    new_tac_before(ir, IR_MOVE, dst_low, src1_low, 0, 1);
+    new_tac_before(ir, IR_MOVE, dst_high, src1_high, 0, 1);
+
+    ir->operation.id = IR_NOP;
+    ir->dst = NULL;
+    ir->src1 = NULL;
+    ir->src2 = NULL;
+}
+
+// Add a copy from a single register to an ABI return register
+void add_function_return_moves_for_scalar(Function *function, Tac *ir, int live_range_preg) {
+    ir->src1->preferred_live_range_preg_index = live_range_preg;
+
+    ir->dst = new_value();
+    ir->dst->type = dup_type(function->type->target);
+    if (ir->dst->type->type == TYPE_ENUM) ir->dst->type = new_type(TYPE_INT);
+    ir->dst->vreg = ++function->vreg_count;
+    ir->dst->live_range_preg = live_range_preg;
+
+    new_tac_before(ir, IR_MOVE, ir->dst, ir->src1, 0, 1);
+
+    ir->dst = 0;
+    ir->src1 = 0;
+    ir->src2 = 0;
+}
+
+// Add a copy from an ABI result register to a local register
+void add_function_result_moves_for_scalar(Function *function, Tac *ir, int live_range_preg) {
+    Value *value = dup_value(ir->dst);
+    value->vreg = ++function->vreg_count;
+    Tac *tac = new_instruction(IR_MOVE);
+    tac->dst = ir->dst;
+
+    tac->src1 = value;
+    tac->src1->live_range_preg = live_range_preg;
+    add_to_set(ir->src1->return_value_live_ranges, tac->src1->live_range_preg);
+
+    ir->dst = value;
+    insert_tac_before(ir->next, tac, 1);
+}
+
+void add_function_call_result_moves_for_int128(Function *function, Tac *ir, int live_range_preg_low, int live_range_preg_high) {
+    SplitVreg *split_vreg = function->int128_register_mappings[ir->dst->vreg];
+    if (!split_vreg) panic("NULL pointer when fetching split vreg for int128 for vreg %d", ir->dst->vreg);
+
+    if (debug_function_return_value_mapping)
+        printf("Adding result move for int128 vreg=%d, split %d / %d\n", ir->dst->vreg, split_vreg->low, split_vreg->high);
+
+    Value *src1_low = dup_value(ir->dst);
+    src1_low->type->type = TYPE_LONG;
+    src1_low->vreg = ++function->vreg_count;
+    src1_low->live_range_preg = live_range_preg_low;
+
+    Value *src1_high = dup_value(ir->dst);
+    src1_high->type->type = TYPE_LONG;
+    src1_high->vreg = ++function->vreg_count;
+    src1_high->live_range_preg = live_range_preg_high;
+
+    Value *dst_low = new_value();
+    dst_low->type = dup_type(ir->dst->type);
+    dst_low->type->type = TYPE_LONG;
+    dst_low->vreg = split_vreg->low;
+
+    Value *dst_high = new_value();
+    dst_high->type = dup_type(dst_low->type);
+    dst_high->vreg = split_vreg->high;
+
+    add_to_set(ir->src1->return_value_live_ranges, live_range_preg_low);
+    add_to_set(ir->src1->return_value_live_ranges, live_range_preg_high);
+
+    new_tac_before(ir->next, IR_MOVE, dst_low, src1_low, 0, 1);
+    new_tac_before(ir->next, IR_MOVE, dst_high, src1_high, 0, 1);
+
+    // Add IR_CALL_ARG_REG pseudi instructions to ensure src1_low and src1_high get picked
+    // up in the live range determination code.
+    new_tac_before(ir, IR_CALL_ARG_REG, src1_low, 0, 0, 1);
+    new_tac_before(ir, IR_CALL_ARG_REG, src1_high, 0, 0, 1);
+}
+
 // Initialize data structures for the function param & arg allocation processor
 CallValueAllocation *init_call_value_allocaton(char *function_identifier) {
     if (debug_call_value_allocation) printf("\nInitializing param allocation for function %s\n", function_identifier);
