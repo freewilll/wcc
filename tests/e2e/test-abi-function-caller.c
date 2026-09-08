@@ -303,6 +303,12 @@ void test_int128() {
     test_int128_in_stack(-1, -2, -3, -4, -5, i128);
 }
 
+void test_int128_return() {
+    __int128_t r1;
+    r1 = return_int128();
+    ASSERT_INT128(1, 2, r1, "int128 returned to registers");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -317,6 +323,7 @@ int main(int argc, char **argv) {
     test_extern_func();
     test_bit_fields();
     test_int128();
+    test_int128_return();
 
     finalize();
 }

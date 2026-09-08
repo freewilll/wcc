@@ -372,3 +372,8 @@ void test_int128_in_stack(int i1, int i2, int i3, int i4, int i5, __int128 i128)
     assert_int(   -5,   i5,   "A int128 on the stack 5");
     ASSERT_INT128(1, 2, i128, "A int128 on the stack 6");
 }
+
+__int128_t return_int128() {
+    __int128_t r = MAKE_SINT128(1, 2);
+    return r;
+}

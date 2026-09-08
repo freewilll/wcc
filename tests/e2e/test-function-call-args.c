@@ -790,14 +790,14 @@ void test_int128_return() {
     // Call a function that returns an int128 and stored in in local registers
     __int128_t r1, r2;
     r1 = return_int128();
-    ASSERT_INT128(1, 2,  r1, "int128 returned to registers");
+    ASSERT_INT128(1, 2, r1, "int128 returned to registers");
     r1 = return_int128_from_stack();
-    ASSERT_INT128(1, 2,  r1, "int128 returned to registers returned from stack");
+    ASSERT_INT128(1, 2, r1, "int128 returned to registers returned from stack");
 
     // Call a function that returns an int128 and stored in in the stack
     r2 = return_int128();
     &r2;
-    ASSERT_INT128(1, 2,  r2, "int128 returned to stack");
+    ASSERT_INT128(1, 2, r2, "int128 returned to stack");
 }
 
 int main(int argc, char **argv) {
