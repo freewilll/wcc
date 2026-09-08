@@ -161,7 +161,7 @@ char *operation_string(int operation) {
         case IR_PUSH_ARG:            return "IR_PUSH_ARG";
         case IR_ARG_STACK_PADDING:   return "IR_ARG_STACK_PADDING";
         case IR_CALL:                return "IR_CALL";
-        case IR_CALL_ARG_REG:        return "IR_CALL_ARG_REG";
+        case IR_FUNCTION_CALL_REG:   return "IR_FUNCTION_CALL_REG";
         case IR_END_CALL:            return "IR_END_CALL";
         case IR_VA_START:            return "IR_VA_START";
         case IR_VA_ARG:              return "IR_VA_ARG";

@@ -399,7 +399,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == IR_BIT_SCAN_FWD)  { fprintf(f, " bit_scan_fwd("); print_value(f, tac->src1, 1); fprintf(f, ")"); }
     else if (o == IR_BIT_SCAN_REV)  { fprintf(f, " bit_scan_rev("); print_value(f, tac->src1, 1); fprintf(f, ")"); }
 
-    else if (o == IR_CALL_ARG_REG)  { fprintf(f, "call reg arg "); print_value(f, tac->dst ? tac->dst : tac->src1 , 1); }
+    else if (o == IR_FUNCTION_CALL_REG)  { fprintf(f, "function call reg "); print_value(f, tac->dst ? tac->dst : tac->src1 , 1); }
     else if (o == IR_ALLOCATE_STACK){ fprintf(f, "allocate stack "); print_value(f, tac->src1, 1); }
     else if (o >= TARGET_OPS_START) print_target_instruction(f, tac);
 

@@ -138,7 +138,7 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
             case IR_PUSH_ARG:             c += printf("push arg"); break;
             case IR_ARG_STACK_PADDING:    c += printf("arg stack padding"); break;
             case IR_CALL:                 c += printf("call"); break;
-            case IR_CALL_ARG_REG:         c += printf("call arg reg"); break;
+            case IR_FUNCTION_CALL_REG:    c += printf("funtcion call reg"); break;
             case IR_START_LOOP:           c += printf("start loop"); break;
             case IR_END_LOOP:             c += printf("end loop"); break;
             case IR_ALLOCATE_STACK:       c += printf("allocate stack"); break;
@@ -441,12 +441,12 @@ static void make_igraphs(Function *function, int block_id) {
         // If dst is only used once and it's not in liveout, merge it.
         // Also, don't merge IR_CALLs. The IR_START_CALL and IR_END_CALL constraints don't permit
         // rearranging function calls without dire dowmstream side effects.
-        // IR_CALL_ARG_REG is also off limits, since it's a placeholder for function
-        // arg registers and no code is actually emitted.
+        // IR_FUNCTION_CALL_REG is also off limits, since it's a placeholder for function
+        // call registers and no code is actually emitted.
         if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 &&
             tac->operation.id != IR_CALL && tac->operation.id != IR_MOVE_TO_PTR &&
-            igraphs[g1_igraph_id].nodes[0].tac->operation.id != IR_CALL_ARG_REG &&
-            tac->operation.id != IR_CALL_ARG_REG &&
+            igraphs[g1_igraph_id].nodes[0].tac->operation.id != IR_FUNCTION_CALL_REG &&
+            tac->operation.id != IR_FUNCTION_CALL_REG &&
             igraphs_are_neighbors(igraphs, i, g1_igraph_id)
             ) {
 
@@ -1337,7 +1337,7 @@ static void tile_igraphs(Function *function) {
              tac->operation.id == IR_RETURN ||
              tac->operation.id == IR_START_LOOP ||
              tac->operation.id == IR_END_LOOP ||
-             tac->operation.id == IR_CALL_ARG_REG ||
+             tac->operation.id == IR_FUNCTION_CALL_REG ||
              tac->operation.id == IR_ARG_STACK_PADDING)) {
 
             add_tac_to_ir(tac);

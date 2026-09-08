@@ -145,7 +145,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
             Value *dst = new_value();
             dst->vreg = live_range_pregs[loc];
             dst->type = location->int_register != -1 ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
-            new_tac_before(ir, IR_CALL_ARG_REG, dst, 0, 0, 1);
+            new_tac_before(ir, IR_FUNCTION_CALL_REG, dst, 0, 0, 1);
         }
 
         for (int loc = 0; loc < cvl->count; loc++) {

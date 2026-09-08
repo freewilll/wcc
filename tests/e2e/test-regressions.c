@@ -358,7 +358,7 @@ void test_function_without_regs_function(int i, double d) {
     assert_double(3.14, d, "Function without regs with an int and double arg 2");
 }
 
-// Tests a bug where IR_CALL_ARG_REG statements for int and FP values were not near the
+// Tests a bug where IR_FUNCTION_CALL_REG statements for int and FP values were not near the
 // IR_CALL instruction, which led to two registers not interfering with each other
 // and incorrectly getting allocated the same register.
 void test_function_without_regs() {

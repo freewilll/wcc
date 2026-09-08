@@ -284,7 +284,7 @@ void process_function_call_arg_allocations(Function *function) {
     }
 }
 
-// Add IR_CALL_ARG_REG instructions that don't do anything, but ensure
+// Add IR_FUNCTION_CALL_REG instructions that don't do anything, but ensure
 // that the interference graph and register selection code create
 // a live range for the interval between the function register assignment and
 // the function call. Without this, there is a chance that function call
@@ -293,7 +293,7 @@ void process_function_call_arg_allocations(Function *function) {
 void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int count) {
     for (int i = 0; i < count; i++)
         if (function_call_values[i])
-            new_tac_before(ir, IR_CALL_ARG_REG, 0, function_call_values[i], 0, 1);
+            new_tac_before(ir, IR_FUNCTION_CALL_REG, 0, function_call_values[i], 0, 1);
 }
 
 // Add a IR_MOVE instruction from a value to a function call register
@@ -462,7 +462,7 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
         }
 
         if (ir->operation.id == IR_CALL) {
-            // Rewind the ir so that it moves onto the last IR_CALL_ARG_REG operation, if any are present from a previous pass.
+            // Rewind the ir so that it moves onto the last IR_FUNCTION_CALL_REG operation, if any are present from a previous pass.
             // This can happen when processing floating point args after integer args have already been processed.
             // This results in the folowing sequence:
             // r58_LRpreg1:int = ...
@@ -471,7 +471,7 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
             // call reg arg r59:double
             // call "foo"
             Tac *moves_ir = ir;
-            while (moves_ir->prev->operation.id == IR_CALL_ARG_REG) moves_ir = moves_ir->prev;
+            while (moves_ir->prev->operation.id == IR_FUNCTION_CALL_REG) moves_ir = moves_ir->prev;
 
             Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
             if (ir->src1->int_value >= function_calls_size) panic("Exceeding cvls space, want=%d, allocated=%d", ir->src1->int_value, function_calls_size);
@@ -1084,10 +1084,10 @@ void add_function_call_result_moves_for_int128(Function *function, Tac *ir, int 
     new_tac_before(ir->next, IR_MOVE, dst_low, src1_low, 0, 1);
     new_tac_before(ir->next, IR_MOVE, dst_high, src1_high, 0, 1);
 
-    // Add IR_CALL_ARG_REG pseudi instructions to ensure src1_low and src1_high get picked
+    // Add IR_FUNCTION_CALL_REG pseudi instructions to ensure src1_low and src1_high get picked
     // up in the live range determination code.
-    new_tac_before(ir, IR_CALL_ARG_REG, src1_low, 0, 0, 1);
-    new_tac_before(ir, IR_CALL_ARG_REG, src1_high, 0, 0, 1);
+    new_tac_before(ir, IR_FUNCTION_CALL_REG, src1_low, 0, 0, 1);
+    new_tac_before(ir, IR_FUNCTION_CALL_REG, src1_high, 0, 0, 1);
 }
 
 // Initialize data structures for the function param & arg allocation processor
