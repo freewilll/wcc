@@ -645,7 +645,7 @@ enum {
     IR_ARG,                   // Function call argument, used in early phases up to function arg processing
     IR_PUSH_ARG,              // Push a function call argument
     IR_ARG_STACK_PADDING,     // Extra padding push to align arguments pushed onto the stack
-    IR_FUNCTION_CALL_REG,          // Placeholder for fake read/write of a physical register to keep a live range alive
+    IR_FUNCTION_CALL_REG,     // Placeholder for fake read/write of a physical register to keep a live range alive
     IR_CALL,                  // Start of function call
     IR_END_CALL,              // End of function call
     IR_VA_START,              // va_start function call
