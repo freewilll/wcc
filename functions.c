@@ -323,9 +323,9 @@ int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *arg
 
 // Load a scalar in a struct into a register. The scalar can be either a local, global, or lvalue in register
 // If it's an lvalue in a register, it is indirected, otherwise moved.
-void load_struct_scalar_into_value(Function *function, Tac *ir, Value *param, CallValueLocation *pl, Type *type, Value *dst, int offset) {
-    int lvalue_in_register = param->is_lvalue && param->vreg;
-    Value *src1 = dup_value(param);
+void load_struct_scalar_into_value(Function *function, Tac *ir, Value *src, CallValueLocation *pl, Type *type, Value *dst, int offset) {
+    int lvalue_in_register = src->is_lvalue && src->vreg;
+    Value *src1 = dup_value(src);
     src1->type = type;
     src1->offset += pl->stru_offset + offset;
 
@@ -334,12 +334,12 @@ void load_struct_scalar_into_value(Function *function, Tac *ir, Value *param, Ca
 
 // Load a scalar in a struct into a register. The scalar can be either a local, global, or lvalue in register
 // If it's an lvalue in a register, it is indirected, otherwise moved.
-Value *load_struct_scalar_into_new_vreg(Function *function, Tac *ir, Value *param, CallValueLocation *pl, Type *type) {
+Value *load_struct_scalar_into_new_vreg(Function *function, Tac *ir, Value *src, CallValueLocation *pl, Type *type) {
     Value *temp = new_value();
     temp->type = type;
     temp->vreg = ++function->vreg_count;
 
-    load_struct_scalar_into_value(function, ir, param, pl, temp->type, temp, 0);
+    load_struct_scalar_into_value(function, ir, src, pl, temp->type, temp, 0);
 
     return temp;
 }

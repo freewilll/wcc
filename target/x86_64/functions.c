@@ -332,7 +332,7 @@ static void add_function_return_moves(Function *function) {
 // size = 7     load int, load short, shift short, or short, load char, shift char, or char
 // size = 8     load long
 static int make_int_struct_or_union_arg_move_instructions(
-    Function *function, Tac *ir, Value *param, int preg_class, int register_index,
+    Function *function, Tac *ir, Value *arg, int preg_class, int register_index,
     CallValueLocation *pl, RegisterSet *register_set) {
 
     // Make the shift register
@@ -343,7 +343,7 @@ static int make_int_struct_or_union_arg_move_instructions(
 
     if (debug_function_arg_mapping) printf("Adding arg move from struct to integer register_index=%d register size=%d\n", register_index, pl->stru_size);
 
-    int lvalue_in_register = param->is_lvalue && param->vreg;
+    int lvalue_in_register = arg->is_lvalue && arg->vreg;
     int temp_loaded = 0;
     int size = pl->stru_size;
     int offset = 0;
@@ -355,13 +355,13 @@ static int make_int_struct_or_union_arg_move_instructions(
         if (!temp_loaded) {
             Type *type = new_type(TYPE_CHAR + i);
             type->is_unsigned = 1;
-            load_struct_scalar_into_value(function, ir, param, pl, type, result_register, offset);
+            load_struct_scalar_into_value(function, ir, arg, pl, type, result_register, offset);
             temp_loaded = 1;
         }
         else {
             // Load value
             Value *loaded_value = make_long_temp_vreg(function);
-            Value *temp2 = dup_value(param);
+            Value *temp2 = dup_value(arg);
             temp2->type = new_type(TYPE_CHAR + i);
             temp2->type->is_unsigned = 1;
             temp2->offset += pl->stru_offset + offset;
@@ -393,25 +393,25 @@ static int make_int_struct_or_union_arg_move_instructions(
 // Load an 8-byte of a struct/union that exclusively have floats and doubles in it into a register.
 // The struct/union already has an alignment of either 4 or 8, so it can be loaded with simple instructions.
 static int make_sse_struct_or_union_arg_move_instructions(
-    Function *function, Tac *ir, Value *param, int preg_class, int register_index,
+    Function *function, Tac *ir, Value *arg, int preg_class, int register_index,
     CallValueLocation *pl, RegisterSet *register_set) {
 
     if (debug_function_arg_mapping) printf("Adding arg move from struct to SSE register_index=%d register size=%d\n", register_index, pl->stru_size);
 
     if (pl->stru_size == 4) {
         // Move a single float
-        Value *temp = load_struct_scalar_into_new_vreg(function, ir, param, pl, new_type(TYPE_FLOAT));
+        Value *temp = load_struct_scalar_into_new_vreg(function, ir, arg, pl, new_type(TYPE_FLOAT));
         return add_arg_move_to_register(function, ir, new_type(TYPE_FLOAT), temp, preg_class, register_index, register_set);
     }
     else if (pl->stru_size == 8 && pl->stru_member_count == 1) {
         // Move a single double
-        Value *temp = load_struct_scalar_into_new_vreg(function, ir, param, pl, new_type(TYPE_DOUBLE));
+        Value *temp = load_struct_scalar_into_new_vreg(function, ir, arg, pl, new_type(TYPE_DOUBLE));
         return add_arg_move_to_register(function, ir, new_type(TYPE_DOUBLE), temp, preg_class, register_index, register_set);
     }
     else {
         // Move two floats. It must first be loaded into an integer register and then
         // copied to an SSE register.
-        Value *temp_int = load_struct_scalar_into_new_vreg(function, ir, param, pl, new_type(TYPE_LONG));
+        Value *temp_int = load_struct_scalar_into_new_vreg(function, ir, arg, pl, new_type(TYPE_LONG));
         Value *temp_sse = new_value();
         temp_sse->type = new_type(TYPE_DOUBLE);
         temp_sse->vreg = ++function->vreg_count;
@@ -422,13 +422,13 @@ static int make_sse_struct_or_union_arg_move_instructions(
 
 // Load a function parameter register from an struct or union 8-byte
 int make_struct_or_union_arg_move_instructions(
-        Function *function, Tac *ir, Value *param, int preg_class, int register_index,
+        Function *function, Tac *ir, Value *arg, int preg_class, int register_index,
         CallValueLocation *location, RegisterSet *register_set) {
 
     if (preg_class == PC_INT)
-        return make_int_struct_or_union_arg_move_instructions(function, ir, param, preg_class, register_index, location, register_set);
+        return make_int_struct_or_union_arg_move_instructions(function, ir, arg, preg_class, register_index, location, register_set);
     else
-        return make_sse_struct_or_union_arg_move_instructions(function, ir, param, preg_class, register_index, location, register_set);
+        return make_sse_struct_or_union_arg_move_instructions(function, ir, arg, preg_class, register_index, location, register_set);
 }
 
 // Add instructions to move struct/union data from a param register to a struct on the stack

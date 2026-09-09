@@ -81,7 +81,7 @@ int *make_original_stack_indexes(Function *function) {
     return result;
 } // TODO aarch64
 
-int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *param, int preg_class, int register_index, CallValueLocation *location, RegisterSet *register_set) {
+int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *arg, int preg_class, int register_index, CallValueLocation *location, RegisterSet *register_set) {
     panic("TODO aarch64: make_struct_or_union_arg_move_instructions");
 }
 
