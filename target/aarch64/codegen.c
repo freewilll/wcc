@@ -87,7 +87,7 @@ static void process_stack_offset(Tac *tac, Value *v, int *stack_offsets) {
         // Function arg in an outgoing function call or incoming function call parameter
         // Conventionally the first stack_index entry starts at 1
         if (v->stack.area == SA_FUNCTION_ARGS) {
-            v->stack.offset = (stack_index - 1) * 8;
+            v->stack.offset += (stack_index - 1) * 8 + v->offset;
         }
         else if (v->stack.area == SA_UNSPECIFIED) {
             // These are incoming function parameters on the stack.
@@ -439,9 +439,17 @@ static void prepare_x29_x30_stack_saves(Function *function) {
     // Determine if the function uses any pushed params for function calls. If so,
     // x29 is set to sp and must be preserved
     cur_function_has_function_param_in_stack = 0;
+
+    // Check stack access to the function param area
     #define CHECK_FUNCTION_PARAM(v) if ((v) && v->stack.area == SA_UNSPECIFIED && v->stack.index > 0) cur_function_has_function_param_in_stack = 1;
+
+    // R29 is used directly in offset adding code. If it's there, then it's related to a function parameter in the stack.
+    #define CHECK_R29_USE(v) if ((v) && v->preg == REG_R29) cur_function_has_function_param_in_stack = 1;
+
+    // #define WTF(v) if ((v)) printf("%s %d %d %d\n", function->identifier,  v->stack.area, v->stack.index, v->stack.offset);
     LOOP_OVER_FUNCTION_IR(function) {
         DO_ON_ALL_TAC_VALUES(tac, CHECK_FUNCTION_PARAM);
+        DO_ON_ALL_TAC_VALUES(tac, CHECK_R29_USE);
     }
 
     cur_function_stack_space_for_x29_x30 = cur_function_has_function_param_in_stack || cur_function_has_function_calls ? 16 : 0;

@@ -9,6 +9,7 @@ struct sffiii { float f1, f2; int i1, i2, i3; };
 struct siiff { int i1, i2; float f1, f2; };
 struct siifff { int i1, i2; float f1, f2, f3; };
 struct sifif { int i1; float f1; int i2; float f2; };
+struct sf9 { float f1, f2, f3, f4, f5, f6, f7, f8, f9; };
 
 struct sc1 { char c1; };
 struct sc2 { char c1, c2; };
@@ -19,6 +20,8 @@ struct sc6 { char c1, c2, c3, c4, c5, c6; };
 struct sc7 { char c1, c2, c3, c4, c5, c6, c7; };
 struct sc8 { char c1, c2, c3, c4, c5, c6, c7, c8; };
 struct sc9 { char c1, c2, c3, c4, c5, c6, c7, c8, c9; };
+
+struct sc3f { char c1, c2, c3; float f1; };
 
 struct si1 { int i1; };
 struct si2 { int i1, i2; };
@@ -53,6 +56,8 @@ void accept_spdf(struct spdf spdf);
 void accept_sff(struct sff sff);
 void accept_sdd(struct sdd sdd);
 void accept_sffff(struct sffff sffff);
+void accept_sf9(struct sf9 sf9);
+void accept_ffffsffff(float f1, float f2, float f3, float f4, struct sffff sffff);
 void accept_sffii(struct sffii sffii);
 void accept_sffiii(struct sffiii sffiii);
 void accept_siiff(struct siiff siiff);
@@ -69,6 +74,8 @@ void accept_sc7(struct sc7 sc7);
 void accept_sc8(struct sc8 sc8);
 void accept_sc9(struct sc9 sc9);
 
+void accept_sc3f(struct sc3f sc3f);
+
 void accept_si5(struct si5 si5);
 void accept_si6(struct si6 si6);
 void accept_si7(struct si7 si7);
@@ -77,10 +84,14 @@ void accept_si9(struct si9 si9);
 
 void accept_i5si4(int i1, int i2, int i3, int i4, int i5, struct si4 si4);
 void accept_i5sia4(int i1, int i2, int i3, int i4, int i5, struct sia4 sia4);
+void accept_i7sia4(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sia4 sia4);
+void accept_i7sia4i1(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sia4 sia4, int i8);
 void accept_sia2a2(struct sia2a2 sia2a2);
 void accept_i5sia2a2(int i1, int i2, int i3, int i4, int i5, struct sia2a2 sia2a2);
 void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sffff sffff);
+void accept_sfa4(struct sfa4 sfa4);
 void accept_f5sfa4(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4);
+void accept_f5sfa4f1(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4, float f6);
 
 void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2);
 

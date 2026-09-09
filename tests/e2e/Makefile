@@ -158,17 +158,12 @@ ${BUILD_DIR}/tests/e2e/test-abi-gcc-wcc: ${ABI_LINK_OBJECTS} ${BUILD_DIR}/tests/
 ${BUILD_DIR}/tests/e2e/test-abi-wcc-wcc: ${ABI_LINK_OBJECTS} ${BUILD_DIR}/tests/e2e/test-abi-function-caller-wcc.o ${BUILD_DIR}/tests/e2e/test-abi-function-callee-wcc.o
 	${GCC} ${GCC_OPTS} $^ -o $@
 
-ifeq ($(TARGET),x86_64)
 run-test-abi: ${BUILD_DIR}/tests/e2e/test-abi-gcc-gcc ${BUILD_DIR}/tests/e2e/test-abi-wcc-gcc ${BUILD_DIR}/tests/e2e/test-abi-gcc-wcc ${BUILD_DIR}/tests/e2e/test-abi-wcc-wcc
 	cd ${TEST_BUILD_DIR} && ./test-abi-gcc-gcc
 # TODO aarch64 run these tests
 	cd ${TEST_BUILD_DIR} && ./test-abi-wcc-gcc
 	cd ${TEST_BUILD_DIR} && ./test-abi-gcc-wcc
 	cd ${TEST_BUILD_DIR} && ./test-abi-wcc-wcc
-else
-run-test-abi:
-	# TODO aarch64 ABI tests
-endif
 
 # Shared library tests
 ${BUILD_DIR}/tests/e2e/test-shlib-lib-gcc.o: test-shlib-lib.c test-shlib.h

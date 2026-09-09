@@ -479,11 +479,13 @@ static void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
 
     if (is_ldr_str_immediate_offset(size, offset)) return;
 
-    // Make a value for the sp register
+    int sp_register = tac->src1->stack.area == SA_UNSPECIFIED && tac->src1->stack.index > 0 ? REG_R29 : REG_SP;
+
+    // Make a value for the sp/r29 register
     Value *sp = new_value();
     sp->type = new_type(TYPE_LONG);
     sp->target_size = 4;
-    sp->preg = REG_SP;
+    sp->preg = sp_register;
 
     // Make a value for the r17 register
     Value *r17 = new_value();
@@ -547,7 +549,8 @@ void add_address_of_instructions(Function *function) {
         Value *sp = new_value();
         sp->type = new_type(TYPE_LONG);
         sp->target_size = 4;
-        sp->preg = REG_SP;
+        int sp_register = tac->src1->stack.area == SA_UNSPECIFIED && tac->src1->stack.index > 0 ? REG_R29 : REG_SP;
+        sp->preg = sp_register;
 
         // Make a value for the offset
         int offset = tac->src1->stack.offset;
@@ -586,31 +589,34 @@ void expand_indirect_offsets(Function *function) {
     char *templates[] = {"ldrb %vdw, [%v1x, %v2x]", "ldrh %vdw, [%v1x, %v2x]", "ldr %vdw, [%v1x, %v2x]", "ldr %vdx, [%v1x, %v2x]"};
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation.id == AARCH64_OP_LDR && tac->src1->preg != REG_SP && !is_ldr_str_immediate_offset(tac->dst->target_size, tac->src1->offset)) {
-            int size = tac->dst->target_size;
+        if (tac->operation.id != AARCH64_OP_LDR) continue;
+        int is_stack_register = tac->src1->preg == REG_SP || tac->src1->preg == REG_R29;
+        if (is_stack_register) continue;
+        if (is_ldr_str_immediate_offset(tac->dst->target_size, tac->src1->offset)) continue;
 
-            if (size < 1 || size > 4)
-                panic("Unknown size in is_ldr_str_immediate_offset: %d", size);
+        int size = tac->dst->target_size;
 
-            Value *r16 = new_value();
-            r16->type = new_type(TYPE_LONG);
-            r16->target_size = 4;
-            r16->preg = REG_R16;
+        if (size < 1 || size > 4)
+            panic("Unknown size in is_ldr_str_immediate_offset: %d", size);
 
-            Value *offset_value = new_integral_constant(TYPE_LONG, tac->src1->offset);
-            offset_value->target_size = 4;
+        Value *r16 = new_value();
+        r16->type = new_type(TYPE_LONG);
+        r16->target_size = 4;
+        r16->preg = REG_R16;
 
-            Tac *tac2 = new_tac_before(tac, AARCH64_OP_MOV, r16, offset_value, 0, 0);
-            tac2->target_template = "mov %vdx, %v1x";
-            process_integer_constant_move_to_register(tac2);
+        Value *offset_value = new_integral_constant(TYPE_LONG, tac->src1->offset);
+        offset_value->target_size = 4;
 
-            Value *src1_copy = dup_value(tac->src1);
-            src1_copy->offset = 0;
+        Tac *tac2 = new_tac_before(tac, AARCH64_OP_MOV, r16, offset_value, 0, 0);
+        tac2->target_template = "mov %vdx, %v1x";
+        process_integer_constant_move_to_register(tac2);
 
-            tac->src1 = src1_copy;
-            tac->src2 = r16;
-            tac->target_template = templates[size - 1];
-        }
+        Value *src1_copy = dup_value(tac->src1);
+        src1_copy->offset = 0;
+
+        tac->src1 = src1_copy;
+        tac->src2 = r16;
+        tac->target_template = templates[size - 1];
     }
 }
 

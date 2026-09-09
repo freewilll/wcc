@@ -18,12 +18,38 @@ void accept_sffff(struct sffff sffff) {
     assert_float(4.1, sffff.f4, "accept_sffff");
 }
 
+void accept_sf9(struct sf9 sf9) {
+    assert_float(1.1, sf9.f1, "accept_sf9");
+    assert_float(2.1, sf9.f2, "accept_sf9");
+    assert_float(3.1, sf9.f3, "accept_sf9");
+    assert_float(4.1, sf9.f4, "accept_sf9");
+    assert_float(5.1, sf9.f5, "accept_sf9");
+    assert_float(6.1, sf9.f6, "accept_sf9");
+    assert_float(7.1, sf9.f7, "accept_sf9");
+    assert_float(8.1, sf9.f8, "accept_sf9");
+    assert_float(9.1, sf9.f9, "accept_sf9");
+}
+
+// In aarch64, all args go into the registers
+void accept_ffffsffff(float f1, float f2, float f3, float f4, struct sffff sffff) {
+    assert_float(1.1, f1,       "accept_ffffsffff");
+    assert_float(2.1, f2,       "accept_ffffsffff");
+    assert_float(3.1, f3,       "accept_ffffsffff");
+    assert_float(4.1, f4,       "accept_ffffsffff");
+    assert_float(5.1, sffff.f1, "accept_ffffsffff");
+    assert_float(6.1, sffff.f2, "accept_ffffsffff");
+    assert_float(7.1, sffff.f3, "accept_ffffsffff");
+    assert_float(8.1, sffff.f4, "accept_ffffsffff");
+}
+
 void accept_sffii(struct sffii sffii) {
     assert_float(1.1, sffii.f1, "accept_sffii");
     assert_float(2.1, sffii.f2, "accept_sffii");
     assert_int(3, sffii.i1, "accept_sffii");
     assert_int(4, sffii.i2, "accept_sffii");
 }
+
+#ifdef __x86_64__
 
 void accept_sffiii(struct sffiii sffiii) {
     assert_float(1.1, sffiii.f1, "accept_sffiii");
@@ -54,6 +80,8 @@ void accept_sifif(struct sifif sifif) {
     assert_int(3, sifif.i2, "accept_sifif");
     assert_float(4.1, sifif.f2, "accept_sifif");
 }
+
+#endif
 
 void accept_sc1(struct sc1 sc1) {
     assert_int(1, sc1.c1, "accept_sc1 1");
@@ -127,6 +155,15 @@ void accept_sc9(struct sc9 sc9) {
     assert_int(9, sc9.c9, "accept_sc9 9");
 }
 
+void accept_sc3f(struct sc3f sc3f) {
+    assert_int( 1,    sc3f.c1, "accept_sc3f 1");
+    assert_int( 2,    sc3f.c2, "accept_sc3f 2");
+    assert_int( 3,    sc3f.c3, "accept_sc3f 3");
+    assert_float(4.1, sc3f.f1, "accept_sc3f 3");
+}
+
+#ifdef __x86_64__
+
 void accept_si5(struct si5 si5) {
     assert_int(1, si5.i1, "accept_si5 1");
     assert_int(2, si5.i2, "accept_si5 2");
@@ -189,6 +226,8 @@ void accept_i5si4(int i1, int i2, int i3, int i4, int i5, struct si4 si4) {
     assert_int(9, si4.i4, "accept_i5si4 9");
 }
 
+#endif
+
 void accept_i5sia4(int i1, int i2, int i3, int i4, int i5, struct sia4 sia4) {
     assert_int(1, i1,        "accept_i5sia4 1");
     assert_int(2, i2,        "accept_i5sia4 2");
@@ -200,6 +239,38 @@ void accept_i5sia4(int i1, int i2, int i3, int i4, int i5, struct sia4 sia4) {
     assert_int(8, sia4.i[2], "accept_i5sia4 8");
     assert_int(9, sia4.i[3], "accept_i5sia4 9");
 }
+
+void accept_i7sia4(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sia4 sia4) {
+    assert_int(1,  i1,        "accept_i7sia4 1");
+    assert_int(2,  i2,        "accept_i7sia4 2");
+    assert_int(3,  i3,        "accept_i7sia4 3");
+    assert_int(4,  i4,        "accept_i7sia4 4");
+    assert_int(5,  i5,        "accept_i7sia4 5");
+    assert_int(6,  i6,        "accept_i7sia4 6");
+    assert_int(7,  i7,        "accept_i7sia4 7");
+    assert_int(8,  sia4.i[0], "accept_i7sia4 8");
+    assert_int(9,  sia4.i[1], "accept_i7sia4 9");
+    assert_int(10, sia4.i[2], "accept_i7sia4 10");
+    assert_int(11, sia4.i[3], "accept_i7sia4 11");
+}
+
+// This tests that the last arg ends up in the stack in aarch64
+void accept_i7sia4i1(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sia4 sia4, int i8) {
+    assert_int(1,  i1,        "accept_i7sia4i1 1");
+    assert_int(2,  i2,        "accept_i7sia4i1 2");
+    assert_int(3,  i3,        "accept_i7sia4i1 3");
+    assert_int(4,  i4,        "accept_i7sia4i1 4");
+    assert_int(5,  i5,        "accept_i7sia4i1 5");
+    assert_int(6,  i6,        "accept_i7sia4i1 6");
+    assert_int(7,  i7,        "accept_i7sia4i1 7");
+    assert_int(8,  i8,        "accept_i7sia4i1 8");
+    assert_int(9,  sia4.i[0], "accept_i7sia4i1 9");
+    assert_int(10, sia4.i[1], "accept_i7sia4i1 10");
+    assert_int(11, sia4.i[2], "accept_i7sia4i1 11");
+    assert_int(12, sia4.i[3], "accept_i7sia4i1 12");
+}
+
+#ifdef __x86_64__
 
 void accept_sia2a2(struct sia2a2 sia2a2) {
     assert_int(1, sia2a2.i[0][0], "accept_sia2a2 1");
@@ -232,6 +303,15 @@ void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sff
     assert_int(9.1, sffff.f4, "accept_f5sffff 9");
 }
 
+#endif
+
+void accept_sfa4(struct sfa4 sfa4) {
+    assert_float(6.1, sfa4.f[0], "accept_i5sfa4 6");
+    assert_float(7.1, sfa4.f[1], "accept_i5sfa4 7");
+    assert_float(8.1, sfa4.f[2], "accept_i5sfa4 8");
+    assert_float(9.1, sfa4.f[3], "accept_i5sfa4 9");
+}
+
 void accept_f5sfa4(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4) {
     assert_float(1.1, f1,        "accept_i5sfa4 1");
     assert_float(2.1, f2,        "accept_i5sfa4 2");
@@ -243,6 +323,22 @@ void accept_f5sfa4(float f1, float f2, float f3, float f4, float f5, struct sfa4
     assert_float(8.1, sfa4.f[2], "accept_i5sfa4 8");
     assert_float(9.1, sfa4.f[3], "accept_i5sfa4 9");
 }
+
+// This tests that the last arg ends up in the stack in aarch64
+void accept_f5sfa4f1(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4, float f6) {
+    assert_float(1.1,  f1,        "accept_f5sfa4f1 1");
+    assert_float(2.1,  f2,        "accept_f5sfa4f1 2");
+    assert_float(3.1,  f3,        "accept_f5sfa4f1 3");
+    assert_float(4.1,  f4,        "accept_f5sfa4f1 4");
+    assert_float(5.1,  f5,        "accept_f5sfa4f1 5");
+    assert_float(6.1,  f6,        "accept_f5sfa4f1 6");
+    assert_float(7.1,  sfa4.f[0], "accept_f5sfa4f1 7");
+    assert_float(8.1,  sfa4.f[1], "accept_f5sfa4f1 8");
+    assert_float(9.1,  sfa4.f[2], "accept_f5sfa4f1 9");
+    assert_float(10.1, sfa4.f[3], "accept_f5sfa4f1 10");
+}
+
+#ifdef __x86_64__
 
 void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2) {
     assert_int(1, i1, "accept_i7sld2 1");
@@ -279,6 +375,7 @@ void accept_us(struct us us) {
     assert_int(3, us.j, "accept-us j");
 }
 
+#endif
 struct spf gspf;
 
 struct spf    return_spf() { struct spf spf; spf.f1 = 1.1; return spf; }
@@ -292,14 +389,19 @@ struct sff    return_sff()    { struct sff sff;         sff.f1 = 5.1; sff.f2 = 6
 struct sdd    return_sdd()    { struct sdd sdd;         sdd.d1 = 7.1; sdd.d2 = 8.1; return sdd; }
 struct sffff  return_sffff()  { struct sffff sffff;     sffff.f1 = 1.1; sffff.f2 = 2.1; sffff.f3 = 3.1; sffff.f4 = 4.1; return  sffff; }
 struct sffii  return_sffii()  { struct sffii sffii;     sffii.f1 = 1.1; sffii.f2 = 2.1; sffii.i1 = 3; sffii.i2 = 4; return  sffii; }
+#ifdef __x86_64__
 struct sffiii return_sffiii() { struct sffiii sffiii;   sffiii.f1 = 1.1; sffiii.f2 = 2.1; sffiii.i1 = 3; sffiii.i2 = 4; sffiii.i3 = 5; return  sffiii; }
+#endif
 struct siiff  return_siiff()  { struct siiff siiff;     siiff.i1 = 1; siiff.i2 = 2; siiff.f1 = 3.1; siiff.f2 = 4.1; return  siiff; }
+#ifdef __x86_64__
 struct siifff return_siifff() { struct siifff siifff;   siifff.i1 = 1; siifff.i2 = 2; siifff.f1 = 3.1; siifff.f2 = 4.1; siifff.f3 = 5.1; return  siifff; }
+#endif
 struct sifif  return_sifif()  { struct sifif sifif;     sifif.i1 = 1; sifif.f1 = 2.1; sifif.i2 = 3; sifif.f2 = 4.1; return  sifif; }
 struct si1    return_si1()    { struct si1 si1;         si1.i1 = 1; return si1; }
 struct si2    return_si2()    { struct si2 si2;         si2.i1 = 1; si2.i2 = 2; return si2; }
 struct si3    return_si3()    { struct si3 si3;         si3.i1 = 1; si3.i2 = 2; si3.i3 = 3; return si3; }
 struct si4    return_si4()    { struct si4 si4;         si4.i1 = 1; si4.i2 = 2; si4.i3 = 3; si4.i4 = 4; return si4; }
+#ifdef __x86_64__
 struct si5    return_si5()    { struct si5 si5;         si5.i1 = 1; si5.i2 = 2; si5.i3 = 3; si5.i4 = 4; si5.i5 = 5; return si5; }
 struct ld3    return_ld3()    { struct ld3 ld3;         ld3.ld1 = 1.1; ld3.ld2 = 2.1; ld3.ld3 = 3.1; return ld3; }
 
@@ -377,3 +479,5 @@ __int128_t return_int128() {
     __int128_t r = MAKE_SINT128(1, 2);
     return r;
 }
+
+#endif

@@ -141,7 +141,7 @@ void reverse_function_call_args_order(Function *function) {
     wfree(call_starts);
 }
 
-// Add a type to a call value location and return its alignment
+// Add a non-composite type to a call value location and return its alignment
 void add_type_to_cvl_in_stack(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int alignment) {
     if (alignment > cva->biggest_alignment) cva->biggest_alignment = alignment;
     int padding = ((cva->offset + alignment  - 1) & (~(alignment - 1))) - cva->offset;
@@ -155,13 +155,13 @@ void add_type_to_cvl_in_stack(CallValueAllocation *cva, CallValueLocation *cvl, 
     cva->offset += type_size;
 }
 
-// Initialize a CVL and call add_type_to_cvl to allocate space for a type.
+// Initialize a CVL and call add_type_to_cvl to allocate space for a non-composite type.
 void add_single_call_value_location(CallValueAllocation *cva, Type *type) {
     CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
-    append_to_list(cva->locations, cvl);
     cvl->locations = wmalloc(sizeof(CallValueLocation));
     cvl->count = 1;
     add_type_to_cvl(cva, &(cvl->locations[0]), type, 0);
+    append_to_list(cva->locations, cvl);
 }
 
 void add_int128_call_value_locations(CallValueAllocation *cva, Type *type) {
@@ -231,6 +231,7 @@ void process_function_call_arg_allocations(Function *function) {
                     // Allocate the RDI register which has the pointer to the struct, passed in by the caller
                     add_type_to_cva(cva, make_pointer_to_void());
                     has_struct_or_union_return_value = 1;
+                    // TODO aarch64 this is x86_64 specific
                 }
             }
         }
@@ -298,9 +299,9 @@ void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int cou
 
 // Add a IR_MOVE instruction from a value to a function call register
 // function_call_*_register_arg_index ensures that dst will become the actual
-// x86_64 physical register rdi, rsi, etc
+// physical register, e.g. for x86_64 rdi, rsi, etc
 int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *arg, int preg_class, int register_index, RegisterSet *register_set) {
-    const int *arg_registers = preg_class == PC_INT ? int_arg_registers : fp_arg_registers;
+    const int *arg_registers = preg_class == PC_INT ? register_set->int_registers : register_set->fp_registers;
 
     Tac *tac = new_instruction(IR_MOVE);
 
@@ -308,11 +309,11 @@ int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *arg
     tac->dst = new_value();
     tac->dst->type = dup_type(type);
     tac->dst->vreg = ++function->vreg_count;
-    tac->dst->live_range_preg = preg_class == PC_INT ? register_set->int_registers[register_index] : register_set->fp_registers[register_index];
+    tac->dst->live_range_preg = arg_registers[register_index];
 
     // src
     tac->src1 = arg;
-    tac->src1->preferred_live_range_preg_index = arg_registers[register_index];
+    tac->src1->preferred_live_range_preg_index = tac->dst->live_range_preg;
 
     if (debug_function_arg_mapping) printf("Adding arg move from register for preg-class=%d register_index=%d\n", preg_class, register_index);
 
@@ -355,31 +356,134 @@ Value *make_long_temp_vreg(Function *function) {
     return result;
 }
 
-// Add instructions to copy a struct to the stack
-void add_function_call_arg_move_for_struct_or_union_to_stack(Function *function, Tac *ir) {
-    int size = get_type_size(ir->src2->type);
-    int rounded_up_size = (size + 7) & ~7;
+// Load an 8-byte into an integer register. In the best case, a single move instruction
+// is produced. In the worst case, 3 load instructions with 3 bit shifts & 3 bitwise ors.
+// Try sizes in order of 8, 4, 2, 1.
+// The code produced:
+// size = 1     load char
+// size = 2     load short
+// size = 3     load short, load char, shift char, or char
+// size = 4     load int
+// size = 5     load int, load char, shift char, or char
+// size = 6     load int, load short, shift short, or short
+// size = 7     load int, load short, shift short, or short, load char, shift char, or char
+// size = 8     load long
+int make_struct_or_union_to_abi_int_registers_move_instructions(
+    Function *function, Tac *ir, Value *arg, int preg_class, int register_index,
+    CallValueLocation *pl, RegisterSet *register_set) {
 
-    // Allocate stack space
-    new_tac_before(ir, IR_ALLOCATE_STACK, 0, new_integral_constant(TYPE_LONG, rounded_up_size), 0, 1);
-
-    // Add an instruction to move the stack pointer to a temporary register
-    Value *stack_pointer_temp = make_long_temp_vreg(function);
-    new_tac_before(ir, IR_MOVE_STACK_PTR, stack_pointer_temp, 0, 0, 1);
-
-    // Prepare destination, which must be a *void
-    Value *dst = dup_value(stack_pointer_temp);
-    dst->type = make_pointer_to_void();
-    dst->is_lvalue = 1;
-
-    // Convert src to be a pointer to void
-    Value *src = dup_value(ir->src2);
-    src->type = make_pointer_to_void();
+    // Make the shift register
+    Value *result_register = new_value();
+    result_register->type = new_type(TYPE_LONG);
+    result_register->type->is_unsigned = 1;
+    result_register->vreg = ++function->vreg_count;
 
     if (debug_function_arg_mapping)
-        printf("Adding memory copy for struct/union SI=%d rounded-up-size=%d\n", src->stack.index, rounded_up_size);
+        printf("Adding arg move from struct to integer register_index=%d register size=%d\n", register_index, pl->stru_size);
 
-    add_memory_copy(function, ir, dst, src, size);
+    int lvalue_in_register = arg->is_lvalue && arg->vreg;
+    int temp_loaded = 0;
+    int size = pl->stru_size;
+    int offset = 0;
+
+    for (int i = 3; i >= 0; i--) {
+        int size_unit = 1 << i;
+        if (size_unit > size) continue;
+
+        if (!temp_loaded) {
+            Type *type = new_type(TYPE_CHAR + i);
+            type->is_unsigned = 1;
+            load_struct_scalar_into_value(function, ir, arg, pl, type, result_register, offset);
+            temp_loaded = 1;
+        }
+        else {
+            // Load value
+            Value *loaded_value = make_long_temp_vreg(function);
+            Value *temp2 = dup_value(arg);
+            temp2->type = new_type(TYPE_CHAR + i);
+            temp2->type->is_unsigned = 1;
+            temp2->offset += pl->stru_offset + offset;
+            new_tac_before(ir, lvalue_in_register ? IR_INDIRECT : IR_MOVE, loaded_value, temp2, 0, 1);
+
+            // Shift loaded value
+            Value *shifted_value;
+            if (offset) {
+                shifted_value = make_long_temp_vreg(function);
+                new_tac_before(ir, IR_BSHL, shifted_value, loaded_value, new_integral_constant(TYPE_LONG, offset * 8), 1);
+            }
+            else
+                shifted_value = loaded_value;
+
+            // Bitwise or shifted_value and put result in result_register
+            Value *orred_value = make_long_temp_vreg(function);
+            new_tac_before(ir, IR_BOR, orred_value, shifted_value, result_register, 1);
+            result_register = orred_value;
+        }
+
+        size -= size_unit;
+        offset += size_unit;
+        if (size == 0) break;
+    }
+
+    return add_arg_move_to_register(function, ir, new_type(TYPE_LONG), result_register, preg_class, register_index, register_set);
+}
+
+// This implements the reverse of make_struct_or_union_to_abi_int_registers_move_instructions
+// This is also used for moving struct/unions into function return value registers
+int make_int_struct_or_union_move_from_register_to_stack_instructions(
+        Function *function, Tac *ir, CallValueLocation* pl,
+        int register_index, int stack_index, RegisterSet *register_set, int param_register_vreg) {
+
+    if (debug_function_param_mapping)
+        printf("Adding param move from int register %d size %d to stack_index %d, offset %d\n", register_index, pl->stru_size, stack_index, pl->stru_offset);
+
+    if (!param_register_vreg) param_register_vreg = ++function->vreg_count;
+
+    // Make shift register
+    Value *shift_register = new_value();
+    shift_register->vreg = param_register_vreg;
+    int live_range_preg = register_set->int_registers[register_index];
+    shift_register->live_range_preg = live_range_preg;
+
+    int size = pl->stru_size;
+    int offset = 0;
+
+    for (int i = 3; i >= 0; i--) {
+        int size_unit = 1 << i;
+        if (size_unit > size) continue;
+
+        // Make dst on stack
+        Value *dst = new_value();
+        dst->type = new_type(TYPE_CHAR + i);
+        dst->type->is_unsigned = 1;
+        dst->is_lvalue = 1;
+        dst->stack.index = stack_index;
+        dst->offset = pl->stru_offset + offset;
+
+        shift_register = dup_value(shift_register);
+        shift_register->type = new_type(TYPE_CHAR + i);
+        shift_register->type->is_unsigned = 1;
+
+        new_tac_before(ir, IR_MOVE, dst, shift_register, 0, 0);
+
+        size -= size_unit;
+        offset += size_unit;
+        if (size == 0) break;
+
+        // Shift the register over size_unit * 8 bytes
+        shift_register = dup_value(shift_register);
+        shift_register->type = new_type(TYPE_LONG);
+
+        Value *new_shift_register = dup_value(shift_register);
+        new_shift_register->live_range_preg = 0;
+        new_shift_register->vreg = ++function->vreg_count;
+
+        new_tac_before(ir, IR_BSHR, new_shift_register, shift_register, new_integral_constant(TYPE_LONG, size_unit * 8), 0);
+
+        shift_register = new_shift_register;
+    }
+
+    return live_range_preg;
 }
 
 // Lookup corresponding location for preg_class/register
@@ -529,7 +633,7 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
                 }
                 else if (type->type == TYPE_STRUCT_OR_UNION) {
                     CallValueLocation *location = lookup_location(preg_class, i, *pls);
-                    function_call_vreg = make_struct_or_union_arg_move_instructions(function, moves_ir, *call_arg, preg_class, i, location, &arg_register_set);
+                    function_call_vreg = make_struct_or_union_to_abi_move_instructions(function, moves_ir, *call_arg, preg_class, i, location, &arg_register_set);
                     function_call_vreg_type = preg_class == PC_INT ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
                 }
                 else {
@@ -574,7 +678,6 @@ static void finalize_IR_ARG_instructions(Function *function) {
         Tac *next_ir = ir->next;
 
         if (ir->operation.id == IR_ARG) {
-
             int removed = 0;
             CallValueLocations *pl = ir->src1->function_call.function_call_arg_locations;
 
@@ -678,7 +781,7 @@ Tac *make_param_move_to_register_tac(Function *function, Type *type, int single_
 }
 
 // Add an instruction to move a parameter in a register to a new stack entry
-Tac *make_param_move_to_stack_tac(Function *function, Type *type, int single_register_arg_count) {
+static Tac *make_param_move_to_stack_tac(Function *function, Type *type, int single_register_arg_count) {
     Tac *tac = new_instruction(IR_MOVE);
     tac->dst = new_value();
     tac->dst->type = dup_type(type);
@@ -690,6 +793,17 @@ Tac *make_param_move_to_stack_tac(Function *function, Type *type, int single_reg
     tac->src1->live_range_preg = get_preg_class_for_scalar_type(type) == PC_FP ? fp_arg_registers[single_register_arg_count] : int_arg_registers[single_register_arg_count];
 
     return tac;
+}
+
+// Allocate space on the stack for a type
+Value *allocate_stack_space_for_type(Function *function, Tac *ir, Type *type) {
+    Value *v = new_value();
+    v->type = dup_type(type);
+    v->is_lvalue = 1;
+    v->stack.index = -(++function->stack_register_count);
+    new_tac_before(ir, IR_DECL_LOCAL_COMP_OBJ, 0, v, 0, 0);
+
+    return v;
 }
 
 // Set has_address_of to 1 if a value is a parameter in a register and it's used in a & instruction
@@ -733,6 +847,23 @@ static void convert_pushed_param_stack_index_to_register(Function *function, Reg
         assign_register_to_value(v, stack_param_vregs[v->stack.index - 1].high);
         v->offset = 0;
     }
+}
+
+// Given call value locations, allocate vregs and
+// add pseudo IR_FUNCTION_CALL_REG instructions with dst a preg.
+// Returns an array of allocated vregs.
+int *allocate_vregs_for_cvl(Function *function, Tac *ir, CallValueLocations *cvl) {
+    int *live_range_pregs = wmalloc(sizeof(int) * 8);
+    for (int loc = 0; loc < cvl->count; loc++) {
+        CallValueLocation *location = &(cvl->locations[loc]);
+        live_range_pregs[loc] = ++function->vreg_count;
+        Value *dst = new_value();
+        dst->vreg = live_range_pregs[loc];
+        dst->type = location->int_register != -1 ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
+        new_tac_before(ir, IR_FUNCTION_CALL_REG, dst, 0, 0, 1);
+    }
+
+    return live_range_pregs;
 }
 
 // Add instructions that deal with the function arguments. Several cases are possible
@@ -1037,6 +1168,32 @@ void add_function_return_moves_for_scalar(Function *function, Tac *ir, int live_
     ir->src2 = 0;
 }
 
+// Move struct/union data into ABI registers
+void add_function_return_moves_for_struct_or_union_to_abi_register(Function *function, Tac *ir) {
+    // Determine registers
+    CallValueAllocation *cva = init_call_value_allocaton(function->identifier);
+    add_type_to_cva(cva, ir->src1->type);
+    CallValueLocations *cvl = cva->locations->elements[0];
+
+    Value **function_call_values = wcalloc(cvl->count, sizeof(Value *));
+
+    for (int loc = cvl->count - 1; loc >= 0; loc--) {
+        CallValueLocation *location = &(cvl->locations[loc]);
+        int preg_class = (location->int_register != -1) ? PC_INT : PC_FP;
+        int register_index = (preg_class == PC_INT) ? location->int_register : location->fp_register;
+        Value *param = ir->src1;
+        int vreg = make_struct_or_union_to_abi_move_instructions(function, ir, param, preg_class, register_index, location, &function_return_value_register_set);
+        function_call_values[loc] = new_value();
+        function_call_values[loc]->type = preg_class == PC_INT ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
+        function_call_values[loc]->vreg = vreg;
+    }
+
+    // Add instructions to ensure the values stay in the registers
+    add_ir_call_reg_instructions(ir, function_call_values, cvl->count);
+
+    wfree(function_call_values);
+}
+
 // Add a copy from an ABI result register to a local register
 void add_function_result_moves_for_scalar(Function *function, Tac *ir, int live_range_preg) {
     Value *value = dup_value(ir->dst);
@@ -1092,7 +1249,7 @@ void add_function_call_result_moves_for_int128(Function *function, Tac *ir, int 
 
 // Initialize data structures for the function param & arg allocation processor
 CallValueAllocation *init_call_value_allocaton(char *function_identifier) {
-    if (debug_call_value_allocation) printf("\nInitializing param allocation for function %s\n", function_identifier);
+    if (debug_call_value_allocation) printf("\nInitializing function call value allocation for function %s\n", function_identifier);
 
     CallValueAllocation *cva = wcalloc(1, sizeof(CallValueAllocation));
     append_to_list(allocated_function_param_allocatons, cva);

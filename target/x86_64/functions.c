@@ -11,72 +11,14 @@ static int is_sse_floating_point_type(Type *type) {
     return get_preg_class_for_scalar_type(type) == PC_FP;
 }
 
-// This implements the reverse of make_int_struct_or_union_arg_move_instructions
-// This is also used for moving struct/unions into function return value registers
-static int make_int_struct_or_union_move_from_register_to_stack_instructions(
-        Function *function, Tac *ir, Type *type, CallValueLocation* pl,
-        int register_index, int stack_index, RegisterSet *register_set, int param_register_vreg) {
-
-    if (debug_function_param_mapping)
-        printf("Adding param move from int register %d size %d to stack_index %d, offset %d\n", register_index, pl->stru_size, stack_index, pl->stru_offset);
-
-    if (!param_register_vreg) param_register_vreg = ++function->vreg_count;
-
-    // Make shift register
-    Value *shift_register = new_value();
-    shift_register->vreg = param_register_vreg;
-    int live_range_preg = register_set->int_registers[register_index];
-    shift_register->live_range_preg = live_range_preg;
-
-    int size = pl->stru_size;
-    int offset = 0;
-
-    for (int i = 3; i >= 0; i--) {
-        int size_unit = 1 << i;
-        if (size_unit > size) continue;
-
-        // Make dst on stack
-        Value *dst = new_value();
-        dst->type = new_type(TYPE_CHAR + i);
-        dst->type->is_unsigned = 1;
-        dst->is_lvalue = 1;
-        dst->stack.index = stack_index;
-        dst->offset = pl->stru_offset + offset;
-
-        shift_register = dup_value(shift_register);
-        shift_register->type = new_type(TYPE_CHAR + i);
-        shift_register->type->is_unsigned = 1;
-
-        new_tac_before(ir, IR_MOVE, dst, shift_register, 0, 0);
-
-        size -= size_unit;
-        offset += size_unit;
-        if (size == 0) break;
-
-        // Shift the register over size_unit * 8 bytes
-        shift_register = dup_value(shift_register);
-        shift_register->type = new_type(TYPE_LONG);
-
-        Value *new_shift_register = dup_value(shift_register);
-        new_shift_register->live_range_preg = 0;
-        new_shift_register->vreg = ++function->vreg_count;
-
-        new_tac_before(ir, IR_BSHR, new_shift_register, shift_register, new_integral_constant(TYPE_LONG, size_unit * 8), 0);
-
-        shift_register = new_shift_register;
-    }
-
-    return live_range_preg;
-}
-
-// This implements the reverse of make_sse_struct_or_union_arg_move_instructions.
+// This implements the reverse of make_struct_or_union_to_abi_sse_registers_move_instructions.
 // This is also used for moving struct/unions into function return value registers.
 static int make_sse_struct_or_union_move_from_register_to_stack_instructions(
-        Function *function, Tac *ir, Type *type, CallValueLocation* pl,
+        Function *function, Tac *ir, CallValueLocation* cvl,
         int register_index, int stack_index, RegisterSet *register_set, int param_register_vreg) {
 
     if (debug_function_param_mapping)
-        printf("Adding param move from sse register %d size %d to stack_index %d, offset %d\n", register_index, pl->stru_size, stack_index, pl->stru_offset);
+        printf("Adding param move from sse register %d size %d to stack_index %d, offset %d\n", register_index, cvl->stru_size, stack_index, cvl->stru_offset);
 
     if (!param_register_vreg) param_register_vreg = ++function->vreg_count;
 
@@ -86,17 +28,17 @@ static int make_sse_struct_or_union_move_from_register_to_stack_instructions(
     int live_range_preg = register_set->fp_registers[register_index];
     param_register->live_range_preg = live_range_preg;
 
-    if (pl->stru_size == 4) {
+    if (cvl->stru_size == 4) {
         // Move a single float
         param_register->type = new_type(TYPE_FLOAT);
-        Value *dst = new_value_in_stack(TYPE_FLOAT, stack_index, pl->stru_offset);
+        Value *dst = new_value_in_stack(TYPE_FLOAT, stack_index, cvl->stru_offset);
         new_tac_before(ir, IR_MOVE, dst, param_register, 0, 0);
     }
 
-    else if (pl->stru_size == 8 && pl->stru_member_count == 1) {
+    else if (cvl->stru_size == 8 && cvl->stru_member_count == 1) {
         // Move a single double
         param_register->type = new_type(TYPE_DOUBLE);
-        Value *dst = new_value_in_stack(TYPE_DOUBLE, stack_index, pl->stru_offset);
+        Value *dst = new_value_in_stack(TYPE_DOUBLE, stack_index, cvl->stru_offset);
         new_tac_before(ir, IR_MOVE, dst, param_register, 0, 0);
     }
 
@@ -109,7 +51,7 @@ static int make_sse_struct_or_union_move_from_register_to_stack_instructions(
         temp_int->vreg = ++function->vreg_count;
         new_tac_before(ir, IR_MOVE_PREG_CLASS, temp_int, param_register, 0, 0);
 
-        Value *dst = new_value_in_stack(TYPE_LONG, stack_index, pl->stru_offset);
+        Value *dst = new_value_in_stack(TYPE_LONG, stack_index, cvl->stru_offset);
         new_tac_before(ir, IR_MOVE, dst, temp_int, 0, 0);
     }
 
@@ -122,44 +64,35 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
 
     int stack_index = ir->dst->stack.index;
     Type *type = ir->dst->type;
-
     Type *function_type = ir->src1->type;
+    Value *function_value = ir->src1;
 
     CallValueAllocation *cva = function_type->function->return_value_cva;
     if (!cva) panic("In add_function_call_result_moves_for_struct_or_union() got an empty RV cva");
     CallValueLocations *cvl = cva->locations->elements[0];
 
-    Value *function_value = ir->src1;
-
     if (cvl->locations[0].stack_offset == -1) {
         // Move registers to a struct/union on the stack
 
-        ir->dst = 0;
+        ir->dst = NULL;
         ir = ir->next;
 
         // Allocate result vregs and create a live range or them
-        int *live_range_pregs = wmalloc(sizeof(int) * 8);
-        for (int loc = 0; loc < cvl->count; loc++) {
-            CallValueLocation *location = &(cvl->locations[loc]);
-            live_range_pregs[loc] = ++function->vreg_count;
-            Value *dst = new_value();
-            dst->vreg = live_range_pregs[loc];
-            dst->type = location->int_register != -1 ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
-            new_tac_before(ir, IR_FUNCTION_CALL_REG, dst, 0, 0, 1);
-        }
+        int *live_range_pregs = allocate_vregs_for_cvl(function, ir, cvl);
 
         for (int loc = 0; loc < cvl->count; loc++) {
             CallValueLocation *location = &(cvl->locations[loc]);
 
             int live_range_preg;
             int param_register_vreg = live_range_pregs[loc];
+
             if (location->int_register != -1)
                 live_range_preg = make_int_struct_or_union_move_from_register_to_stack_instructions(
-                    function, ir, type, location, location->int_register, stack_index,
+                    function, ir, location, location->int_register, stack_index,
                     &function_return_value_register_set, param_register_vreg);
             else if (location->fp_register != -1)
                 live_range_preg = make_sse_struct_or_union_move_from_register_to_stack_instructions(
-                    function, ir, type, location, location->fp_register, stack_index,
+                    function, ir, location, location->fp_register, stack_index,
                     &function_return_value_register_set, param_register_vreg);
             else
                 panic("Got unexpected stack offset in add_function_call_result_moves_for_struct_or_union");
@@ -240,8 +173,6 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
     add_type_to_cva(cva, ir->src1->type);
     CallValueLocations *cvl = cva->locations->elements[0];
 
-    Value **function_call_values = wcalloc(2, sizeof(Value *));
-
     if (cvl->locations[0].stack_offset != -1) {
         // Move data into memory
 
@@ -269,22 +200,8 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
     }
     else {
         // Move the data into registers
-        for (int loc = cvl->count - 1; loc >= 0; loc--) {
-            CallValueLocation *location = &(cvl->locations[loc]);
-            int preg_class = (location->int_register != -1) ? PC_INT : PC_FP;
-            int register_index = (preg_class == PC_INT) ? location->int_register : location->fp_register;
-            Value *param = ir->src1;
-            int vreg = make_struct_or_union_arg_move_instructions(function, ir, param, preg_class, register_index, location, &function_return_value_register_set);
-            function_call_values[loc] = new_value();
-            function_call_values[loc]->type = preg_class == PC_INT ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
-            function_call_values[loc]->vreg = vreg;
-        }
-
-        // Add instructions to ensure the values stay in the registers
-        add_ir_call_reg_instructions(ir, function_call_values, 2);
+        add_function_return_moves_for_struct_or_union_to_abi_register(function, ir);
     }
-
-    wfree(function_call_values);
 }
 
 // Add a move for a function return value. If it's a long double, a load can be done,
@@ -319,99 +236,28 @@ static void add_function_return_moves(Function *function) {
     }
 }
 
-// Load an 8-byte into an integer register. In the best case, a single move instruction
-// is produced. In the worst case, 3 load instructions with 3 bit shifts & 3 bitwise ors.
-// Try sizes in order of 8, 4, 2, 1.
-// The code produced:
-// size = 1     load char
-// size = 2     load short
-// size = 3     load short, load char, shift char, or char
-// size = 4     load int
-// size = 5     load int, load char, shift char, or char
-// size = 6     load int, load short, shift short, or short
-// size = 7     load int, load short, shift short, or short, load char, shift char, or char
-// size = 8     load long
-static int make_int_struct_or_union_arg_move_instructions(
-    Function *function, Tac *ir, Value *arg, int preg_class, int register_index,
-    CallValueLocation *pl, RegisterSet *register_set) {
-
-    // Make the shift register
-    Value *result_register = new_value();
-    result_register->type = new_type(TYPE_LONG);
-    result_register->type->is_unsigned = 1;
-    result_register->vreg = ++function->vreg_count;
-
-    if (debug_function_arg_mapping) printf("Adding arg move from struct to integer register_index=%d register size=%d\n", register_index, pl->stru_size);
-
-    int lvalue_in_register = arg->is_lvalue && arg->vreg;
-    int temp_loaded = 0;
-    int size = pl->stru_size;
-    int offset = 0;
-
-    for (int i = 3; i >= 0; i--) {
-        int size_unit = 1 << i;
-        if (size_unit > size) continue;
-
-        if (!temp_loaded) {
-            Type *type = new_type(TYPE_CHAR + i);
-            type->is_unsigned = 1;
-            load_struct_scalar_into_value(function, ir, arg, pl, type, result_register, offset);
-            temp_loaded = 1;
-        }
-        else {
-            // Load value
-            Value *loaded_value = make_long_temp_vreg(function);
-            Value *temp2 = dup_value(arg);
-            temp2->type = new_type(TYPE_CHAR + i);
-            temp2->type->is_unsigned = 1;
-            temp2->offset += pl->stru_offset + offset;
-            new_tac_before(ir, lvalue_in_register ? IR_INDIRECT : IR_MOVE, loaded_value, temp2, 0, 1);
-
-            // Shift loaded value
-            Value *shifted_value;
-            if (offset) {
-                shifted_value = make_long_temp_vreg(function);
-                new_tac_before(ir, IR_BSHL, shifted_value, loaded_value, new_integral_constant(TYPE_LONG, offset * 8), 1);
-            }
-            else
-                shifted_value = loaded_value;
-
-            // Bitwise or shifted_value and put result in result_register
-            Value *orred_value = make_long_temp_vreg(function);
-            new_tac_before(ir, IR_BOR, orred_value, shifted_value, result_register, 1);
-            result_register = orred_value;
-        }
-
-        size -= size_unit;
-        offset += size_unit;
-        if (size == 0) break;
-    }
-
-    return add_arg_move_to_register(function, ir, new_type(TYPE_LONG), result_register, preg_class, register_index, register_set);
-}
-
 // Load an 8-byte of a struct/union that exclusively have floats and doubles in it into a register.
 // The struct/union already has an alignment of either 4 or 8, so it can be loaded with simple instructions.
-static int make_sse_struct_or_union_arg_move_instructions(
+static int make_struct_or_union_to_abi_sse_registers_move_instructions(
     Function *function, Tac *ir, Value *arg, int preg_class, int register_index,
-    CallValueLocation *pl, RegisterSet *register_set) {
+    CallValueLocation *cvl, RegisterSet *register_set) {
 
-    if (debug_function_arg_mapping) printf("Adding arg move from struct to SSE register_index=%d register size=%d\n", register_index, pl->stru_size);
+    if (debug_function_arg_mapping) printf("Adding arg move from struct to SSE register_index=%d register size=%d\n", register_index, cvl->stru_size);
 
-    if (pl->stru_size == 4) {
+    if (cvl->stru_size == 4) {
         // Move a single float
-        Value *temp = load_struct_scalar_into_new_vreg(function, ir, arg, pl, new_type(TYPE_FLOAT));
+        Value *temp = load_struct_scalar_into_new_vreg(function, ir, arg, cvl, new_type(TYPE_FLOAT));
         return add_arg_move_to_register(function, ir, new_type(TYPE_FLOAT), temp, preg_class, register_index, register_set);
     }
-    else if (pl->stru_size == 8 && pl->stru_member_count == 1) {
+    else if (cvl->stru_size == 8 && cvl->stru_member_count == 1) {
         // Move a single double
-        Value *temp = load_struct_scalar_into_new_vreg(function, ir, arg, pl, new_type(TYPE_DOUBLE));
+        Value *temp = load_struct_scalar_into_new_vreg(function, ir, arg, cvl, new_type(TYPE_DOUBLE));
         return add_arg_move_to_register(function, ir, new_type(TYPE_DOUBLE), temp, preg_class, register_index, register_set);
     }
     else {
         // Move two floats. It must first be loaded into an integer register and then
         // copied to an SSE register.
-        Value *temp_int = load_struct_scalar_into_new_vreg(function, ir, arg, pl, new_type(TYPE_LONG));
+        Value *temp_int = load_struct_scalar_into_new_vreg(function, ir, arg, cvl, new_type(TYPE_LONG));
         Value *temp_sse = new_value();
         temp_sse->type = new_type(TYPE_DOUBLE);
         temp_sse->vreg = ++function->vreg_count;
@@ -420,33 +266,28 @@ static int make_sse_struct_or_union_arg_move_instructions(
     }
 }
 
-// Load a function parameter register from an struct or union 8-byte
-int make_struct_or_union_arg_move_instructions(
+// Load an ABI register from a part of a struct or union
+int make_struct_or_union_to_abi_move_instructions(
         Function *function, Tac *ir, Value *arg, int preg_class, int register_index,
-        CallValueLocation *location, RegisterSet *register_set) {
+        CallValueLocation *cvl, RegisterSet *register_set) {
 
     if (preg_class == PC_INT)
-        return make_int_struct_or_union_arg_move_instructions(function, ir, arg, preg_class, register_index, location, register_set);
+        return make_struct_or_union_to_abi_int_registers_move_instructions(function, ir, arg, preg_class, register_index, cvl, register_set);
     else
-        return make_sse_struct_or_union_arg_move_instructions(function, ir, arg, preg_class, register_index, location, register_set);
+        return make_struct_or_union_to_abi_sse_registers_move_instructions(function, ir, arg, preg_class, register_index, cvl, register_set);
 }
 
 // Add instructions to move struct/union data from a param register to a struct on the stack
 int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, CallValueLocations *pl, RegisterSet *register_set) {
-    // Allocate space on the stack for the struct
-    Value *v = new_value();
-    v->type = dup_type(type);
-    v->is_lvalue = 1;
-    v->stack.index = -(++function->stack_register_count);
-    new_tac_before(ir, IR_DECL_LOCAL_COMP_OBJ, 0, v, 0, 0);
+    Value *v = allocate_stack_space_for_type(function, ir, type);
 
     for (int loc = 0; loc < pl->count; loc++) {
         CallValueLocation *location = &(pl->locations[loc]);
 
         if (location->int_register != -1)
-            make_int_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->int_register, v->stack.index, register_set, 0);
+            make_int_struct_or_union_move_from_register_to_stack_instructions(function, ir, location, location->int_register, v->stack.index, register_set, 0);
         else if (location->fp_register != -1)
-            make_sse_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->fp_register, v->stack.index, register_set, 0);
+            make_sse_struct_or_union_move_from_register_to_stack_instructions(function, ir, location, location->fp_register, v->stack.index, register_set, 0);
         else
             panic("Got unexpected stack offset in add_struct_or_union_param_move()");
     }
@@ -843,7 +684,7 @@ static void process_function_varargs(Function *function) {
     }
 }
 
-// Using the state of already allocated registers & stack entries in cva, determine the location for a type and set it in cvl.
+// Using the state of already allocated registers & stack entries in cva, determine the location for a non-composite type and set it in cvl.
 void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int force_stack) {
     cvl->int_register = -1;
     cvl->fp_register = -1;
@@ -910,6 +751,113 @@ int prepend_function_params(Function *function, Tac *ir) {
     return cva_start;
 }
 
+// Add a struct or union to a CVL.
+static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Type *type) {
+    if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+    if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
+
+    int size = get_type_size(type);
+    if (size > 16) {
+        // The entire thing is on the stack
+        add_single_call_value_location(cva, type);
+        return;
+    }
+
+    // Decompose a struct or union into up to 8 8-bytes
+
+    StructOrUnionScalars *scalars = wmalloc(sizeof(StructOrUnionScalars));
+    scalars->scalars = wmalloc(sizeof(StructOrUnionScalar *) * MAX_STRUCT_OR_UNION_SCALARS);
+    scalars->count = 0;
+    flatten_type(type, scalars, 0);
+
+    // Classify the eight bytes
+    char *seen_integer = wcalloc(8, sizeof(char));
+    char *seen_sse = wcalloc(8, sizeof(char));
+    char *seen_memory = wcalloc(8, sizeof(char));
+    char *member_counts = wcalloc(8, sizeof(char));
+
+    int unaligned = 0;
+
+    for (int i = 0; i < scalars->count; i++) {
+        StructOrUnionScalar *scalar = scalars->scalars[i];
+        int eight_byte = scalar->offset >> 3;
+        member_counts[eight_byte]++;
+
+        if (type_fits_in_single_int_register(scalar->type))
+            seen_integer[eight_byte] = 1;
+        else if (is_sse_floating_point_type(scalar->type))
+            seen_sse[eight_byte] = 1;
+        else {
+            seen_memory[eight_byte] = 1;
+            seen_memory[eight_byte + 1] = 1;
+        }
+
+        if (scalar->offset & (get_type_alignment(scalar->type) - 1))
+            unaligned = 1;
+    }
+
+    // Determine number of 8-bytes & allocate memory
+    int eight_bytes_count = (size + 7) / 8;
+    CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
+    cvl->locations = wmalloc(sizeof(CallValueLocation) * eight_bytes_count);
+    cvl->count = eight_bytes_count;
+
+    // If one of the classes is MEMORY, the whole argument is passed in memory.
+    int in_memory = 0;
+    for (int i = 0; i < eight_bytes_count; i++) in_memory |= seen_memory[i];
+
+    if  (in_memory || unaligned) {
+        // The entire thing is on the stack
+        add_single_call_value_location(cva, type);
+        free_call_value_locations(cvl);
+    }
+
+    else {
+        CallValueAllocation *backup_cva = wmalloc(sizeof(CallValueAllocation));
+        *backup_cva = *cva;
+        int on_stack = 0;
+
+        // Create a location for each eight byte
+        for (int i = 0; i < eight_bytes_count; i++) {
+            cvl->locations[i].stru_size = size > 8 ? 8 : size;
+            size -= 8;
+
+            cvl->locations[i].stru_member_count = member_counts[i];
+            cvl->locations[i].stru_offset = i * 8;
+
+            if (seen_integer[i])
+                add_type_to_cvl(cva, &(cvl->locations[i]), new_type(TYPE_INT), 0);
+            else
+                add_type_to_cvl(cva, &(cvl->locations[i]), new_type(TYPE_FLOAT), 0);
+
+            if (cvl->locations[i].stack_offset != -1) on_stack = 1;
+        }
+
+        // Part of the struct/union overflowed into the stack due to a shortage
+        // of registers. Roll back & put the whole thing in the stack.
+        if (on_stack && eight_bytes_count > 1) {
+            if (debug_call_value_allocation) printf("         ran out of registers, rewinding ... \n");
+            *cva = *backup_cva;
+            add_single_call_value_location(cva, type);
+            free_call_value_locations(cvl);
+        }
+        else
+            append_to_list(cva->locations, cvl);
+
+        wfree(backup_cva);
+    }
+
+    wfree(seen_integer);
+    wfree(seen_sse);
+    wfree(seen_memory);
+    wfree(member_counts);
+
+    for (int i = 0; i < scalars->count; i++) wfree(scalars->scalars[i]);
+    wfree(scalars->scalars);
+    wfree(scalars);
+}
+
+
 // Add a type to a call value allocation
 // Add a param/arg to a function and allocate registers & stack entries
 // Structs are decomposed.
@@ -918,117 +866,13 @@ void add_type_to_cva(CallValueAllocation *cva, Type *type) {
         add_int128_call_value_locations(cva, type);
     }
 
-    else if (type->type != TYPE_STRUCT_OR_UNION) {
-        // Create a single location for the arg
-        add_single_call_value_location(cva, type);
+    else if (type->type == TYPE_STRUCT_OR_UNION) {
+        add_struct_or_union_call_value_location(cva, type);
     }
 
     else {
-        if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
-        if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
-
-        int size = get_type_size(type);
-        if (size > 16) {
-            // The entire thing is on the stack
-            add_single_call_value_location(cva, type);
-        }
-
-        else {
-            // Decompose a struct or union into up to 8 8-bytes
-
-            StructOrUnionScalars *scalars = wmalloc(sizeof(StructOrUnionScalars));
-            scalars->scalars = wmalloc(sizeof(StructOrUnionScalar *) * MAX_STRUCT_OR_UNION_SCALARS);
-            scalars->count = 0;
-            flatten_type(type, scalars, 0);
-
-            // Classify the eight bytes
-            char *seen_integer = wcalloc(8, sizeof(char));
-            char *seen_sse = wcalloc(8, sizeof(char));
-            char *seen_memory = wcalloc(8, sizeof(char));
-            char *member_counts = wcalloc(8, sizeof(char));
-
-            int unaligned = 0;
-
-            size = 0; // Needs recalculating to remove any paddding at the end
-            for (int i = 0; i < scalars->count; i++) {
-                StructOrUnionScalar *scalar = scalars->scalars[i];
-                size +=  get_type_size(scalar->type);
-                int eight_byte = scalar->offset >> 3;
-                member_counts[eight_byte]++;
-
-                if (type_fits_in_single_int_register(scalar->type))
-                    seen_integer[eight_byte] = 1;
-                else if (is_sse_floating_point_type(scalar->type))
-                    seen_sse[eight_byte] = 1;
-                else {
-                    seen_memory[eight_byte] = 1;
-                    seen_memory[eight_byte + 1] = 1;
-                }
-
-                if (scalar->offset & (get_type_alignment(scalar->type) - 1))
-                    unaligned = 1;
-            }
-
-            // Determine number of 8-bytes & allocate memory
-            int eight_bytes_count = (size + 7) / 8;
-            CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
-            cvl->locations = wmalloc(sizeof(CallValueLocation) * eight_bytes_count);
-            cvl->count = eight_bytes_count;
-
-            // If one of the classes is MEMORY, the whole argument is passed in memory.
-            int in_memory = 0;
-            for (int i = 0; i < eight_bytes_count; i++) in_memory |= seen_memory[i];
-
-            if  (in_memory || unaligned) {
-                // The entire thing is on the stack
-                add_single_call_value_location(cva, type);
-                free_call_value_locations(cvl);
-            }
-
-            else {
-                CallValueAllocation *backup_cva = wmalloc(sizeof(CallValueAllocation));
-                *backup_cva = *cva;
-                int on_stack = 0;
-
-                // Create a location for each eight byte
-                for (int i = 0; i < eight_bytes_count; i++) {
-                    cvl->locations[i].stru_size = size > 8 ? 8 : size;
-                    size -= 8;
-
-                    cvl->locations[i].stru_member_count = member_counts[i];
-                    cvl->locations[i].stru_offset = i * 8;
-
-                    if (seen_integer[i])
-                        add_type_to_cvl(cva, &(cvl->locations[i]), new_type(TYPE_INT), 0);
-                    else
-                        add_type_to_cvl(cva, &(cvl->locations[i]), new_type(TYPE_FLOAT), 0);
-
-                    if (cvl->locations[i].stack_offset != -1) on_stack = 1;
-                }
-
-                // Part of the struct/union overflowed into the stack due to a shortage
-                // of registers. Roll back & put the whole thing in the stack.
-                if (on_stack && eight_bytes_count > 1) {
-                    if (debug_call_value_allocation) printf("         ran out of registers, rewinding ... \n");
-                    *cva = *backup_cva;
-                    add_single_call_value_location(cva, type);
-                    free_call_value_locations(cvl);
-                }
-                else
-                    append_to_list(cva->locations, cvl);
-
-                wfree(backup_cva);
-            }
-
-            wfree(seen_integer);
-            wfree(seen_sse);
-            wfree(seen_memory);
-            wfree(member_counts);
-
-            for (int i = 0; i < scalars->count; i++) wfree(scalars->scalars[i]);
-            wfree(scalars->scalars);
-            wfree(scalars);
-        }
+        // Create a single location for the arg
+        add_single_call_value_location(cva, type);
     }
 }
 
@@ -1065,6 +909,39 @@ static void add_function_call_arg_move_for_int128_to_stack(Function *function, T
 
     new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_high, 1);
     new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_low, 1);
+
+    make_instruction_a_nop(ir);
+}
+
+// Add instructions to copy a struct to the stack.
+// Stack space needs allocation with push instructions. Afterwards, The newly decremented SP is used
+// to write to the stack.
+static void add_function_call_arg_move_for_struct_or_union_to_stack(Function *function, Tac *ir) {
+    int size = get_type_size(ir->src2->type);
+    int rounded_up_size = (size + 7) & ~7;
+
+    // Allocate stack space
+    new_tac_before(ir, IR_ALLOCATE_STACK, 0, new_integral_constant(TYPE_LONG, rounded_up_size), 0, 1);
+
+    // Add an instruction to move the stack pointer to a temporary register
+    Value *stack_pointer_temp = make_long_temp_vreg(function);
+    new_tac_before(ir, IR_MOVE_STACK_PTR, stack_pointer_temp, 0, 0, 1);
+
+    // Prepare destination, which must be a *void
+    Value *dst = dup_value(stack_pointer_temp);
+    dst->type = make_pointer_to_void();
+    dst->is_lvalue = 1;
+
+    // Convert src to be a pointer to void
+    Value *src = dup_value(ir->src2);
+    src->type = make_pointer_to_void();
+
+    if (debug_function_arg_mapping)
+        printf("Adding memory copy for struct/union SI=%d rounded-up-size=%d\n", src->stack.index, rounded_up_size);
+
+    add_memory_copy(function, ir, dst, src, size);
+
+    make_instruction_a_nop(ir);
 }
 
 // Convert IR_ARG instructions for moves to the stack to IR_PUSH_ARG. Instrsel instructions will encode those.
@@ -1073,19 +950,11 @@ void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac)
 
     if (tac->src2->type->type == TYPE_INT128) {
         // Add memory copies for int128
-
-        CallValueLocations *cvl = tac->src1->function_call.function_call_arg_locations;
-        if (cvl->count != 1) panic("Unexpected int128 to stack move with locations->count != 1");
         add_function_call_arg_move_for_int128_to_stack(function, tac);
-        make_instruction_a_nop(tac);
     }
     else if (tac->src2->type->type == TYPE_STRUCT_OR_UNION) {
         // Add memory copies for struct and unions
-
-        CallValueLocations *cvl = tac->src1->function_call.function_call_arg_locations;
-        if (cvl->count != 1) panic("Unexpected struct/union to stack move with locations->count != 1");
         add_function_call_arg_move_for_struct_or_union_to_stack(function, tac);
-        make_instruction_a_nop(tac);
     }
 }
 

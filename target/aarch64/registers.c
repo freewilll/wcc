@@ -81,18 +81,8 @@ void init_allocate_registers(void) {
     arg_register_set.int_registers = int_arg_registers;
     arg_register_set.fp_registers = fp_arg_registers;
 
-    // Make function return value register sets
-    static int int_rv_registers[2];
-    static int sse_rv_registers[2];
-
-    int_rv_registers[0] = LIVE_RANGE_PREG_R00;
-    int_rv_registers[1] = LIVE_RANGE_PREG_R01;
-
-    sse_rv_registers[0] = LIVE_RANGE_PREG_V00;
-    sse_rv_registers[1] = LIVE_RANGE_PREG_V01;
-
-    function_return_value_register_set.int_registers = int_rv_registers;
-    function_return_value_register_set.fp_registers = sse_rv_registers;
+    function_return_value_register_set.int_registers = int_arg_registers;
+    function_return_value_register_set.fp_registers = fp_arg_registers;
 
     // Map regular registers
     preg_map[LIVE_RANGE_PREG_R00 - 1] = REG_R00;

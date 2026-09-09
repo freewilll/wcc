@@ -9,15 +9,55 @@ int prepend_function_params(Function *function, Tac *ir) {
     return 0;
 }
 
-int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, CallValueLocations *pl, RegisterSet *register_set) {
-    panic("TODO aarch64 add_struct_or_union_param_move");
+// This implements the reverse of make_struct_or_union_to_abi_hfa_registers_move_instructions
+// This is also used for moving struct/unions into function return value registers.
+static int make_hfa_struct_or_union_move_from_registers_to_stack_instructions(
+        Function *function, Tac *ir, CallValueLocation* cvl,
+        int register_index, int stack_index, RegisterSet *register_set, int param_register_vreg) {
+
+    if (debug_function_param_mapping)
+        printf("Adding param move from int register %d size %d to stack_index %d, offset %d\n", register_index, cvl->stru_size, stack_index, cvl->stru_offset);
+
+    if (!param_register_vreg) param_register_vreg = ++function->vreg_count;
+
+    // Make param register value
+    Value *param_register = new_value();
+    param_register->vreg = param_register_vreg;
+    int live_range_preg = register_set->fp_registers[register_index];
+    param_register->live_range_preg = live_range_preg;
+
+    int type = cvl->stru_size == 4 ? TYPE_FLOAT : TYPE_DOUBLE;
+    param_register->type = new_type(type);
+    Value *dst = new_value_in_stack(type, stack_index, cvl->stru_offset);
+    new_tac_before(ir, IR_MOVE, dst, param_register, 0, 0);
+
+    return live_range_preg;
+}
+
+// Add instructions to move struct/union data from a param register to a struct on the stack
+// live_ranges
+int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, CallValueLocations *cvl, RegisterSet *register_set) {
+    Value *v = allocate_stack_space_for_type(function, ir, type);
+
+    for (int loc = 0; loc < cvl->count; loc++) {
+        CallValueLocation *location = &(cvl->locations[loc]);
+
+        if (location->int_register != -1)
+            make_int_struct_or_union_move_from_register_to_stack_instructions(function, ir, location, location->int_register, v->stack.index, register_set, 0);
+        else if (location->fp_register != -1)
+            make_hfa_struct_or_union_move_from_registers_to_stack_instructions(function, ir, location, location->fp_register, v->stack.index, register_set, 0);
+        else
+            panic("Got unexpected stack offset in add_struct_or_union_param_move()");
+    }
+
+    return v->stack.index;
 }
 
 void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva, Tac *ir) {
     fprintf(stderr, "TODO aarch64 add_function_vararg_param_moves\n");
 }
 
-// Using the state of already allocated registers & stack entries in cva, determine the location for a type and set it in cvl.
+// Using the state of already allocated registers & stack entries in cva, determine the location for a non-composite type and set it in cvl.
 void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int force_stack) {
     cvl->int_register = -1;
     cvl->fp_register = -1;
@@ -61,18 +101,123 @@ void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *typ
     if (!in_stack && is_single_fp_register) cva->single_fp_register_arg_count++;
 }
 
+static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Type *type) {
+    if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+    if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
+
+    StructOrUnionScalars *scalars = wmalloc(sizeof(StructOrUnionScalars));
+    scalars->scalars = wmalloc(sizeof(StructOrUnionScalar *) * MAX_STRUCT_OR_UNION_SCALARS);
+    scalars->count = 0;
+    flatten_type(type, scalars, 0);
+
+    int seen_floats = 0;
+    int seen_doubles = 0;
+    int seen_others = 0;
+
+    // Check if the struct is a Homogeneous Floating-point Aggregate (HFA)
+    for (int i = 0; i < scalars->count; i++) {
+        StructOrUnionScalar *scalar = scalars->scalars[i];
+
+        if (scalar->type->type == TYPE_FLOAT)
+            seen_floats++;
+        else if (scalar->type->type == TYPE_DOUBLE)
+            seen_doubles++;
+        else
+            seen_others++;
+    }
+
+    int is_hfa = (
+        !seen_others &&
+        ((seen_floats <= 4 && !seen_doubles) || (seen_doubles <= 4 && !seen_floats))
+    );
+    int hfa_fits = (is_hfa && cva->single_fp_register_arg_count + scalars->count <= 8);
+
+    int size = get_type_size(type);
+    if (size > 16 && !hfa_fits) {
+        // The entire thing is on the stack.
+        // This may be an int or fp struct
+        add_single_call_value_location(cva, type); // TODO aarch64
+    }
+
+    // aapcs64 C.2
+    // If it's an HFA and there are enough FP registers left, use them
+    else if (is_hfa && cva->single_fp_register_arg_count + scalars->count <= 8) {
+        int member_size = seen_floats ? 4 : 8;
+
+        CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
+        cvl->locations = wmalloc(sizeof(CallValueLocation) * scalars->count);
+        cvl->count = scalars->count;
+
+        for (int i = 0; i < scalars->count; i++) {
+            cvl->locations[i].fp_register = cva->single_fp_register_arg_count + i;
+            cvl->locations[i].stru_size = member_size;
+            cvl->locations[i].stru_offset = i * member_size;
+            add_type_to_cvl(cva, &(cvl->locations[i]), new_type(seen_floats ? TYPE_FLOAT : TYPE_DOUBLE), 0);
+        }
+
+        append_to_list(cva->locations, cvl);
+
+        cva->single_fp_register_arg_count += scalars->count;
+    }
+
+    // aapcs64 C.3
+    // Set all FP registers to allocated, round size up to 8 bytes,
+    // and allocate stack space
+    else if (is_hfa) {
+        cva->single_fp_register_arg_count = 8;
+        size = (size + 7) & ~7;
+        add_single_call_value_location(cva, type);
+    }
+    else {
+        // The struct goes either into int registers, of if there aren't enough,
+        // on the stack.
+
+        // aapcs64 C.12
+        int needed_int_registers = (size + 7) / 8;
+
+        if (cva->single_int_register_arg_count + needed_int_registers <= 8) {
+            // The struct fits in integer registers
+
+            CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
+            cvl->locations = wcalloc(needed_int_registers, sizeof(CallValueLocation));
+            cvl->count = needed_int_registers;
+
+            for (int i = 0; i < needed_int_registers; i++) {
+                cvl->locations[i].stru_size = size > 8 ? 8 : size;
+                size -= 8;
+                cvl->locations[i].stru_offset = i * 8;
+                add_type_to_cvl(cva, &(cvl->locations[i]), new_type(TYPE_LONG), 0);
+            }
+
+            append_to_list(cva->locations, cvl);
+
+            cva->single_int_register_arg_count += needed_int_registers;
+        }
+        else {
+            // The struct goes into the stack
+            cva->single_int_register_arg_count = 8;
+            add_single_call_value_location(cva, type);
+        }
+    }
+
+    for (int i = 0; i < scalars->count; i++) wfree(scalars->scalars[i]);
+    wfree(scalars->scalars);
+    wfree(scalars);
+}
+
 // Add a type to a call value allocation
 void add_type_to_cva(CallValueAllocation *cva, Type *type) {
     if (type->type == TYPE_INT128) {
         add_int128_call_value_locations(cva, type);
     }
 
-    else if (type->type != TYPE_STRUCT_OR_UNION) {
+    else if (type->type == TYPE_STRUCT_OR_UNION) {
+        add_struct_or_union_call_value_location(cva, type);
+    }
+
+    else {
         // Create a single location for the arg
         add_single_call_value_location(cva, type);
-    }
-    else {
-        panic("TODO aarch64 add_type_to_cva for structs/unions");
     }
 }
 
@@ -81,8 +226,83 @@ int *make_original_stack_indexes(Function *function) {
     return result;
 } // TODO aarch64
 
-int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *arg, int preg_class, int register_index, CallValueLocation *location, RegisterSet *register_set) {
-    panic("TODO aarch64: make_struct_or_union_arg_move_instructions");
+// Move floats/doubles from ABI encoded HFA in registers to the struct members in the stack
+static int make_struct_or_union_to_abi_hfa_registers_move_instructions(Function *function, Tac *ir, Value *arg, int preg_class, int register_index,
+    CallValueLocation *cvl, RegisterSet *register_set) {
+
+    if (debug_function_arg_mapping) printf("Adding arg move from struct to SSE register_index=%d register size=%d\n", register_index, cvl->stru_size);
+
+    if (cvl->stru_size != 4 && cvl->stru_size != 8)
+        panic("Expected 4 or 8 stru size in make_struct_or_union_to_abi_hfa_registers_move_instructions()");
+
+    int type = cvl->stru_size == 4 ? TYPE_FLOAT : TYPE_DOUBLE;
+    Value *temp = load_struct_scalar_into_new_vreg(function, ir, arg, cvl, new_type(type));
+    return add_arg_move_to_register(function, ir, new_type(type), temp, preg_class, register_index, register_set);
+}
+
+// Load an ABI register from a part of a struct or union
+int make_struct_or_union_to_abi_move_instructions(
+    Function *function, Tac *ir, Value *arg, int preg_class, int register_index,
+    CallValueLocation *cvl, RegisterSet *register_set) {
+
+    if (debug_function_arg_mapping)
+        printf("Adding arg move from struct preg_class=%d register_index=%d register size=%d\n", preg_class, register_index, cvl->stru_size);
+
+    if (preg_class == PC_INT) {
+        return make_struct_or_union_to_abi_int_registers_move_instructions(function, ir, arg, preg_class, register_index, cvl, register_set);
+    }
+    else {
+        return make_struct_or_union_to_abi_hfa_registers_move_instructions(function, ir, arg, preg_class, register_index, cvl, register_set);
+    }
+}
+
+// Move struct/union data from registers or memory to the destination of a function call
+static void add_function_call_result_moves_for_struct_or_union(Function *function, Tac *ir) {
+    if (ir->dst->stack.index == 0) panic("Expected a stack index for a function call returning a struct/union");
+
+    int stack_index = ir->dst->stack.index;
+    Type *function_type = ir->src1->type;
+    Value *function_value = ir->src1;
+
+    CallValueAllocation *cva = function_type->function->return_value_cva;
+    if (!cva) panic("In add_function_call_result_moves_for_struct_or_union() got an empty RV cva");
+    CallValueLocations *cvl = cva->locations->elements[0];
+
+    if (cvl->locations[0].stack_offset == -1) {
+        // Move registers to a struct/union on the stack
+
+        ir->dst = NULL;
+        ir = ir->next;
+
+        // Allocate result vregs and create a live range or them
+        int *live_range_pregs = allocate_vregs_for_cvl(function, ir, cvl);
+
+        for (int loc = 0; loc < cvl->count; loc++) {
+            CallValueLocation *location = &(cvl->locations[loc]);
+
+            int live_range_preg;
+            int param_register_vreg = live_range_pregs[loc];
+
+            if (location->int_register != -1)
+                live_range_preg = make_int_struct_or_union_move_from_register_to_stack_instructions(
+                    function, ir, location, location->int_register, stack_index,
+                    &function_return_value_register_set, param_register_vreg);
+            else if (location->fp_register != -1) {
+                live_range_preg = make_hfa_struct_or_union_move_from_registers_to_stack_instructions(
+                    function, ir, location, location->fp_register, stack_index,
+                    &function_return_value_register_set, param_register_vreg);
+            }
+            else
+                panic("Got unexpected stack offset in add_function_call_result_moves_for_struct_or_union");
+
+            add_to_set(function_value->return_value_live_ranges, live_range_preg);
+        }
+
+        wfree(live_range_pregs);
+    }
+    else {
+        panic("TODO add_function_call_result_moves_for_struct_or_union in stack"); // TODO aarch64
+    }
 }
 
 // Move the result value of a function call to a vreg
@@ -100,8 +320,9 @@ static void add_function_call_result_moves(Function *function) {
         if (ir->dst && ir->dst->type->type == TYPE_INT128)
             add_function_call_result_moves_for_int128(function, ir, LIVE_RANGE_PREG_R00, LIVE_RANGE_PREG_R01);
 
-        else if (ir->dst && ir->dst->type->type == TYPE_STRUCT_OR_UNION)
-            panic("TODO aarch64: add_function_call_result_moves() function return value in callee for composite types");
+        else if (ir->dst && ir->dst->type->type == TYPE_STRUCT_OR_UNION) {
+            add_function_call_result_moves_for_struct_or_union(function, ir);
+        }
 
         else {
             // Add move for integer, pointer, or FP
@@ -112,6 +333,22 @@ static void add_function_call_result_moves(Function *function) {
     }
 }
 
+// Move struct or union of size <= 16 into ABI registers
+static void add_function_return_moves_for_struct_or_union(Function *function, Tac *ir) {
+    // Determine registers
+    CallValueAllocation *cva = init_call_value_allocaton(function->identifier);
+    add_type_to_cva(cva, ir->src1->type);
+    CallValueLocations *cvl = cva->locations->elements[0];
+
+    if (cvl->locations[0].stack_offset != -1) {
+        printf("TODO add_function_return_moves_for_struct_or_union in stack\n"); // TODO aarch64
+    }
+    else
+        // Move the data into registers
+        add_function_return_moves_for_struct_or_union_to_abi_register(function, ir);
+}
+
+
 static void add_function_return_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation.id == IR_RETURN && !ir->src1) || ir->operation.id != IR_RETURN) continue;
@@ -120,7 +357,7 @@ static void add_function_return_moves(Function *function) {
             add_function_return_moves_for_int128(function, ir, LIVE_RANGE_PREG_R00, LIVE_RANGE_PREG_R01);
 
         else if (ir->src1->type->type == TYPE_STRUCT_OR_UNION)
-            panic("TODO aarch64: add_function_return_moves() function return value in caller for composite types");
+            add_function_return_moves_for_struct_or_union(function, ir);
 
         else {
             int is_fp = is_floating_point_type(function->type->target);
@@ -189,6 +426,36 @@ static void add_single_register_arg_move_to_stack(Function *function, Tac *tac) 
     tac->src2 = 0;
 }
 
+// Add instructions to copy a struct to the stack.
+// TODO aarch64 this is now working for small structs, but not for large ones
+static void add_function_call_arg_move_for_struct_or_union_to_stack(Function *function, Tac *tac) {
+    int size = get_type_size(tac->src2->type);
+    int rounded_up_size = (size + 7) & ~7;
+
+    Value *arg = tac->src1;
+    CallValueLocations *cvl = arg->function_call.function_call_arg_locations;
+    if (cvl->count != 1) panic("Unexpected struct to stack move with locations->count != 1");
+    int stack_offset = cvl->locations[0].stack_offset;
+
+    Value *dst = new_value();
+    dst->stack.index = stack_offset / 8 + 1; // Conventionally the first stack_index entry starts at 1
+    dst->stack.area = SA_FUNCTION_ARGS;
+
+    dst->type = make_pointer_to_void();
+    dst->is_lvalue = 1;
+
+    // Convert src to be a pointer to void
+    Value *src = dup_value(tac->src2);
+    src->type = make_pointer_to_void();
+
+    if (debug_function_arg_mapping)
+        printf("Adding memory copy for struct/union SI=%d rounded-up-size=%d\n", src->stack.index, rounded_up_size);
+
+    add_memory_copy(function, tac, dst, src, size);
+
+    make_instruction_a_nop(tac);
+}
+
 // Arguments in function calls that go to the stack are placed in a reserved stack
 // SA_FUNCTION_ARGS area. Codegen needs this to distinguish params on the stack
 // from args on the stack.
@@ -199,7 +466,7 @@ void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac)
     }
     else if (tac->src2->type->type == TYPE_STRUCT_OR_UNION) {
         // Add memory copies for struct and unions
-        panic("TODO aarch64: arg move for struct or union");
+        add_function_call_arg_move_for_struct_or_union_to_stack(function, tac);
     }
     else {
         // Move a single register to the arg stack
