@@ -941,7 +941,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
     // Parse __attribute__ that might precede the definition
     int is_packed1 = parse_struct_or_union_attribute();
 
-    char *identifier = 0;
+    char *identifier = NULL;
     // A typedef identifier be the same as a struct tag, in this context, the lexer
     // sees a typedef tag, but really it's a struct tag.
     if (cur_token == TOK_IDENTIFIER || cur_token == TOK_TYPEDEF_TYPE) {
@@ -1036,6 +1036,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
     }
     else {
         // Struct/union use
+        if (!identifier) error("Struct or union does not have an identifier");
 
         Type *type = find_struct_or_union(identifier, is_union, 1);
         if (type) return type; // Found a complete or incomplete struct
