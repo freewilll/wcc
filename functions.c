@@ -291,7 +291,7 @@ void process_function_call_arg_allocations(Function *function) {
 // the function call. Without this, there is a chance that function call
 // registers are used as temporaries during the code instructions
 // emitted above.
-void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int count) {
+static void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int count) {
     for (int i = 0; i < count; i++)
         if (function_call_values[i])
             new_tac_before(ir, IR_FUNCTION_CALL_REG, 0, function_call_values[i], 0, 1);
@@ -521,6 +521,13 @@ static Value *make_function_call_arg_value_for_int128(Function *function, CallVa
    return value;
 }
 
+typedef struct arg_details {
+    int arg_index;              // function_call_arg_index
+    Value *call_arg;            // The argument value
+    Value *call_value;          // The physical ABI register used to make the call
+    CallValueLocations *cvls;   // The argument's ABI locations
+} ArgDetails;
+
 // Insert IR_MOVE instructions before IR_ARG instructions for
 // any args that go into ABI registers.
 // The dst of the move will be constrained so that the correct physical register is allocated to it.
@@ -528,21 +535,12 @@ static Value *make_function_call_arg_value_for_int128(Function *function, CallVa
 // copy a struct arg over.
 static void add_function_call_arg_moves_for_preg_class(Function *function, int preg_class) {
     int function_calls_size = make_max_function_call_id(function) + 1;
-    int register_count = MAX_ARG_REGISTERS;
+    int register_count = MAX_ARG_REGISTERS + 1; // The + 1 is for null termination
 
     // Values of the passed argument, i.e. by the caller
     int allocated_count = function_calls_size * register_count;
-    Value **arg_values = wcalloc(allocated_count, sizeof(Value *));
 
-    // param_indexes maps the register indexes to a parameter index, e.g.
-    // foo(int i, long double ld, int j) will produce
-    // param_indexes[0] = 0
-    // param_indexes[1] = 2
-    int *param_indexes = wmalloc(sizeof(int) * function_calls_size * register_count);
-    memset(param_indexes, -1, sizeof(int) * function_calls_size * register_count);
-
-    CallValueLocations **cvls = wmalloc(sizeof(CallValueLocations *) * function_calls_size * register_count);
-    memset(cvls, -1, sizeof(CallValueLocations *) * function_calls_size * register_count);
+    ArgDetails *arg_details = wcalloc(allocated_count, sizeof(ArgDetails));
 
     make_vreg_count(function, 0);
 
@@ -558,9 +556,8 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
                 if (function_call_register_arg_index >= 0) {
                     int i = ir->src1->int_value * register_count + function_call_register_arg_index;
                     if (i >= allocated_count) panic("Exceeding arg_values space, want=%d, allocated=%d", i, allocated_count);
-                    arg_values[i] = ir->src2;
-                    param_indexes[i] = ir->src1->function_call.function_call_arg_index;
-                    cvls[i] = cvl;
+                    ArgDetails ad = { ir->src1->function_call.function_call_arg_index, ir->src2, NULL, cvl };
+                    arg_details[i] = ad;
                 }
             }
         }
@@ -577,37 +574,20 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
             Tac *moves_ir = ir;
             while (moves_ir->prev->operation.id == IR_FUNCTION_CALL_REG) moves_ir = moves_ir->prev;
 
-            Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
             if (ir->src1->int_value >= function_calls_size) panic("Exceeding cvls space, want=%d, allocated=%d", ir->src1->int_value, function_calls_size);
-            int *param_index = &(param_indexes[ir->src1->int_value * register_count]);
-            CallValueLocations **pls = &(cvls[ir->src1->int_value * register_count]);
             Type *called_function_type = ir->src1->type;
             int has_struct_or_union_return_value = ir->src1->has_struct_or_union_return_value;
 
-            // Allocated registers that hold the argument value
-            Value **function_call_values = wcalloc(register_count, sizeof(Value *));
+            ArgDetails *ad = &(arg_details[ir->src1->int_value * register_count]);
 
             // Add the moves backwards so that arg 0 is last.
             int i = 0;
 
             // Advance past the first parameter, which holds the pointer to the struct/union return value
-            if (has_struct_or_union_return_value && preg_class == PC_INT) {
-                call_arg++;
-                param_index++;
-                pls++;
-                i++;
-            }
+            if (has_struct_or_union_return_value && preg_class == PC_INT) i++;
 
-            while (i < register_count && *call_arg) {
-                call_arg++;
-                param_index++;
-                pls++;
-                i++;
-            }
-
-            call_arg--;
-            param_index--;
-            pls--;
+            // Advance i and ad to the last call arg
+            while (ad[i].call_arg) i++;
             i--;
 
             for (; i >= 0; i--) {
@@ -616,51 +596,49 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
                 if (has_struct_or_union_return_value && preg_class == PC_INT && i == 0) break; // TODO aarch64 use something like prepend_function_params
 
                 Type *type;
-                int pi = *param_index;
-                if (pi >= 0 && pi < called_function_type->function->param_count) {
-                    type = called_function_type->function->param_types->elements[pi];
+                int arg_index = ad[i].arg_index;
+                if (arg_index >= 0 && arg_index < called_function_type->function->param_count) {
+                    // Use the type from the function parameter
+                    type = called_function_type->function->param_types->elements[arg_index];
                 }
                 else
-                    type = apply_default_function_call_argument_promotions((*call_arg)->type);
+                    // Promote a variadic argument
+                    type = apply_default_function_call_argument_promotions(ad[i].call_arg->type);
 
                 int function_call_vreg;
                 Type *function_call_vreg_type;
 
                 if (type->type == TYPE_INT128) {
-                    Value *v = make_function_call_arg_value_for_int128(function, pls, *call_arg, i, preg_class);
+                    Value *v = make_function_call_arg_value_for_int128(function, &ad[i].cvls, ad[i].call_arg, i, preg_class);
                     function_call_vreg = add_arg_move_to_register(function, moves_ir, v->type, v, preg_class, i, &arg_register_set);
                     function_call_vreg_type = v->type;
                 }
                 else if (type->type == TYPE_STRUCT_OR_UNION) {
-                    CallValueLocation *location = lookup_location(preg_class, i, *pls);
-                    function_call_vreg = make_struct_or_union_to_abi_move_instructions(function, moves_ir, *call_arg, preg_class, i, location, &arg_register_set);
+                    CallValueLocation *location = lookup_location(preg_class, i, ad[i].cvls);
+                    function_call_vreg = make_struct_or_union_to_abi_move_instructions(function, moves_ir, ad[i].call_arg, preg_class, i, location, &arg_register_set);
                     function_call_vreg_type = preg_class == PC_INT ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
                 }
                 else {
                     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
                     if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
-                    function_call_vreg = add_arg_move_to_register(function, moves_ir, type, *call_arg, preg_class, i, &arg_register_set);
-                    function_call_vreg_type = (*call_arg)->type;
+                    function_call_vreg = add_arg_move_to_register(function, moves_ir, type, ad[i].call_arg, preg_class, i, &arg_register_set);
+                    function_call_vreg_type = ad[i].call_arg->type;
                 }
 
-                function_call_values[i] = new_value();
-                function_call_values[i]->type = function_call_vreg_type;
-                function_call_values[i]->vreg = function_call_vreg;
-
-                call_arg--;
-                param_index--;
-                pls--;
+                ad[i].call_value = new_value();
+                ad[i].call_value->type = function_call_vreg_type;
+                ad[i].call_value->vreg = function_call_vreg;
             }
 
-            add_ir_call_reg_instructions(ir, function_call_values, register_count);
+            // Add live ranges so that all args in registers interfere with each other
+            for (int i = 0; i < register_count; i++)
+                if (ad[i].call_value)
+                    new_tac_before(ir, IR_FUNCTION_CALL_REG, 0, ad[i].call_value, 0, 1);
 
-            wfree(function_call_values);
         }
     }
 
-    wfree(arg_values);
-    wfree(param_indexes);
-    wfree(cvls);
+    wfree(arg_details);
 }
 
 // Nuke all IR_ARG instructions that have had code added that moves the value into a register.

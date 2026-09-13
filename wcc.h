@@ -441,7 +441,6 @@ void add_single_call_value_location(CallValueAllocation *cva, Type *type);
 void add_int128_call_value_locations(CallValueAllocation *cva, Type *type);
 CallValueAllocation *initialize_function_return_value_cva(Type *function_type);
 void process_function_call_arg_allocations(Function *function);
-void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int count);
 int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *param, int preg_class, int register_index, RegisterSet *register_set);
 void load_struct_scalar_into_value(Function *function, Tac *ir, Value *src, CallValueLocation *pl, Type *type, Value *dst, int offset);
 Value *load_struct_scalar_into_new_vreg(Function *function, Tac *ir, Value *param, CallValueLocation *pl, Type *type);
