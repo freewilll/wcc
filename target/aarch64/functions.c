@@ -9,6 +9,12 @@ int prepend_function_params(Function *function, Tac *ir) {
     return 0;
 }
 
+// Create a return value CVA for functions returning a struct or union.
+void init_target_call_value_allocaton(Type *function_type, CallValueAllocation *cva) {
+    if (function_type->target->type == TYPE_STRUCT_OR_UNION)
+        initialize_function_return_value_cva(function_type);
+}
+
 // This implements the reverse of make_struct_or_union_to_abi_hfa_registers_move_instructions
 // This is also used for moving struct/unions into function return value registers.
 static int make_hfa_struct_or_union_move_from_registers_to_stack_instructions(

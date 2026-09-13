@@ -205,15 +205,16 @@ CallValueAllocation *initialize_function_return_value_cva(Type *function_type) {
     return NULL;
 }
 
-// Prepare register/stack allocation for args in function calls
+// Prepare register/stack allocation for args in function calls.
+// It does one function at a time since function calls are not nested.
 void process_function_call_arg_allocations(Function *function) {
     CallValueAllocation *cva = NULL;
 
-    int has_struct_or_union_return_value = -1;
+    int function_call_arg_index = -1;
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation.id == IR_START_CALL) {
-            has_struct_or_union_return_value = 0;
+            function_call_arg_index = 0;
 
             if (!ir->src1) panic("src1 NULL in IR_START_CALL");
             Symbol *symbol = ir->src1->function_call.function_symbol;
@@ -221,39 +222,25 @@ void process_function_call_arg_allocations(Function *function) {
             Type *function_type = ir->src1->function_call.function_type;
             if (!function_type) panic("function_type NULL in IR_START_CALL in function %s", symbol ? symbol->global_identifier : "(anonymous)");
             cva = init_call_value_allocaton(symbol_name);
-
-            if (function_type->target->type == TYPE_STRUCT_OR_UNION) {
-                CallValueAllocation *rv_cva = initialize_function_return_value_cva(function_type);
-                CallValueLocations *rv_cvl = rv_cva->locations->elements[0];
-                if (rv_cvl->locations[0].stack_offset != -1) {
-                    // Allocate an integer slot if the function returns a slot in memory. The
-                    // RDI register must contain a pointer to the return value, set by the caller.
-                    // Allocate the RDI register which has the pointer to the struct, passed in by the caller
-                    add_type_to_cva(cva, make_pointer_to_void());
-                    has_struct_or_union_return_value = 1;
-                    // TODO aarch64 this is x86_64 specific
-                }
-            }
+            init_target_call_value_allocaton(function_type, cva);
         }
 
         else if (ir->operation.id == IR_ARG) {
             Symbol *symbol = ir->src1->function_call.function_symbol;
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
 
-            Value *arg = ir->src1;
-
             if (!cva) panic("cva was NULL in an IR_ARG for a function call to %s in function %s", symbol_name, function->identifier);
+            if (function_call_arg_index == -1) panic("function_call_arg_index was not set");
 
-            if (has_struct_or_union_return_value == -1) panic("has_struct_or_union_return_value was not set");
-
-            int cva_arg_count = cva->locations->length;
-            int arg_count = cva_arg_count - has_struct_or_union_return_value;
-            arg->function_call.function_call_arg_index = arg_count;
+            Value *arg = ir->src1;
+            arg->function_call.function_call_arg_index = function_call_arg_index;
 
             add_type_to_cva(cva, ir->src2->type);
-            CallValueLocations *cvl = cva->locations->elements[cva_arg_count];
+            CallValueLocations *cvl = cva->locations->elements[cva->locations->length - 1];
             arg->function_call.function_call_arg_locations = cvl;
             if (cvl->locations[0].stack_padding >= 8) new_tac_after(ir, IR_ARG_STACK_PADDING, 0, 0, 0);
+
+            function_call_arg_index++;
         }
 
         else if (ir->operation.id == IR_CALL) {
@@ -265,8 +252,6 @@ void process_function_call_arg_allocations(Function *function) {
             if (!cva) panic("cva was NULL in an IR_CALL for a function call to %s in function %s", symbol_name, function->identifier);
 
             function_value->function_call.function_call_fp_register_arg_count = cva->single_fp_register_arg_count;
-
-            if (has_struct_or_union_return_value == -1) panic("has_struct_or_union_return_value was not set");
         }
 
         else if (ir->operation.id == IR_END_CALL) {

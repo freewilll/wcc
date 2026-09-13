@@ -1630,6 +1630,7 @@ void perform_peephole_optimization(Function *function);
 // Target functions related code
 Set *allocate_return_value_live_ranges(void);
 int prepend_function_params(Function *function, Tac *ir);
+void init_target_call_value_allocaton(Type *function_type, CallValueAllocation *cva);
 void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int force_stack);
 void add_type_to_cva(CallValueAllocation *cva, Type *type);
 int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, CallValueLocations *pl, RegisterSet *register_set);

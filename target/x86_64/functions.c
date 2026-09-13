@@ -751,6 +751,23 @@ int prepend_function_params(Function *function, Tac *ir) {
     return cva_start;
 }
 
+// If the function returns a struct or union, allocate the RDI register,
+// which contains a pointer to where the result struct/union must be copied to.
+// Also, create a return value CVA.
+void init_target_call_value_allocaton(Type *function_type, CallValueAllocation *cva) {
+    if (function_type->target->type == TYPE_STRUCT_OR_UNION) {
+        CallValueAllocation *rv_cva = initialize_function_return_value_cva(function_type);
+        CallValueLocations *rv_cvl = rv_cva->locations->elements[0];
+        if (rv_cvl->locations[0].stack_offset != -1) {
+            // Allocate an integer slot if the function returns a slot in memory. The
+            // RDI register must contain a pointer to the return value, set by the caller.
+            // Allocate the RDI register which has the pointer to the struct, passed in by the caller
+            add_type_to_cva(cva, make_pointer_to_void());
+            // TODO aarch64 this is x86_64 specific
+        }
+    }
+}
+
 // Add a struct or union to a CVL.
 static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Type *type) {
     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
