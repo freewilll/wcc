@@ -558,62 +558,46 @@ void add_function_call_arg_move(Function *function, Tac *moves_ir, FunctionType 
 // This function takes nested calls into account, which can happen if e.g. a memcpy is done to
 // copy a struct arg over.
 static void add_function_call_arg_moves_for_preg_class(Function *function, int preg_class) {
-    int function_calls_size = make_max_function_call_id(function) + 1;
-    int register_count = MAX_ARG_REGISTERS + 1; // The + 1 is for null termination
-    int allocated_count = function_calls_size * register_count;
-    ArgDetails *arg_details = wcalloc(allocated_count, sizeof(ArgDetails));
     make_vreg_count(function, 0);
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation.id == IR_ARG) {
+            // Find the matching IR_CALL instruction
+            int func_call_number = ir->src1->int_value;
+            Tac *call_ir = ir;
+            while (call_ir && !(call_ir->operation.id == IR_CALL && call_ir->src1->int_value == func_call_number)) call_ir = call_ir->next;
+            if (!call_ir) panic("Did not find matching IR_CALL");
+
+            // Loop over all register locations and add move instructions
             CallValueLocations *cvl = ir->src1->function_call.function_call_arg_locations;
 
-            // Collect all registers used (if any) for the arg
             for (int loc = 0; loc < cvl->count; loc++) {
                 int register_index = preg_class == PC_INT
                     ? cvl->locations[loc].int_register
                     : cvl->locations[loc].fp_register;
 
                 if (register_index >= 0) {
-                    int i = ir->src1->int_value * register_count + register_index;
-                    if (i >= allocated_count) panic("Exceeding arg_values space, want=%d, allocated=%d", i, allocated_count);
                     ArgDetails ad = { register_index, ir->src1->function_call.function_call_arg_index, ir->src2, NULL, cvl };
-                    arg_details[i] = ad;
+
+                    // Rewind the ir so that it moves onto the first IR_FUNCTION_CALL_REG operation, if any are present from a previous pass.
+                    // This can happen when processing floating point args after integer args have already been processed.
+                    // This results in the folowing sequence:
+                    // r58_LRpreg1:int = ...
+                    // r59_LRpreg24:float = ...
+                    // call reg arg r58:int
+                    // call reg arg r59:double
+                    // call "foo"
+                    Tac *moves_ir = call_ir;
+                    while (moves_ir->prev->operation.id == IR_FUNCTION_CALL_REG) moves_ir = moves_ir->prev;
+
+                    add_function_call_arg_move(function, moves_ir, call_ir->src1->type->function, &ad, preg_class);
+
+                    // Keep the all the arg register alive at the same time as any other arg registers.
+                    new_tac_before(call_ir, IR_FUNCTION_CALL_REG, 0, ad.call_value, 0, 1);
                 }
             }
         }
-
-        if (ir->operation.id == IR_CALL) {
-            // Rewind the ir so that it moves onto the first IR_FUNCTION_CALL_REG operation, if any are present from a previous pass.
-            // This can happen when processing floating point args after integer args have already been processed.
-            // This results in the folowing sequence:
-            // r58_LRpreg1:int = ...
-            // r59_LRpreg24:float = ...
-            // call reg arg r58:int
-            // call reg arg r59:double
-            // call "foo"
-            Tac *moves_ir = ir;
-            while (moves_ir->prev->operation.id == IR_FUNCTION_CALL_REG) moves_ir = moves_ir->prev;
-
-            if (ir->src1->int_value >= function_calls_size) panic("Exceeding cvls space, want=%d, allocated=%d", ir->src1->int_value, function_calls_size);
-
-            ArgDetails *ad = &(arg_details[ir->src1->int_value * register_count]);
-
-            // Loop over all the registers backwards
-            for (int register_index = MAX_ARG_REGISTERS - 1; register_index >= 0; register_index--) {
-                if (ad[register_index].call_arg)
-                    add_function_call_arg_move(function, moves_ir, ir->src1->type->function, &ad[register_index], preg_class);
-            }
-
-            // Add live ranges so that all args in registers interfere with each other
-            for (int i = 0; i < register_count; i++)
-                if (ad[i].call_value)
-                    new_tac_before(ir, IR_FUNCTION_CALL_REG, 0, ad[i].call_value, 0, 1);
-
-        }
     }
-
-    wfree(arg_details);
 }
 
 // Nuke all IR_ARG instructions that have had code added that moves the value into a register.
