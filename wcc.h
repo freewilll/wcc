@@ -361,7 +361,6 @@ typedef struct value {
     unsigned int is_string_literal:1;                    // Is the value a string literal?
     unsigned int has_been_renamed:1;                     // Used in renaming and stack renumbering code
     unsigned int is_address_of:1;                        // Is an address of a constant expression.
-    unsigned int has_struct_or_union_return_value:1;     // Is it a function call that returns a struct/union?
     unsigned int load_from_got:1;                        // Load from Global Offset Table (GOT)
     int local_index;                                     // Used by parser for local variable, temporaries and function arguments
     StackLocation stack;                                 // If the value is in the stack, details of where

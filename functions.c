@@ -267,7 +267,6 @@ void process_function_call_arg_allocations(Function *function) {
             function_value->function_call.function_call_fp_register_arg_count = cva->single_fp_register_arg_count;
 
             if (has_struct_or_union_return_value == -1) panic("has_struct_or_union_return_value was not set");
-            function_value->has_struct_or_union_return_value = has_struct_or_union_return_value;
         }
 
         else if (ir->operation.id == IR_END_CALL) {
