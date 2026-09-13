@@ -576,18 +576,15 @@ void add_function_call_arg_move(Function *function, Tac *moves_ir, FunctionType 
 static void add_function_call_arg_moves_for_preg_class(Function *function, int preg_class) {
     int function_calls_size = make_max_function_call_id(function) + 1;
     int register_count = MAX_ARG_REGISTERS + 1; // The + 1 is for null termination
-
-    // Values of the passed argument, i.e. by the caller
     int allocated_count = function_calls_size * register_count;
-
     ArgDetails *arg_details = wcalloc(allocated_count, sizeof(ArgDetails));
-
     make_vreg_count(function, 0);
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation.id == IR_ARG) {
             CallValueLocations *cvl = ir->src1->function_call.function_call_arg_locations;
 
+            // Collect all registers used (if any) for the arg
             for (int loc = 0; loc < cvl->count; loc++) {
                 int register_index = preg_class == PC_INT
                     ? cvl->locations[loc].int_register
@@ -615,26 +612,13 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
             while (moves_ir->prev->operation.id == IR_FUNCTION_CALL_REG) moves_ir = moves_ir->prev;
 
             if (ir->src1->int_value >= function_calls_size) panic("Exceeding cvls space, want=%d, allocated=%d", ir->src1->int_value, function_calls_size);
-            Type *called_function_type = ir->src1->type;
-            int has_struct_or_union_return_value = ir->src1->has_struct_or_union_return_value;
 
             ArgDetails *ad = &(arg_details[ir->src1->int_value * register_count]);
 
-            // Add the moves backwards so that arg 0 is last.
-            int call_arg_index = 0;
-
-            // Advance past the first parameter, which holds the pointer to the struct/union return value
-            if (has_struct_or_union_return_value && preg_class == PC_INT) call_arg_index++;
-
-            // Advance i and ad to the last call arg
-            while (ad[call_arg_index].call_arg) call_arg_index++;
-            call_arg_index--;
-
-            for (; call_arg_index >= 0; call_arg_index--) {
-                // Bail if we're doing integers and the first arg is reserved for a struct/union
-                // return value.
-                if (has_struct_or_union_return_value && preg_class == PC_INT && call_arg_index == 0) break; // TODO aarch64 use something like prepend_function_params
-                add_function_call_arg_move(function, moves_ir, called_function_type->function, &ad[call_arg_index], preg_class);
+            // Loop over all the registers backwards
+            for (int register_index = MAX_ARG_REGISTERS - 1; register_index >= 0; register_index--) {
+                if (ad[register_index].call_arg)
+                    add_function_call_arg_move(function, moves_ir, ir->src1->type->function, &ad[register_index], preg_class);
             }
 
             // Add live ranges so that all args in registers interfere with each other
