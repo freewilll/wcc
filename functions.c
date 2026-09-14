@@ -507,6 +507,7 @@ static Value *make_function_call_arg_value_for_int128(Function *function, CallVa
 
 typedef struct arg_details {
     int register_index;         // Physical register index
+    int preg_class;             // Integer or FP register
     int arg_index;              // function_call_arg_index
     Value *call_arg;            // The argument value
     Value *call_value;          // The physical ABI register used to make the call
@@ -514,7 +515,7 @@ typedef struct arg_details {
 } ArgDetails;
 
 // Add arg move instruction for a single register at ad->register_index
-void add_function_call_arg_move(Function *function, Tac *moves_ir, FunctionType *called_function, ArgDetails *ad, int preg_class) {
+void add_function_call_arg_move(Function *function, Tac *ir, FunctionType *called_function, ArgDetails *ad) {
     Type *type;
     int arg_index = ad->arg_index;
     if (arg_index >= 0 && arg_index < called_function->param_count) {
@@ -529,21 +530,22 @@ void add_function_call_arg_move(Function *function, Tac *moves_ir, FunctionType 
     Type *function_call_vreg_type;
 
     int register_index = ad->register_index;
+    int preg_class = ad->preg_class;
 
     if (type->type == TYPE_INT128) {
         Value *v = make_function_call_arg_value_for_int128(function, &ad->cvls, ad->call_arg, register_index, preg_class);
-        function_call_vreg = add_arg_move_to_register(function, moves_ir, v->type, v, preg_class, register_index, &arg_register_set);
+        function_call_vreg = add_arg_move_to_register(function, ir, v->type, v, preg_class, register_index, &arg_register_set);
         function_call_vreg_type = v->type;
     }
     else if (type->type == TYPE_STRUCT_OR_UNION) {
         CallValueLocation *location = lookup_location(preg_class, register_index, ad->cvls);
-        function_call_vreg = make_struct_or_union_to_abi_move_instructions(function, moves_ir, ad->call_arg, preg_class, register_index, location, &arg_register_set);
+        function_call_vreg = make_struct_or_union_to_abi_move_instructions(function, ir, ad->call_arg, preg_class, register_index, location, &arg_register_set);
         function_call_vreg_type = preg_class == PC_INT ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
     }
     else {
         if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
         if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
-        function_call_vreg = add_arg_move_to_register(function, moves_ir, type, ad->call_arg, preg_class, register_index, &arg_register_set);
+        function_call_vreg = add_arg_move_to_register(function, ir, type, ad->call_arg, preg_class, register_index, &arg_register_set);
         function_call_vreg_type = ad->call_arg->type;
     }
 
@@ -577,7 +579,7 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
                     : cvl->locations[loc].fp_register;
 
                 if (register_index >= 0) {
-                    ArgDetails ad = { register_index, ir->src1->function_call.function_call_arg_index, ir->src2, NULL, cvl };
+                    ArgDetails ad = { register_index, preg_class, ir->src1->function_call.function_call_arg_index, ir->src2, NULL, cvl };
 
                     // Rewind the ir so that it moves onto the first IR_FUNCTION_CALL_REG operation, if any are present from a previous pass.
                     // This can happen when processing floating point args after integer args have already been processed.
@@ -590,7 +592,7 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
                     Tac *moves_ir = call_ir;
                     while (moves_ir->prev->operation.id == IR_FUNCTION_CALL_REG) moves_ir = moves_ir->prev;
 
-                    add_function_call_arg_move(function, moves_ir, call_ir->src1->type->function, &ad, preg_class);
+                    add_function_call_arg_move(function, moves_ir, call_ir->src1->type->function, &ad);
 
                     // Keep the all the arg register alive at the same time as any other arg registers.
                     new_tac_before(call_ir, IR_FUNCTION_CALL_REG, 0, ad.call_value, 0, 1);
@@ -600,54 +602,65 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
     }
 }
 
-// Nuke all IR_ARG instructions that have had code added that moves the value into a register.
-// Call target specific code for remaining IR_ARG instructions that correspond with writes
-// to the stack.
-// This can only be called after both int and fp IR_ARG arguments have been processed,
-// since small structs with both ints and fps both need to be processed first.
-static void finalize_IR_ARG_instructions(Function *function) {
-    Tac *ir = function->ir;
-    while (ir) {
-        // New IR_ARG instructions may be inserted, due to inserted memmove calls.
-        // They will be handled in the next call. Any newly added IR_ARG
-        // must be ignored, so skip over them by continuing the next iteration at the
-        // existing ir->next.
-        Tac *next_ir = ir->next;
+// Process IR_ARG instructions. They are either loaded into registers or pushed onto the
+// stack with. This does one pass over the IR. Function calls aren't nested to begin with,
+// but may end up being nested due to memcpy insertions for struct/union stack moves.
+// Either way, the inserted code is dealt with in the same pass.
+void add_function_call_arg_moves(Function *function) {
+    const int preg_classes[] = {PC_INT, PC_FP};
+    const int preg_classes_count = sizeof(preg_classes) / sizeof(int);
 
-        if (ir->operation.id == IR_ARG) {
-            int removed = 0;
-            CallValueLocations *pl = ir->src1->function_call.function_call_arg_locations;
+    make_vreg_count(function, 0);
 
-            for (int loc = 0; loc < pl->count; loc++) {
-                if (pl->locations[loc].int_register != -1 || pl->locations[loc].fp_register != -1) {
-                    make_instruction_a_nop(ir);
-                    removed = 1;
-                    break;
-                }
-            }
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if (ir->operation.id != IR_ARG) continue;
 
-            if (!removed) {
-                // The argument is on the stack
-                convert_target_arg_move_to_stack_instructions(function, ir);
+        // Find the matching IR_CALL instruction
+        int func_call_number = ir->src1->int_value;
+        Tac *call_ir = ir;
+        while (call_ir && !(call_ir->operation.id == IR_CALL && call_ir->src1->int_value == func_call_number)) call_ir = call_ir->next;
+        if (!call_ir) panic("Did not find matching IR_CALL");
+
+        // Loop over all register locations and add move instructions
+        CallValueLocations *cvl = ir->src1->function_call.function_call_arg_locations;
+
+        int in_registers = 0;
+        for (int loc = 0; loc < cvl->count; loc++) {
+            for (int i = 0; i < preg_classes_count; i++) {
+                int preg_class = preg_classes[i];
+
+                int register_index = preg_class == PC_INT
+                    ? cvl->locations[loc].int_register
+                    : cvl->locations[loc].fp_register;
+
+                if (register_index == -1) continue;
+                in_registers = 1;
+
+                ArgDetails ad = { register_index, preg_class, ir->src1->function_call.function_call_arg_index, ir->src2, NULL, cvl };
+
+                // Rewind the ir so that it moves onto the first IR_FUNCTION_CALL_REG operation, if any are present from a previous pass.
+                // This can happen when processing floating point args after integer args have already been processed.
+                // This results in the folowing sequence:
+                // r58_LRpreg1:int = ...
+                // r59_LRpreg24:float = ...
+                // call reg arg r58:int
+                // call reg arg r59:double
+                // call "foo"
+                Tac *moves_ir = call_ir;
+                while (moves_ir->prev->operation.id == IR_FUNCTION_CALL_REG) moves_ir = moves_ir->prev;
+
+                add_function_call_arg_move(function, moves_ir, call_ir->src1->type->function, &ad);
+
+                // Keep the all the arg register alive at the same time as any other arg registers.
+                new_tac_before(call_ir, IR_FUNCTION_CALL_REG, 0, ad.call_value, 0, 1);
             }
         }
 
-        ir = next_ir;
+        if (in_registers)
+            make_instruction_a_nop(ir);
+        else
+            convert_target_arg_move_to_stack_instructions(function, ir);
     }
-}
-
-// Process IR_ARG insructions. They are either loaded into a register, pushed onto the
-// stack with an IR_ARG, or, in the case of a struct/union pushed onto the stack with
-// generated code.
-void add_function_call_arg_moves(Function *function) {
-    add_function_call_arg_moves_for_preg_class(function, PC_INT);
-    add_function_call_arg_moves_for_preg_class(function, PC_FP);
-
-    finalize_IR_ARG_instructions(function);
-
-    // Process any added memcpy calls due to struct and union copies
-    add_function_call_arg_moves_for_preg_class(function, PC_INT);
-    finalize_IR_ARG_instructions(function);
 
     if (debug_function_arg_mapping) {
         printf("After function call arg mapping\n");
