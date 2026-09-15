@@ -56,14 +56,16 @@ char *register_name(int preg) {
 // stack area   stack index  offset    what
 // unspecified  +2           r29+24      Caller pushed arg #1
 // unspecified  +1           r29+16      Caller pushed arg #0
-//                           r29+0=sp+48 Pushed x29 and x30 (only if the function has params or function calls)
+//                           r29+0=sp+80 Pushed x29 and x30 (only if the function has params or function calls)
 // ----------- Callee saved variables -----------
-// unspecified               sp+32       Callee saved registers, e.g. 1 pair
+// unspecified               sp+64       Callee saved registers, e.g. 1 pair
 // ----------- Local variables -----------
-// unspecified               sp+24       Padding
-// unspecified  -1           sp+20       Second local variable
-// unspecified  -2           sp+16       First local variable, e.g. an int
+// unspecified               sp+60       Padding
+// unspecified  -1           sp+52       Second local variable
+// unspecified  -2           sp+48       First local variable, e.g. an int
 // ----------- Reserved space for function calls, size function_call_args_stack_size -----------
+// large struct              sp+32       Large struct 2
+// large struct              sp+16       Large struct 1
 // func args    +2           sp+8        Pushed Arg 1
 // func args    +1           sp+0        Pushed Arg 0
 static void process_stack_offset(Tac *tac, Value *v, int *stack_offsets) {

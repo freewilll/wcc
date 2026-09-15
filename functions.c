@@ -141,21 +141,44 @@ void reverse_function_call_args_order(Function *function) {
     wfree(call_starts);
 }
 
-// Add a non-composite type to a call value location and return its alignment
+// Initialize a call value location
+void init_cvl(CallValueLocation *cvl) {
+    cvl->int_register = -1;
+    cvl->fp_register = -1;
+    cvl->stack_offset = -1;
+    cvl->indirect_stack_offset = -1;
+    cvl->stack_padding = -1;
+}
+
+// Add a type to a stack call value location and return its alignment
 void add_type_to_cvl_in_stack(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int alignment) {
     if (alignment > cva->biggest_alignment) cva->biggest_alignment = alignment;
     int padding = ((cva->offset + alignment  - 1) & (~(alignment - 1))) - cva->offset;
     cva->offset += padding;
 
     cvl->stack_offset = cva->offset;
-    cvl->stack_padding = padding;
+    cvl->stack_padding = padding; // TODO aarch64, is this x86_64 specific?
 
     int type_size = get_type_size(type);
     if (type_size < 8) type_size = 8;
     cva->offset += type_size;
 }
 
-// Initialize a CVL and call add_type_to_cvl to allocate space for a non-composite type.
+// Add a type to a indirect stack call value location and return its alignment
+void add_type_to_cvl_in_indirect_stack(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int alignment) {
+    if (alignment > cva->biggest_alignment) cva->biggest_alignment = alignment;
+    int padding = ((cva->indirect_offset + alignment  - 1) & (~(alignment - 1))) - cva->indirect_offset;
+    cva->indirect_offset += padding;
+
+    cvl->indirect_stack_offset = cva->indirect_offset;
+
+    int type_size = get_type_size(type);
+    if (type_size < 8) type_size = 8;
+    cva->indirect_offset += type_size;
+    cvl->stru_size = type_size;
+}
+
+// Initialize a CVL and call add_type_to_cvl to allocate space for a type.
 void add_single_call_value_location(CallValueAllocation *cva, Type *type) {
     CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
     cvl->locations = wmalloc(sizeof(CallValueLocation));
@@ -238,7 +261,7 @@ void process_function_call_arg_allocations(Function *function) {
             add_type_to_cva(cva, ir->src2->type);
             CallValueLocations *cvl = cva->locations->elements[cva->locations->length - 1];
             arg->function_call.function_call_arg_locations = cvl;
-            if (cvl->locations[0].stack_padding >= 8) new_tac_after(ir, IR_ARG_STACK_PADDING, 0, 0, 0);
+            if (cvl->locations[0].stack_padding >= 8) new_tac_after(ir, IR_ARG_STACK_PADDING, 0, 0, 0); // TODO aarch64, is x86_64 specific
 
             function_call_arg_index++;
         }
@@ -263,6 +286,8 @@ void process_function_call_arg_allocations(Function *function) {
             if (!cva) panic("cva was NULL in an IR_END_CALL for a function call to %s in function %s", symbol_name, function->identifier);
 
             finalize_call_value_allocation(cva);
+            move_indirect_stack_args(function, cva);
+
             arg->function_call.function_call_arg_stack_padding = cva->padding;
             arg->function_call.function_call_stack_size = cva->size;
         }
@@ -554,54 +579,6 @@ void add_function_call_arg_move(Function *function, Tac *ir, FunctionType *calle
     ad->call_value->vreg = function_call_vreg;
 }
 
-// Insert IR_MOVE instructions before IR_ARG instructions for
-// any args that go into ABI registers.
-// The dst of the move will be constrained so that the correct physical register is allocated to it.
-// This function takes nested calls into account, which can happen if e.g. a memcpy is done to
-// copy a struct arg over.
-static void add_function_call_arg_moves_for_preg_class(Function *function, int preg_class) {
-    make_vreg_count(function, 0);
-
-    for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation.id == IR_ARG) {
-            // Find the matching IR_CALL instruction
-            int func_call_number = ir->src1->int_value;
-            Tac *call_ir = ir;
-            while (call_ir && !(call_ir->operation.id == IR_CALL && call_ir->src1->int_value == func_call_number)) call_ir = call_ir->next;
-            if (!call_ir) panic("Did not find matching IR_CALL");
-
-            // Loop over all register locations and add move instructions
-            CallValueLocations *cvl = ir->src1->function_call.function_call_arg_locations;
-
-            for (int loc = 0; loc < cvl->count; loc++) {
-                int register_index = preg_class == PC_INT
-                    ? cvl->locations[loc].int_register
-                    : cvl->locations[loc].fp_register;
-
-                if (register_index >= 0) {
-                    ArgDetails ad = { register_index, preg_class, ir->src1->function_call.function_call_arg_index, ir->src2, NULL, cvl };
-
-                    // Rewind the ir so that it moves onto the first IR_FUNCTION_CALL_REG operation, if any are present from a previous pass.
-                    // This can happen when processing floating point args after integer args have already been processed.
-                    // This results in the folowing sequence:
-                    // r58_LRpreg1:int = ...
-                    // r59_LRpreg24:float = ...
-                    // call reg arg r58:int
-                    // call reg arg r59:double
-                    // call "foo"
-                    Tac *moves_ir = call_ir;
-                    while (moves_ir->prev->operation.id == IR_FUNCTION_CALL_REG) moves_ir = moves_ir->prev;
-
-                    add_function_call_arg_move(function, moves_ir, call_ir->src1->type->function, &ad);
-
-                    // Keep the all the arg register alive at the same time as any other arg registers.
-                    new_tac_before(call_ir, IR_FUNCTION_CALL_REG, 0, ad.call_value, 0, 1);
-                }
-            }
-        }
-    }
-}
-
 // Process IR_ARG instructions. They are either loaded into registers or pushed onto the
 // stack with. This does one pass over the IR. Function calls aren't nested to begin with,
 // but may end up being nested due to memcpy insertions for struct/union stack moves.
@@ -624,42 +601,59 @@ void add_function_call_arg_moves(Function *function) {
         // Loop over all register locations and add move instructions
         CallValueLocations *cvl = ir->src1->function_call.function_call_arg_locations;
 
+        // Determine if any of the locations is in the indirect stack
+        int in_indirect_stack = 0;
+        for (int loc = 0; loc < cvl->count; loc++)
+            if (cvl->locations[loc].indirect_stack_offset != -1) in_indirect_stack = 1;
+
+        // Rewind the call_ir into a moves_ir,
+        // so that it moves onto the first IR_FUNCTION_CALL_REG operation, if any are present from a previous pass.
+        // This results in the folowing sequence:
+        // r1_LRpreg3:int = 3:int   # arg 3
+        // r2_LRpreg2:int = 2:int   # arg 2
+        // r3_LRpreg1:int = 1:int   # arg 1
+        // function call reg r1:int
+        // function call reg r2:int
+        // function call reg r3:int
+        // call ...
+        Tac *moves_ir = call_ir;
+        while (moves_ir->prev->operation.id == IR_FUNCTION_CALL_REG) moves_ir = moves_ir->prev;
+
         int in_registers = 0;
-        for (int loc = 0; loc < cvl->count; loc++) {
-            for (int i = 0; i < preg_classes_count; i++) {
-                int preg_class = preg_classes[i];
+        if (!in_indirect_stack) {
+            for (int loc = 0; loc < cvl->count; loc++) {
+                for (int i = 0; i < preg_classes_count; i++) {
+                    int preg_class = preg_classes[i];
 
-                int register_index = preg_class == PC_INT
-                    ? cvl->locations[loc].int_register
-                    : cvl->locations[loc].fp_register;
+                    int register_index = preg_class == PC_INT
+                        ? cvl->locations[loc].int_register
+                        : cvl->locations[loc].fp_register;
 
-                if (register_index == -1) continue;
-                in_registers = 1;
+                    if (register_index == -1) continue;
+                    in_registers = 1;
 
-                ArgDetails ad = { register_index, preg_class, ir->src1->function_call.function_call_arg_index, ir->src2, NULL, cvl };
-
-                // Rewind the ir so that it moves onto the first IR_FUNCTION_CALL_REG operation, if any are present from a previous pass.
-                // This can happen when processing floating point args after integer args have already been processed.
-                // This results in the folowing sequence:
-                // r58_LRpreg1:int = ...
-                // r59_LRpreg24:float = ...
-                // call reg arg r58:int
-                // call reg arg r59:double
-                // call "foo"
-                Tac *moves_ir = call_ir;
-                while (moves_ir->prev->operation.id == IR_FUNCTION_CALL_REG) moves_ir = moves_ir->prev;
-
-                add_function_call_arg_move(function, moves_ir, call_ir->src1->type->function, &ad);
-
-                // Keep the all the arg register alive at the same time as any other arg registers.
-                new_tac_before(call_ir, IR_FUNCTION_CALL_REG, 0, ad.call_value, 0, 1);
+                    ArgDetails ad = { register_index, preg_class, ir->src1->function_call.function_call_arg_index, ir->src2, NULL, cvl };
+                    add_function_call_arg_move(function, moves_ir, call_ir->src1->type->function, &ad);
+                    moves_ir = new_tac_before(moves_ir, IR_FUNCTION_CALL_REG, 0, ad.call_value, 0, 1);
+                }
             }
         }
 
-        if (in_registers)
+        if (in_registers) {
             make_instruction_a_nop(ir);
-        else
+        }
+
+        else if (in_indirect_stack) {
+            Value *preg_arg_value = convert_target_arg_move_to_indirect_stack_instructions(function, moves_ir, ir);
+
+            // Keep the all the arg register alive at the same time as any other arg registers.
+            moves_ir = new_tac_before(moves_ir, IR_FUNCTION_CALL_REG, 0, preg_arg_value, 0, 1);
+            make_instruction_a_nop(ir);
+        }
+
+        else {
             convert_target_arg_move_to_stack_instructions(function, ir);
+        }
     }
 
     if (debug_function_arg_mapping) {
@@ -1224,6 +1218,7 @@ void free_call_value_allocaton(CallValueAllocation *cva) {
 
 // Calculate the final size and padding of the stack
 void finalize_call_value_allocation(CallValueAllocation *cva) {
+    // TODO aarch64 what is cva-padding used for?
     cva->padding = ((cva->offset + cva->biggest_alignment  - 1) & (~(cva->biggest_alignment - 1))) - cva->offset;
     cva->size = cva->offset + cva->padding;
 

@@ -686,10 +686,7 @@ static void process_function_varargs(Function *function) {
 
 // Using the state of already allocated registers & stack entries in cva, determine the location for a non-composite type and set it in cvl.
 void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int force_stack) {
-    cvl->int_register = -1;
-    cvl->fp_register = -1;
-    cvl->stack_offset = -1;
-    cvl->stack_padding = -1;
+    init_cvl(cvl);
 
     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
     if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
@@ -974,6 +971,13 @@ void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac)
         add_function_call_arg_move_for_struct_or_union_to_stack(function, tac);
     }
 }
+
+Value *convert_target_arg_move_to_indirect_stack_instructions(Function *function, Tac *tac, Tac *arg_ir) {
+    panic("convert_target_arg_move_to_indirect_stack_instructions is not implemented on x86_64");
+}
+
+// Not used in x86_64
+void move_indirect_stack_args(Function *function, CallValueAllocation *cva) {}
 
 // Process target function calls, args, params and return values
 void process_target_functions(Function *function) {

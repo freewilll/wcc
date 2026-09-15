@@ -121,8 +121,8 @@ typedef struct circular_linked_list {
 } CircularLinkedList;
 
 typedef enum  stack_area {
-    SA_UNSPECIFIED,         // The default zero
-    SA_FUNCTION_ARGS,       // Target specific: stack area for stack args used in function calls
+    SA_UNSPECIFIED,   // The default zero
+    SA_FUNCTION_ARGS, // Target specific: stack area for stack args used in function calls
 } StackArea;
 
 typedef struct stack_location {
@@ -302,10 +302,11 @@ typedef struct call_value_location {
 
     // Details of where the function param/arg goes, either in a register or the stack
     // One of int_register/fp_register/stack_offset is not -1.
-    int int_register;       // If not -1, an int register
-    int fp_register;        // If not -1, an FP register
-    int stack_offset;       // If not -1, the stack offset
-    int stack_padding;      // If not -1, the stack padding
+    int int_register;               // If not -1, an int register
+    int fp_register;                // If not -1, an FP register
+    int stack_offset;               // If not -1, the stack offset
+    int stack_padding;              // If not -1, the stack padding TODO aarch64 is this x86_64 specific?
+    int indirect_stack_offset;      // Space allocated by the caller for structs passed to the callee with a pointer
 } CallValueLocation;
 
 typedef struct call_value_locations {
@@ -318,6 +319,7 @@ typedef struct call_value_allocation {
     int single_fp_register_arg_count;   // Amount of allocated floating point registers
     int biggest_alignment;              // Alignment of largest param
     int offset;                         // If on the stack, offset within the CVA
+    int indirect_offset;                // If on the indirect stack, offset within the CVA
     int padding;                        // Final padding on the stack
     int size;                           // Size on the stack, including padding
     List *locations;
@@ -435,7 +437,9 @@ void free_function(Function *function, int remove_from_allocations);
 void free_functions(void);
 Function *new_function(char *identifier);
 void reverse_function_call_args_order(Function *function);
+void init_cvl(CallValueLocation *cvl);
 void add_type_to_cvl_in_stack(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int alignment);
+void add_type_to_cvl_in_indirect_stack(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int alignment);
 void add_single_call_value_location(CallValueAllocation *cva, Type *type);
 void add_int128_call_value_locations(CallValueAllocation *cva, Type *type);
 CallValueAllocation *initialize_function_return_value_cva(Type *function_type);
@@ -1638,8 +1642,10 @@ void add_function_vararg_param_moves(Function *function, CallValueAllocation *cv
 int *make_original_stack_indexes(Function *function);
 int make_struct_or_union_to_abi_move_instructions(Function *function, Tac *ir, Value *arg, int preg_class, int register_index, CallValueLocation *location, RegisterSet *register_set);
 void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac);
+Value *convert_target_arg_move_to_indirect_stack_instructions(Function *function, Tac *tac, Tac *arg_ir);
 void process_target_functions(Function *function);
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
+void move_indirect_stack_args(Function *function, CallValueAllocation *cva);
 
 // Target instruction rules related code
 char *add_size_to_template(char *template, int size);

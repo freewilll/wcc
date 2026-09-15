@@ -18,6 +18,8 @@ void accept_sffff(struct sffff sffff) {
     assert_float(4.1, sffff.f4, "accept_sffff");
 }
 
+#ifdef __x86_64__
+
 void accept_sf9(struct sf9 sf9) {
     assert_float(1.1, sf9.f1, "accept_sf9");
     assert_float(2.1, sf9.f2, "accept_sf9");
@@ -29,6 +31,8 @@ void accept_sf9(struct sf9 sf9) {
     assert_float(8.1, sf9.f8, "accept_sf9");
     assert_float(9.1, sf9.f9, "accept_sf9");
 }
+
+#endif
 
 // In aarch64, all args go into the registers
 void accept_ffffsffff(float f1, float f2, float f3, float f4, struct sffff sffff) {

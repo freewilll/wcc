@@ -65,10 +65,7 @@ void add_function_vararg_param_moves(Function *function, CallValueAllocation *cv
 
 // Using the state of already allocated registers & stack entries in cva, determine the location for a non-composite type and set it in cvl.
 void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int force_stack) {
-    cvl->int_register = -1;
-    cvl->fp_register = -1;
-    cvl->stack_offset = -1;
-    cvl->stack_padding = -1;
+    init_cvl(cvl);
 
     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
     if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
@@ -139,10 +136,37 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
     int hfa_fits = (is_hfa && cva->single_fp_register_arg_count + scalars->count <= 8);
 
     int size = get_type_size(type);
+
     if (size > 16 && !hfa_fits) {
-        // The entire thing is on the stack.
-        // This may be an int or fp struct
-        add_single_call_value_location(cva, type); // TODO aarch64
+        // Allocate stack space on the "indirect" stack
+        // which is folded into the end of the regular
+        // args stack after all args have been processed.
+        // See convert_target_arg_move_to_indirect_stack_instructions()
+        // and move_indirect_stack_args().
+        // A pointer to the allocated stack is used in
+        // place of the argument.
+
+        int alignment = get_type_alignment(type);
+        if (alignment < 8) alignment = 8;
+
+        CallValueLocations *cvls = wcalloc(1, sizeof(CallValueLocations));
+        cvls->locations = wcalloc(2, sizeof(CallValueLocation));
+        cvls->count = 2;
+
+        CallValueLocation *cvl_indirect_stack = &cvls->locations[0];
+        CallValueLocation *cvl_indirect_arg = &cvls->locations[1];
+
+        init_cvl(cvl_indirect_stack);
+        init_cvl(cvl_indirect_arg);
+
+        add_type_to_cvl_in_indirect_stack(cva, cvl_indirect_stack, type, alignment);
+
+        if (debug_call_value_allocation) {
+            printf("  arg %2d with alignment %2d     indirect offset 0x%04x\n", cva->locations->length, alignment, cvl_indirect_stack->indirect_stack_offset);
+        }
+
+        add_type_to_cvl(cva, cvl_indirect_arg, make_pointer_to_void(), 0);
+        append_to_list(cva->locations, cvls);
     }
 
     // aapcs64 C.2
@@ -477,6 +501,85 @@ void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac)
     else {
         // Move a single register to the arg stack
         add_single_register_arg_move_to_stack(function, tac);
+    }
+}
+
+// The aarch64 ABI says that structs and unions larger than 16 bytes (except HFA cases)
+// are copied to a stack area allocated by the caller. The argument is replaced with
+// a pointer to the allocated memory.
+Value *convert_target_arg_move_to_indirect_stack_instructions(Function *function, Tac *tac, Tac *arg_ir) {
+    Value *arg = arg_ir->src1;
+    Value *src = arg_ir->src2;
+
+    CallValueLocations *cvls = arg->function_call.function_call_arg_locations;
+    if (cvls->count != 2) panic("Unexpected struct/union to indirect stack move with locations->count != 2");
+
+    CallValueLocation *cvl_indirect_stack = &cvls->locations[0];
+    CallValueLocation *cvl_indirect_register = &cvls->locations[1];
+
+    // Add memory copy of the struct to the indirect stack
+    int stack_offset = cvl_indirect_stack->indirect_stack_offset;
+
+    int size = get_type_size(src->type);
+
+    Value *dst = new_value();
+    dst->type = dup_type(src->type);
+    dst->stack.index = stack_offset / 8 + 1; // Conventionally the first stack_index entry starts at 1.
+    dst->stack.area = SA_FUNCTION_ARGS;
+
+    add_memory_copy(function, arg_ir, dst, src, size);
+
+    // Put the address of the stack in the arg register
+    Value *address = new_value();
+    address->type = make_pointer_to_void();
+    address->vreg = ++function->vreg_count;
+
+    dst = dup_value(dst);
+    dst->type = make_pointer_to_void();
+    new_tac_before(tac, IR_ADDRESS_OF, address, dst, NULL, 0);
+
+    if (cvl_indirect_register->int_register == -1) panic("TODO: move indirect stack pointer to stack");
+    add_arg_move_to_register(function, tac, address->type, address, PC_INT, cvl_indirect_register->int_register, &arg_register_set);
+    Value *preg = tac->prev->dst;
+
+    return preg;
+}
+
+// Moves allocated indirect stack space, done in
+// convert_target_arg_move_to_indirect_stack_instructions()
+// to the end of the arg stack and increase the arg stack.
+// The arg stack consists of the regular args that are pushed on the stack
+// followed by the large structs.
+// See the comment above process_stack_offset()
+// for an illustration of the full stack layout.
+void move_indirect_stack_args(Function *function, CallValueAllocation *cva) {
+    int total_indirect_block_size = 0;
+    for (int i = 0; i < cva->locations->length; i++) {
+        CallValueLocations *cvls = cva->locations->elements[i];
+        for (int j = 0; j < cvls->count; j++) {
+            CallValueLocation *cvl = &cvls->locations[j];
+            if (cvls->locations[j].indirect_stack_offset == -1) continue;
+            total_indirect_block_size = cvl->indirect_stack_offset + cvl->stru_size;
+        }
+    }
+
+    // Round indirect block size up to 16 bytes
+    total_indirect_block_size = (total_indirect_block_size + 15) & ~15;
+
+    // Round stack args area up to 16 bytes
+    cva->size = (cva->size + 15) & ~15;
+
+    // How much to move the indirect stack offset up into the regular arg stack area
+    int stack_offset_delta = cva->size;
+    cva->size += total_indirect_block_size;
+
+    for (int i = 0; i < cva->locations->length; i++) {
+        CallValueLocations *cvls = cva->locations->elements[i];
+        for (int j = 0; j < cvls->count; j++) {
+            CallValueLocation *cvl = &cvls->locations[j];
+            if (cvls->locations[j].indirect_stack_offset == -1) continue;
+            cvl->indirect_stack_offset += stack_offset_delta;
+        }
     }
 }
 
