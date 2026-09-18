@@ -178,11 +178,17 @@ void add_type_to_cvl_in_indirect_stack(CallValueAllocation *cva, CallValueLocati
     cvl->stru_size = type_size;
 }
 
+CallValueLocations *allocate_call_value_locations(int count) {
+    CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
+    cvl->locations = wmalloc(sizeof(CallValueLocation) * count);
+    cvl->count = count;
+
+    return cvl;
+}
+
 // Initialize a CVL and call add_type_to_cvl to allocate space for a type.
 void add_single_call_value_location(CallValueAllocation *cva, Type *type) {
-    CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
-    cvl->locations = wmalloc(sizeof(CallValueLocation));
-    cvl->count = 1;
+    CallValueLocations *cvl = allocate_call_value_locations(1);
     add_type_to_cvl(cva, &(cvl->locations[0]), type, 0);
     append_to_list(cva->locations, cvl);
 }
@@ -190,10 +196,7 @@ void add_single_call_value_location(CallValueAllocation *cva, Type *type) {
 void add_int128_call_value_locations(CallValueAllocation *cva, Type *type) {
     // An int-128 fits into two 8 bytes
 
-    CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
-    cvl->locations = wmalloc(sizeof(CallValueLocation) * 2);
-    cvl->count = 2;
-
+    CallValueLocations *cvl = allocate_call_value_locations(2);
     CallValueAllocation *backup_cva = wmalloc(sizeof(CallValueAllocation));
     *backup_cva = *cva;
 

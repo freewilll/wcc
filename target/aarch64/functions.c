@@ -115,9 +115,7 @@ static void add_struct_or_union_call_value_location_for_big_struct(CallValueAllo
     int alignment = get_type_alignment(type);
     if (alignment < 8) alignment = 8;
 
-    CallValueLocations *cvls = wcalloc(1, sizeof(CallValueLocations));
-    cvls->locations = wcalloc(2, sizeof(CallValueLocation));
-    cvls->count = 2;
+    CallValueLocations *cvls = allocate_call_value_locations(2);
 
     CallValueLocation *cvl_indirect_stack = &cvls->locations[0];
     CallValueLocation *cvl_indirect_arg = &cvls->locations[1];
@@ -139,9 +137,7 @@ static void add_struct_or_union_call_value_location_for_big_struct(CallValueAllo
 static void add_struct_or_union_call_value_location_for_hfa_struct_in_registers(CallValueAllocation *cva, Type *type, int for_floats, StructOrUnionScalars *scalars) {
     int member_size = for_floats ? 4 : 8;
 
-        CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
-    cvl->locations = wmalloc(sizeof(CallValueLocation) * scalars->count);
-    cvl->count = scalars->count;
+    CallValueLocations *cvl = allocate_call_value_locations(scalars->count);
 
     for (int i = 0; i < scalars->count; i++) {
         cvl->locations[i].fp_register = cva->single_fp_register_arg_count + i;
@@ -165,9 +161,7 @@ static void add_struct_or_union_call_value_location_for_non_hfa_struct(CallValue
     if (cva->single_int_register_arg_count + needed_int_registers <= 8) {
         // The struct fits in integer registers
 
-        CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
-        cvl->locations = wcalloc(needed_int_registers, sizeof(CallValueLocation));
-        cvl->count = needed_int_registers;
+        CallValueLocations *cvl = allocate_call_value_locations(needed_int_registers);
 
         for (int i = 0; i < needed_int_registers; i++) {
             cvl->locations[i].stru_size = size > 8 ? 8 : size;

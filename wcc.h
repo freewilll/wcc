@@ -440,6 +440,7 @@ void reverse_function_call_args_order(Function *function);
 void init_cvl(CallValueLocation *cvl);
 void add_type_to_cvl_in_stack(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int alignment);
 void add_type_to_cvl_in_indirect_stack(CallValueAllocation *cva, CallValueLocation *cvl, Type *type, int alignment);
+CallValueLocations *allocate_call_value_locations(int count);
 void add_single_call_value_location(CallValueAllocation *cva, Type *type);
 void add_int128_call_value_locations(CallValueAllocation *cva, Type *type);
 CallValueAllocation *initialize_function_return_value_cva(Type *function_type);
