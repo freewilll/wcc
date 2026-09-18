@@ -104,15 +104,100 @@ void add_type_to_cvl(CallValueAllocation *cva, CallValueLocation *cvl, Type *typ
     if (!in_stack && is_single_fp_register) cva->single_fp_register_arg_count++;
 }
 
+// Allocate stack space on the "indirect" stack
+// which is folded into the end of the regular
+// args stack after all args have been processed.
+// See convert_target_arg_move_to_indirect_stack_instructions()
+// and move_indirect_stack_args().
+// A pointer to the allocated stack is used in
+// place of the argument.
+static void add_struct_or_union_call_value_location_for_big_struct(CallValueAllocation *cva, Type *type) {
+    int alignment = get_type_alignment(type);
+    if (alignment < 8) alignment = 8;
+
+    CallValueLocations *cvls = wcalloc(1, sizeof(CallValueLocations));
+    cvls->locations = wcalloc(2, sizeof(CallValueLocation));
+    cvls->count = 2;
+
+    CallValueLocation *cvl_indirect_stack = &cvls->locations[0];
+    CallValueLocation *cvl_indirect_arg = &cvls->locations[1];
+
+    init_cvl(cvl_indirect_stack);
+    init_cvl(cvl_indirect_arg);
+
+    add_type_to_cvl_in_indirect_stack(cva, cvl_indirect_stack, type, alignment);
+
+    if (debug_call_value_allocation) {
+        printf("  arg %2d with alignment %2d     indirect offset 0x%04x\n", cva->locations->length, alignment, cvl_indirect_stack->indirect_stack_offset);
+    }
+
+    add_type_to_cvl(cva, cvl_indirect_arg, make_pointer_to_void(), 0);
+    append_to_list(cva->locations, cvls);
+}
+
+// Each member in an HFA struct, which consists of entirely floats or doubles, gets its own register.
+static void add_struct_or_union_call_value_location_for_hfa_struct_in_registers(CallValueAllocation *cva, Type *type, int for_floats, StructOrUnionScalars *scalars) {
+    int member_size = for_floats ? 4 : 8;
+
+        CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
+    cvl->locations = wmalloc(sizeof(CallValueLocation) * scalars->count);
+    cvl->count = scalars->count;
+
+    for (int i = 0; i < scalars->count; i++) {
+        cvl->locations[i].fp_register = cva->single_fp_register_arg_count + i;
+        cvl->locations[i].stru_size = member_size;
+        cvl->locations[i].stru_offset = i * member_size;
+        add_type_to_cvl(cva, &(cvl->locations[i]), new_type(for_floats ? TYPE_FLOAT : TYPE_DOUBLE), 0);
+    }
+
+    append_to_list(cva->locations, cvl);
+
+    cva->single_fp_register_arg_count += scalars->count;
+}
+
+// The struct goes either into int registers, of if there aren't enough,
+// on the stack.
+static void add_struct_or_union_call_value_location_for_non_hfa_struct(CallValueAllocation *cva, Type *type) {
+    int size = get_type_size(type);
+    // aapcs64 C.12
+    int needed_int_registers = (size + 7) / 8;
+
+    if (cva->single_int_register_arg_count + needed_int_registers <= 8) {
+        // The struct fits in integer registers
+
+        CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
+        cvl->locations = wcalloc(needed_int_registers, sizeof(CallValueLocation));
+        cvl->count = needed_int_registers;
+
+        for (int i = 0; i < needed_int_registers; i++) {
+            cvl->locations[i].stru_size = size > 8 ? 8 : size;
+            size -= 8;
+            cvl->locations[i].stru_offset = i * 8;
+            add_type_to_cvl(cva, &(cvl->locations[i]), new_type(TYPE_LONG), 0);
+        }
+
+        append_to_list(cva->locations, cvl);
+
+        cva->single_int_register_arg_count += needed_int_registers;
+    }
+    else {
+        // The struct goes into the stack
+        cva->single_int_register_arg_count = 8;
+        add_single_call_value_location(cva, type);
+    }
+}
+
 static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Type *type) {
     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
     if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
 
+    // Break the struct up into individual scalars
     StructOrUnionScalars *scalars = wmalloc(sizeof(StructOrUnionScalars));
     scalars->scalars = wmalloc(sizeof(StructOrUnionScalar *) * MAX_STRUCT_OR_UNION_SCALARS);
     scalars->count = 0;
     flatten_type(type, scalars, 0);
 
+    // Categorize the members by looking at what types are present
     int seen_floats = 0;
     int seen_doubles = 0;
     int seen_others = 0;
@@ -138,56 +223,13 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
     int size = get_type_size(type);
 
     if (size > 16 && !hfa_fits) {
-        // Allocate stack space on the "indirect" stack
-        // which is folded into the end of the regular
-        // args stack after all args have been processed.
-        // See convert_target_arg_move_to_indirect_stack_instructions()
-        // and move_indirect_stack_args().
-        // A pointer to the allocated stack is used in
-        // place of the argument.
-
-        int alignment = get_type_alignment(type);
-        if (alignment < 8) alignment = 8;
-
-        CallValueLocations *cvls = wcalloc(1, sizeof(CallValueLocations));
-        cvls->locations = wcalloc(2, sizeof(CallValueLocation));
-        cvls->count = 2;
-
-        CallValueLocation *cvl_indirect_stack = &cvls->locations[0];
-        CallValueLocation *cvl_indirect_arg = &cvls->locations[1];
-
-        init_cvl(cvl_indirect_stack);
-        init_cvl(cvl_indirect_arg);
-
-        add_type_to_cvl_in_indirect_stack(cva, cvl_indirect_stack, type, alignment);
-
-        if (debug_call_value_allocation) {
-            printf("  arg %2d with alignment %2d     indirect offset 0x%04x\n", cva->locations->length, alignment, cvl_indirect_stack->indirect_stack_offset);
-        }
-
-        add_type_to_cvl(cva, cvl_indirect_arg, make_pointer_to_void(), 0);
-        append_to_list(cva->locations, cvls);
+        add_struct_or_union_call_value_location_for_big_struct(cva, type);
     }
 
     // aapcs64 C.2
     // If it's an HFA and there are enough FP registers left, use them
     else if (is_hfa && cva->single_fp_register_arg_count + scalars->count <= 8) {
-        int member_size = seen_floats ? 4 : 8;
-
-        CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
-        cvl->locations = wmalloc(sizeof(CallValueLocation) * scalars->count);
-        cvl->count = scalars->count;
-
-        for (int i = 0; i < scalars->count; i++) {
-            cvl->locations[i].fp_register = cva->single_fp_register_arg_count + i;
-            cvl->locations[i].stru_size = member_size;
-            cvl->locations[i].stru_offset = i * member_size;
-            add_type_to_cvl(cva, &(cvl->locations[i]), new_type(seen_floats ? TYPE_FLOAT : TYPE_DOUBLE), 0);
-        }
-
-        append_to_list(cva->locations, cvl);
-
-        cva->single_fp_register_arg_count += scalars->count;
+        add_struct_or_union_call_value_location_for_hfa_struct_in_registers(cva, type, seen_floats, scalars);
     }
 
     // aapcs64 C.3
@@ -195,39 +237,10 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
     // and allocate stack space
     else if (is_hfa) {
         cva->single_fp_register_arg_count = 8;
-        size = (size + 7) & ~7;
         add_single_call_value_location(cva, type);
     }
     else {
-        // The struct goes either into int registers, of if there aren't enough,
-        // on the stack.
-
-        // aapcs64 C.12
-        int needed_int_registers = (size + 7) / 8;
-
-        if (cva->single_int_register_arg_count + needed_int_registers <= 8) {
-            // The struct fits in integer registers
-
-            CallValueLocations *cvl = wcalloc(1, sizeof(CallValueLocations));
-            cvl->locations = wcalloc(needed_int_registers, sizeof(CallValueLocation));
-            cvl->count = needed_int_registers;
-
-            for (int i = 0; i < needed_int_registers; i++) {
-                cvl->locations[i].stru_size = size > 8 ? 8 : size;
-                size -= 8;
-                cvl->locations[i].stru_offset = i * 8;
-                add_type_to_cvl(cva, &(cvl->locations[i]), new_type(TYPE_LONG), 0);
-            }
-
-            append_to_list(cva->locations, cvl);
-
-            cva->single_int_register_arg_count += needed_int_registers;
-        }
-        else {
-            // The struct goes into the stack
-            cva->single_int_register_arg_count = 8;
-            add_single_call_value_location(cva, type);
-        }
+        add_struct_or_union_call_value_location_for_non_hfa_struct(cva, type);
     }
 
     for (int i = 0; i < scalars->count; i++) wfree(scalars->scalars[i]);
