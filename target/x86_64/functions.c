@@ -760,7 +760,6 @@ void init_target_call_value_allocaton(Type *function_type, CallValueAllocation *
             // RDI register must contain a pointer to the return value, set by the caller.
             // Allocate the RDI register which has the pointer to the struct, passed in by the caller
             add_type_to_cva(cva, make_pointer_to_void());
-            // TODO aarch64 this is x86_64 specific
         }
     }
 }
@@ -967,7 +966,7 @@ void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac)
 
     Value *arg = tac->src1;
     CallValueLocations *cvl = arg->function_call.function_call_arg_locations;
-    if (cvl->locations[0].stack_padding >= 8) new_tac_after(tac, IR_ARG_STACK_PADDING, 0, 0, 0); // TODO aarch64, is x86_64 specific
+    if (cvl->locations[0].stack_padding >= 8) new_tac_after(tac, IR_ARG_STACK_PADDING, 0, 0, 0);
 
     tac->operation.id = IR_PUSH_ARG;
 

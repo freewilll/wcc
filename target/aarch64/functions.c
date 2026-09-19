@@ -464,7 +464,6 @@ static void add_single_register_arg_move_to_stack(Function *function, Tac *tac) 
 }
 
 // Add instructions to copy a struct to the stack.
-// TODO aarch64 this is now working for small structs, but not for large ones
 static void add_function_call_arg_move_for_struct_or_union_to_stack(Function *function, Tac *tac) {
     int size = get_type_size(tac->src2->type);
     int rounded_up_size = (size + 7) & ~7;
