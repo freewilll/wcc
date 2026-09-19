@@ -439,7 +439,7 @@ void add_final_instructions(Function *function) {
                 break;
 
             case IR_ARG_STACK_PADDING:
-                // This alignment push is needed for structures that are aligned
+                // This alignment push is needed for structs that are aligned
                 // on 16-bytes and are preceded in memory by something that left the stack
                 // aligned on 8-bytes.
                 cur_stack_push_count++;

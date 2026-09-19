@@ -305,7 +305,7 @@ typedef struct call_value_location {
     int int_register;               // If not -1, an int register
     int fp_register;                // If not -1, an FP register
     int stack_offset;               // If not -1, the stack offset
-    int stack_padding;              // If not -1, the stack padding TODO aarch64 is this x86_64 specific?
+    int stack_padding;              // Optional padding at the end of a struct/union
     int indirect_stack_offset;      // Space allocated by the caller for structs passed to the callee with a pointer
 } CallValueLocation;
 

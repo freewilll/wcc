@@ -960,6 +960,15 @@ static void add_function_call_arg_move_for_struct_or_union_to_stack(Function *fu
 
 // Convert IR_ARG instructions for moves to the stack to IR_PUSH_ARG. Instrsel instructions will encode those.
 void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac) {
+    // Add a stack alignment push if the padding is >= 8.
+    // This alignment push is needed for structs that are aligned
+    // on 16-bytes and are preceded in memory by something that left the stack
+    // aligned on 8-bytes.
+
+    Value *arg = tac->src1;
+    CallValueLocations *cvl = arg->function_call.function_call_arg_locations;
+    if (cvl->locations[0].stack_padding >= 8) new_tac_after(tac, IR_ARG_STACK_PADDING, 0, 0, 0); // TODO aarch64, is x86_64 specific
+
     tac->operation.id = IR_PUSH_ARG;
 
     if (tac->src2->type->type == TYPE_INT128) {

@@ -147,7 +147,7 @@ void init_cvl(CallValueLocation *cvl) {
     cvl->fp_register = -1;
     cvl->stack_offset = -1;
     cvl->indirect_stack_offset = -1;
-    cvl->stack_padding = -1;
+    cvl->stack_padding = 0;
 }
 
 // Add a type to a stack call value location and return its alignment
@@ -157,7 +157,7 @@ void add_type_to_cvl_in_stack(CallValueAllocation *cva, CallValueLocation *cvl, 
     cva->offset += padding;
 
     cvl->stack_offset = cva->offset;
-    cvl->stack_padding = padding; // TODO aarch64, is this x86_64 specific?
+    cvl->stack_padding = padding;
 
     int type_size = get_type_size(type);
     if (type_size < 8) type_size = 8;
@@ -264,7 +264,6 @@ void process_function_call_arg_allocations(Function *function) {
             add_type_to_cva(cva, ir->src2->type);
             CallValueLocations *cvl = cva->locations->elements[cva->locations->length - 1];
             arg->function_call.function_call_arg_locations = cvl;
-            if (cvl->locations[0].stack_padding >= 8) new_tac_after(ir, IR_ARG_STACK_PADDING, 0, 0, 0); // TODO aarch64, is x86_64 specific
 
             function_call_arg_index++;
         }
