@@ -60,7 +60,7 @@ char *cva_result_str(CallValueAllocation *cva) {
     }
 
     // Add stack and padding
-    b += sprintf(b, " | %03x %03x | ", cva->size, cva->padding);
+    b += sprintf(b, " | %03x | ", cva->size);
     b[0] = 0;
     int first = 1;
     int stack_offset = 0;

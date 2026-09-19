@@ -846,7 +846,6 @@ static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, 
     function_value->function_call.function_call_stack_size = 0;
     function_value->function_call.function_call_fp_register_arg_count = 0;
     call_value->function_call.function_call_stack_size = 0;
-    call_value->function_call.function_call_arg_stack_padding = 0;
     ir = new_tac_after(ir, IR_CALL, 0, function_value, 0);
 
     // Add end call instruction

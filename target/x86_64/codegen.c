@@ -393,8 +393,6 @@ void add_final_instructions(Function *function) {
                     ir->operation.id = IR_NOP;
 
                     int alignment_pushes = 0;
-                    if (ir->src1->function_call.function_call_arg_stack_padding >= 8)
-                        alignment_pushes++;
 
                     // Align the stack. This is matched with an adjustment when the function call ends
                     int *function_call_arg_push_count = &function_call_arg_push_counts[ir->src1->int_value];

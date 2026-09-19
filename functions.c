@@ -291,7 +291,6 @@ void process_function_call_arg_allocations(Function *function) {
             finalize_call_value_allocation(cva);
             move_indirect_stack_args(function, cva);
 
-            arg->function_call.function_call_arg_stack_padding = cva->padding;
             arg->function_call.function_call_stack_size = cva->size;
         }
     }
@@ -1221,13 +1220,11 @@ void free_call_value_allocaton(CallValueAllocation *cva) {
 
 // Calculate the final size and padding of the stack
 void finalize_call_value_allocation(CallValueAllocation *cva) {
-    // TODO aarch64 what is cva-padding used for?
-    cva->padding = ((cva->offset + cva->biggest_alignment  - 1) & (~(cva->biggest_alignment - 1))) - cva->offset;
-    cva->size = cva->offset + cva->padding;
+    cva->size = cva->offset;
 
     if (debug_call_value_allocation) {
         printf("  --------------------------------------------------------------\n");
-        printf("  total                        size   0x%04x with padding 0x%04x\n", cva->size, cva->padding);
+        printf("  total                        size   0x%04x\n", cva->size);
     }
 }
 

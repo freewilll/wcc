@@ -320,7 +320,6 @@ typedef struct call_value_allocation {
     int biggest_alignment;              // Alignment of largest param
     int offset;                         // If on the stack, offset within the CVA
     int indirect_offset;                // If on the indirect stack, offset within the CVA
-    int padding;                        // Final padding on the stack
     int size;                           // Size on the stack, including padding
     List *locations;
 } CallValueAllocation;
@@ -340,7 +339,6 @@ typedef struct function_call_value {
     int function_call_arg_index;                         // Index of the argument (0=leftmost)
     CallValueLocations *function_call_arg_locations;     // Destination of the arg, either a single int or FP register, or in the case of a struct, a list of locations
     int function_call_fp_register_arg_index;             // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
-    int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
     int function_call_stack_size;                        // The size of the stack in a function call
     int function_call_fp_register_arg_count;             // Number of floaing point arguments in registers
 } FunctionCallValue;
