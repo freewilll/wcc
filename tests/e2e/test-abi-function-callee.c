@@ -18,8 +18,6 @@ void accept_sffff(struct sffff sffff) {
     assert_float(4.1, sffff.f4, "accept_sffff");
 }
 
-#ifdef __x86_64__
-
 void accept_sf9(struct sf9 sf9) {
     assert_float(1.1, sf9.f1, "accept_sf9");
     assert_float(2.1, sf9.f2, "accept_sf9");
@@ -31,8 +29,6 @@ void accept_sf9(struct sf9 sf9) {
     assert_float(8.1, sf9.f8, "accept_sf9");
     assert_float(9.1, sf9.f9, "accept_sf9");
 }
-
-#endif
 
 // In aarch64, all args go into the registers
 void accept_ffffsffff(float f1, float f2, float f3, float f4, struct sffff sffff) {
@@ -52,8 +48,6 @@ void accept_sffii(struct sffii sffii) {
     assert_int(3, sffii.i1, "accept_sffii");
     assert_int(4, sffii.i2, "accept_sffii");
 }
-
-#ifdef __x86_64__
 
 void accept_sffiii(struct sffiii sffiii) {
     assert_float(1.1, sffiii.f1, "accept_sffiii");
@@ -84,8 +78,6 @@ void accept_sifif(struct sifif sifif) {
     assert_int(3, sifif.i2, "accept_sifif");
     assert_float(4.1, sifif.f2, "accept_sifif");
 }
-
-#endif
 
 void accept_sc1(struct sc1 sc1) {
     assert_int(1, sc1.c1, "accept_sc1 1");
@@ -166,8 +158,6 @@ void accept_sc3f(struct sc3f sc3f) {
     assert_float(4.1, sc3f.f1, "accept_sc3f 3");
 }
 
-#ifdef __x86_64__
-
 void accept_si5(struct si5 si5) {
     assert_int(1, si5.i1, "accept_si5 1");
     assert_int(2, si5.i2, "accept_si5 2");
@@ -218,6 +208,136 @@ void accept_si9(struct si9 si9) {
     assert_int(9, si9.i9, "accept_si9 9");
 }
 
+// Like accept_si9, except with a bunch of integer args first.
+// This is meant for aarch64. Both structs end up being pointers
+// to the stack in registers
+void accept_si9_i6(int i1, int i2, int i3, int i4, int i5, int i6, struct si9 si91, struct si9 si92) {
+    assert_int(1, i1, "accept_si9_6 1");
+    assert_int(2, i2, "accept_si9_6 2");
+    assert_int(3, i3, "accept_si9_6 3");
+    assert_int(4, i4, "accept_si9_6 4");
+    assert_int(5, i5, "accept_si9_6 5");
+    assert_int(6, i6, "accept_si9_6 6");
+
+    assert_int(11, si91.i1, "accept_si9_6 11");
+    assert_int(12, si91.i2, "accept_si9_6 12");
+    assert_int(13, si91.i3, "accept_si9_6 13");
+    assert_int(14, si91.i4, "accept_si9_6 14");
+    assert_int(15, si91.i5, "accept_si9_6 15");
+    assert_int(16, si91.i6, "accept_si9_6 16");
+    assert_int(17, si91.i7, "accept_si9_6 17");
+    assert_int(18, si91.i8, "accept_si9_6 18");
+    assert_int(19, si91.i9, "accept_si9_6 19");
+
+    assert_int(21, si92.i1, "accept_si9_6 21");
+    assert_int(22, si92.i2, "accept_si9_6 22");
+    assert_int(23, si92.i3, "accept_si9_6 23");
+    assert_int(24, si92.i4, "accept_si9_6 24");
+    assert_int(25, si92.i5, "accept_si9_6 25");
+    assert_int(26, si92.i6, "accept_si9_6 26");
+    assert_int(27, si92.i7, "accept_si9_6 27");
+    assert_int(28, si92.i8, "accept_si9_6 28");
+    assert_int(29, si92.i9, "accept_si9_6 29");
+}
+
+// In aarch64, one struct has a pointer in a register, the other one a pointer in the stack
+void accept_si9_i7(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct si9 si91, struct si9 si92) {
+    assert_int(1, i1, "accept_si9_7 1");
+    assert_int(2, i2, "accept_si9_7 2");
+    assert_int(3, i3, "accept_si9_7 3");
+    assert_int(4, i4, "accept_si9_7 4");
+    assert_int(5, i5, "accept_si9_7 5");
+    assert_int(6, i6, "accept_si9_7 6");
+    assert_int(7, i7, "accept_si9_7 7");
+
+    assert_int(11, si91.i1, "accept_si9_7 11");
+    assert_int(12, si91.i2, "accept_si9_7 12");
+    assert_int(13, si91.i3, "accept_si9_7 13");
+    assert_int(14, si91.i4, "accept_si9_7 14");
+    assert_int(15, si91.i5, "accept_si9_7 15");
+    assert_int(16, si91.i6, "accept_si9_7 16");
+    assert_int(17, si91.i7, "accept_si9_7 17");
+    assert_int(18, si91.i8, "accept_si9_7 18");
+    assert_int(19, si91.i9, "accept_si9_7 19");
+
+    assert_int(21, si92.i1, "accept_si9_7 21");
+    assert_int(22, si92.i2, "accept_si9_7 22");
+    assert_int(23, si92.i3, "accept_si9_7 23");
+    assert_int(24, si92.i4, "accept_si9_7 24");
+    assert_int(25, si92.i5, "accept_si9_7 25");
+    assert_int(26, si92.i6, "accept_si9_7 26");
+    assert_int(27, si92.i7, "accept_si9_7 27");
+    assert_int(28, si92.i8, "accept_si9_7 28");
+    assert_int(29, si92.i9, "accept_si9_7 29");
+}
+
+// With 2 structs and 1 float in the stack in aarch64
+void accept_si9_2_f9(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, struct si9 si91, struct si9 si92) {
+    assert_float(1.1, f1, "accept_si9_2_f9 1");
+    assert_float(2.1, f2, "accept_si9_2_f9 2");
+    assert_float(3.1, f3, "accept_si9_2_f9 3");
+    assert_float(4.1, f4, "accept_si9_2_f9 4");
+    assert_float(5.1, f5, "accept_si9_2_f9 5");
+    assert_float(6.1, f6, "accept_si9_2_f9 6");
+    assert_float(7.1, f7, "accept_si9_2_f9 7");
+    assert_float(8.1, f8, "accept_si9_2_f9 8");
+    assert_float(9.1, f9, "accept_si9_2_f9 9");
+
+    assert_int(11, si91.i1, "accept_si9_2 11");
+    assert_int(12, si91.i2, "accept_si9_2 12");
+    assert_int(13, si91.i3, "accept_si9_2 13");
+    assert_int(14, si91.i4, "accept_si9_2 14");
+    assert_int(15, si91.i5, "accept_si9_2 15");
+    assert_int(16, si91.i6, "accept_si9_2 16");
+    assert_int(17, si91.i7, "accept_si9_2 17");
+    assert_int(18, si91.i8, "accept_si9_2 18");
+    assert_int(19, si91.i9, "accept_si9_2 19");
+
+    assert_int(21, si92.i1, "accept_si9_2 21");
+    assert_int(22, si92.i2, "accept_si9_2 22");
+    assert_int(23, si92.i3, "accept_si9_2 23");
+    assert_int(24, si92.i4, "accept_si9_2 24");
+    assert_int(25, si92.i5, "accept_si9_2 25");
+    assert_int(26, si92.i6, "accept_si9_2 26");
+    assert_int(27, si92.i7, "accept_si9_2 27");
+    assert_int(28, si92.i8, "accept_si9_2 28");
+    assert_int(29, si92.i9, "accept_si9_2 29");
+}
+
+// With 2 structs and 2 floats in the stack in aarch64
+void accept_si9_2_f10(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, float f10, struct si9 si91, struct si9 si92) {
+    assert_float(1.1, f1, "accept_si9_2_f10 1");
+    assert_float(2.1, f2, "accept_si9_2_f10 2");
+    assert_float(3.1, f3, "accept_si9_2_f10 3");
+    assert_float(4.1, f4, "accept_si9_2_f10 4");
+    assert_float(5.1, f5, "accept_si9_2_f10 5");
+    assert_float(6.1, f6, "accept_si9_2_f10 6");
+    assert_float(7.1, f7, "accept_si9_2_f10 7");
+    assert_float(8.1, f8, "accept_si9_2_f10 8");
+    assert_float(9.1, f9, "accept_si9_2_f10 9");
+    assert_float(10.1, f10, "accept_si9_2_f10 10");
+
+    assert_int(11, si91.i1, "accept_si9_2_f10 11");
+    assert_int(12, si91.i2, "accept_si9_2_f10 12");
+    assert_int(13, si91.i3, "accept_si9_2_f10 13");
+    assert_int(14, si91.i4, "accept_si9_2_f10 14");
+    assert_int(15, si91.i5, "accept_si9_2_f10 15");
+    assert_int(16, si91.i6, "accept_si9_2_f10 16");
+    assert_int(17, si91.i7, "accept_si9_2_f10 17");
+    assert_int(18, si91.i8, "accept_si9_2_f10 18");
+    assert_int(19, si91.i9, "accept_si9_2_f10 19");
+
+    assert_int(21, si92.i1, "accept_si9_2_f10 21");
+    assert_int(22, si92.i2, "accept_si9_2_f10 22");
+    assert_int(23, si92.i3, "accept_si9_2_f10 23");
+    assert_int(24, si92.i4, "accept_si9_2_f10 24");
+    assert_int(25, si92.i5, "accept_si9_2_f10 25");
+    assert_int(26, si92.i6, "accept_si9_2_f10 26");
+    assert_int(27, si92.i7, "accept_si9_2_f10 27");
+    assert_int(28, si92.i8, "accept_si9_2_f10 28");
+    assert_int(29, si92.i9, "accept_si9_2_f10 29");
+}
+
 void accept_i5si4(int i1, int i2, int i3, int i4, int i5, struct si4 si4) {
     assert_int(1, i1,     "accept_i5si4 1");
     assert_int(2, i2,     "accept_i5si4 2");
@@ -229,8 +349,6 @@ void accept_i5si4(int i1, int i2, int i3, int i4, int i5, struct si4 si4) {
     assert_int(8, si4.i3, "accept_i5si4 8");
     assert_int(9, si4.i4, "accept_i5si4 9");
 }
-
-#endif
 
 void accept_i5sia4(int i1, int i2, int i3, int i4, int i5, struct sia4 sia4) {
     assert_int(1, i1,        "accept_i5sia4 1");
@@ -274,8 +392,6 @@ void accept_i7sia4i1(int i1, int i2, int i3, int i4, int i5, int i6, int i7, str
     assert_int(12, sia4.i[3], "accept_i7sia4i1 12");
 }
 
-#ifdef __x86_64__
-
 void accept_sia2a2(struct sia2a2 sia2a2) {
     assert_int(1, sia2a2.i[0][0], "accept_sia2a2 1");
     assert_int(2, sia2a2.i[0][1], "accept_sia2a2 2");
@@ -306,8 +422,6 @@ void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sff
     assert_int(8.1, sffff.f3, "accept_f5sffff 8");
     assert_int(9.1, sffff.f4, "accept_f5sffff 9");
 }
-
-#endif
 
 void accept_sfa4(struct sfa4 sfa4) {
     assert_float(6.1, sfa4.f[0], "accept_i5sfa4 6");
@@ -356,6 +470,8 @@ void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struc
     assert_long_double(9.1, sld2.ld2, "accept_i7sld2 9");
 }
 
+#endif
+
 // Example from ABI doc v0.98
 void accept_abi_example(int e, int f, structparm s, int g, int h, long double ld, double m, double n, int i, int j, int k) {
     assert_int(1, e, "abi_example e");
@@ -379,7 +495,6 @@ void accept_us(struct us us) {
     assert_int(3, us.j, "accept-us j");
 }
 
-#endif
 struct spf gspf;
 
 struct spf    return_spf() { struct spf spf; spf.f1 = 1.1; return spf; }
@@ -421,6 +536,8 @@ struct si5 return_si5_with_params(int i, float f) {
     return *&si5;
 }
 
+#endif
+
 void accept_array(int a[4]) {
     assert_int(1, a[0], "Accept array 1");
     assert_int(2, a[1], "Accept array 2");
@@ -428,7 +545,10 @@ void accept_array(int a[4]) {
     assert_int(4, a[3], "Accept array 4");
 }
 
+#ifdef __x86_64__
+
 int linked_object;
+
 static int unlinked_object;
 int initialized_linked_object = 1;
 static int initialized_unlinked_object = 1;
@@ -453,6 +573,8 @@ int extern_renamed_func(int i) {
 
 extern int extern_func(int i) { return i + 1; }
 
+#endif
+
 void test_bitfield_struct_fields(struct bfs *bfs) {
     assert_int(1,  bfs->i1, "Test bfs 1");
     assert_int(2 , bfs->i2, "Test bfs 2");
@@ -469,6 +591,8 @@ void test_int128_in_registers(__int128 i128) {
     ASSERT_INT128(1, 2, i128, "An int128 in registers");
 }
 
+#ifdef __x86_64__
+
 // Test an int128 that is on the stack since 5/6 registers have already been taken
 void test_int128_in_stack(int i1, int i2, int i3, int i4, int i5, __int128 i128) {
     assert_int(   -1,   i1,   "A int128 on the stack 1");
@@ -479,9 +603,10 @@ void test_int128_in_stack(int i1, int i2, int i3, int i4, int i5, __int128 i128)
     ASSERT_INT128(1, 2, i128, "A int128 on the stack 6");
 }
 
+#endif
+
 __int128_t return_int128() {
     __int128_t r = MAKE_SINT128(1, 2);
     return r;
 }
 
-#endif

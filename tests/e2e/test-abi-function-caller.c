@@ -9,8 +9,6 @@ int verbose;
 int passes;
 int failures;
 
-#ifdef __x86_64__
-
 struct sffff gsffff;
 
 // No test is present for a redeclared symbol with default extern and later extern, but this must compile without errors.
@@ -37,11 +35,19 @@ void test_struct_in_stack_with_eight_offset() {
     struct si9 si9; si9.i1 = 1; si9.i2 = 2; si9.i3 = 3; si9.i4 = 4; si9.i5 = 5; si9.i6 = 6; si9.i7 = 7; si9.i8 = 8; si9.i9 = 9; accept_si9(si9);
 }
 
+void test_struct_in_stack_aarch64_cases() {
+    struct si9 si91 = {11,12,13,14,15,16,17,18,19};
+    struct si9 si92 = {21,22,23,24,25,26,27,28,29};
+
+    accept_si9_i6(1, 2, 3, 4, 5, 6, si91, si92);
+    accept_si9_i7(1, 2, 3, 4, 5, 6, 7, si91, si92);
+    accept_si9_2_f9(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, si91, si92);
+    accept_si9_2_f10(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1, si91, si92);
+}
+
 struct si1 gsi1;
 struct si5 gsi5;
 struct si9 gsi9;
-
-#endif
 
 void test_struct_params() {
     // Struct with only floats and doubles
@@ -51,12 +57,9 @@ void test_struct_params() {
     struct sff sff; sff.f1 = 5.1; sff.f2 = 6.1; accept_sff(sff);
     struct sdd sdd; sdd.d1 = 7.1; sdd.d2 = 8.1; accept_sdd(sdd);
     struct sffff sffff = {1.1, 2.1, 3.1, 4.1}; accept_sffff(sffff);
-    #ifdef __x86_64__
     struct sf9 sf9 = {1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1}; accept_sf9(sf9);
-    #endif
     struct sffff sffff2 = {5.1, 6.1, 7.1, 8.1}; accept_ffffsffff(1.1, 2.1, 3.1, 4.1, sffff2);
     struct sffii sffii; sffii.f1 = 1.1; sffii.f2 = 2.1; sffii.i1 = 3; sffii.i2 = 4; accept_sffii(sffii);
-    #ifdef __x86_64__
     struct sffiii sffiii; sffiii.f1 = 1.1; sffiii.f2 = 2.1; sffiii.i1 = 3; sffiii.i2 = 4; sffiii.i3 = 5; accept_sffiii(sffiii);
     struct siiff siiff; siiff.i1 = 1; siiff.i2 = 2; siiff.f1 = 3.1; siiff.f2 = 4.1; accept_siiff(siiff);
     struct siifff siifff; siifff.i1 = 1; siifff.i2 = 2; siifff.f1 = 3.1; siifff.f2 = 4.1; siifff.f3 = 5.1; accept_siifff(siifff);
@@ -67,8 +70,6 @@ void test_struct_params() {
 
     // From global
     gsffff.f1 = 1.1; gsffff.f2 = 2.1;  gsffff.f3 = 3.1; gsffff.f4 = 4.1; accept_sffff(gsffff);
-
-    #endif
 
     // Structs with chars of different sizes
     struct sc1 sc1 =  {1                        }; accept_sc1(sc1);
@@ -88,9 +89,12 @@ void test_struct_params() {
     // From lvalue in register
     accept_sc9(*&sc9);
 
+    #endif
+
     // Local in stack
     test_struct_in_stack_with_zero_offset();
     test_struct_in_stack_with_eight_offset();
+    test_struct_in_stack_aarch64_cases();
 
     // Global in stack
     gsi5.i1 = 1; gsi5.i2 = 2; gsi5.i3 = 3; gsi5.i4 = 4; gsi5.i5 = 5;
@@ -98,15 +102,18 @@ void test_struct_params() {
 
     gsi9.i1 = 1; gsi9.i2 = 2; gsi9.i3 = 3; gsi9.i4 = 4; gsi9.i5 = 5; gsi9.i6 = 6; gsi9.i7 = 7; gsi9.i8 = 8; gsi9.i9 = 9; accept_si9(gsi9);
 
+    #ifdef __x86_64__
+
     // From lvalue in register
     accept_si5(*&gsi5); // <= 32 bytes, done with registers
     accept_si9(*&gsi9); // > 32 bytes, done with memcpy
+
+    #endif
 
     // Forcing of si4 onto the stack due to partial register exhaustion
     struct si4 si4; si4.i1 = 6; si4.i2 = 7; si4.i3 = 8; si4.i4 = 9;
     accept_i5si4(1, 2, 3, 4, 5, si4);
 
-    #endif
     struct sia4 sia4 = {6, 7, 8, 9};
     accept_i5sia4(1, 2, 3, 4, 5, sia4);
 
@@ -115,8 +122,6 @@ void test_struct_params() {
 
     sia4.i[0] = 9; sia4.i[1] = 10; sia4.i[2] = 11; sia4.i[3] = 12;
     accept_i7sia4i1(1, 2, 3, 4, 5, 6, 7, sia4, 8);
-
-    #ifdef __x86_64__
 
     struct sia2a2 sia2a2; sia2a2.i[0][0] = 1; sia2a2.i[0][1] = 2; sia2a2.i[1][0] = 3; sia2a2.i[1][1] = 4;
     accept_sia2a2(sia2a2);
@@ -127,8 +132,6 @@ void test_struct_params() {
     // Forcing of sffff onto the stack due to partial register exhaustion
     sffff.f1 = 6.1; sffff.f2 = 7.1; sffff.f3 = 8.1; sffff.f4 = 9.1;
     accept_f5sffff(1.1, 2.1, 3.1, 4.1, 5.1, sffff);
-
-    #endif
 
     struct sfa4 sfa4;
     sfa4.f[0] = 6.1; sfa4.f[1] = 7.1; sfa4.f[2] = 8.1; sfa4.f[3] = 9.1;
@@ -260,14 +263,14 @@ void test_struct_return_values() {
     assert_float(4.1, sifif.f2, "return_sifif");
 }
 
-#ifdef __x86_64__
-
 void test_arrays() {
     int a[4];
     for (int i = 0; i < 4; i++) a[i] = i + 1;
 
     accept_array(a);
 }
+
+#ifdef __x86_64__
 
 extern int linked_object;
 static int unlinked_object;
@@ -336,10 +339,14 @@ void test_extern_func() {
     assert_int(2, extern_func(1), "calling extern func in another translation unit");
 }
 
+#endif
+
 void test_bit_fields() {
     struct bfs bfs = { 1, 2, 3, 4, 5, 6, 7, 8 };
     test_bitfield_struct_fields(&bfs);
 }
+
+#ifdef __x86_64__
 
 void test_int128() {
     __int128 i128 = (((__int128) 1) << 64) | 2;
@@ -347,13 +354,13 @@ void test_int128() {
     test_int128_in_stack(-1, -2, -3, -4, -5, i128);
 }
 
+#endif
+
 void test_int128_return() {
     __int128_t r1;
     r1 = return_int128();
     ASSERT_INT128(1, 2, r1, "int128 returned to registers");
 }
-
-#endif
 
 int main(int argc, char **argv) {
     passes = 0;
@@ -363,16 +370,18 @@ int main(int argc, char **argv) {
 
     test_struct_params();
     test_struct_return_values();
-    #ifdef __x86_64__
     test_arrays();
+    #ifdef __x86_64__
     test_global_object_linkage();
     test_block_extern_object_linkage();
     test_extern_renamed_func();
     test_extern_func();
-    test_bit_fields();
-    test_int128();
-    test_int128_return();
     #endif
+    test_bit_fields();
+    #ifdef __x86_64__
+    test_int128();
+    #endif
+    test_int128_return();
 
     finalize();
 }

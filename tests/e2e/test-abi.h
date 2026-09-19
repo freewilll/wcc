@@ -82,6 +82,11 @@ void accept_si7(struct si7 si7);
 void accept_si8(struct si8 si8);
 void accept_si9(struct si9 si9);
 
+void accept_si9_i6(int i1, int i2, int i3, int i4, int i5, int i6, struct si9 si91, struct si9 si92);
+void accept_si9_i7(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct si9 si91, struct si9 si92);
+void accept_si9_2_f9(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, struct si9 si91, struct si9 si92);
+void accept_si9_2_f10(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, float f10, struct si9 si91, struct si9 si92);
+
 void accept_i5si4(int i1, int i2, int i3, int i4, int i5, struct si4 si4);
 void accept_i5sia4(int i1, int i2, int i3, int i4, int i5, struct sia4 sia4);
 void accept_i7sia4(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sia4 sia4);
