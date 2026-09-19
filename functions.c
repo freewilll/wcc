@@ -647,8 +647,10 @@ void add_function_call_arg_moves(Function *function) {
         else if (in_indirect_stack) {
             Value *preg_arg_value = convert_target_arg_move_to_indirect_stack_instructions(function, moves_ir, ir);
 
-            // Keep the all the arg register alive at the same time as any other arg registers.
-            moves_ir = new_tac_before(moves_ir, IR_FUNCTION_CALL_REG, 0, preg_arg_value, 0, 1);
+            if (preg_arg_value)
+                // Keep the all the arg register alive at the same time as any other arg registers.
+                moves_ir = new_tac_before(moves_ir, IR_FUNCTION_CALL_REG, 0, preg_arg_value, 0, 1);
+
             make_instruction_a_nop(ir);
         }
 
@@ -875,7 +877,7 @@ void add_function_param_moves(Function *function) {
     // Add moves for params in registers
     for (int i = 0; i < function->type->function->param_count; i++) {
         CallValueLocations cvl = CVA_CVL(cva, cva_start + i);
-        if (cvl.locations[0].stack_offset != -1) continue;
+        if (cvl.locations[0].stack_offset != -1 || cvl.locations[0].indirect_stack_offset != -1) continue;
 
         Type *type = function->type->function->param_types->elements[i];
 

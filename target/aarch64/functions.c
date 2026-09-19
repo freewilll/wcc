@@ -514,6 +514,8 @@ void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac)
 // The aarch64 ABI says that structs and unions larger than 16 bytes (except HFA cases)
 // are copied to a stack area allocated by the caller. The argument is replaced with
 // a pointer to the allocated memory.
+// Returns a value for an arg preg value if the pointer is in an arg register,
+// otherwise NULL if the arg is on the stack.
 Value *convert_target_arg_move_to_indirect_stack_instructions(Function *function, Tac *tac, Tac *arg_ir) {
     Value *arg = arg_ir->src1;
     Value *src = arg_ir->src2;
@@ -545,11 +547,19 @@ Value *convert_target_arg_move_to_indirect_stack_instructions(Function *function
     dst->type = make_pointer_to_void();
     new_tac_before(tac, IR_ADDRESS_OF, address, dst, NULL, 0);
 
-    if (cvl_indirect_register->int_register == -1) panic("TODO: move indirect stack pointer to stack");
-    add_arg_move_to_register(function, tac, address->type, address, PC_INT, cvl_indirect_register->int_register, &arg_register_set);
-    Value *preg = tac->prev->dst;
+    if (cvl_indirect_register->int_register != -1) {
+        add_arg_move_to_register(function, tac, address->type, address, PC_INT, cvl_indirect_register->int_register, &arg_register_set);
+        return tac->prev->dst;
+    }
+    else {
+        Value *dst = new_value();
+        dst->type = make_pointer_to_void();
+        dst->stack.index = cvl_indirect_register->stack_offset / 8 + 1; // Conventionally the first stack_index entry starts at 1
+        dst->stack.area = SA_FUNCTION_ARGS;
 
-    return preg;
+        new_tac_before(tac, IR_MOVE, dst, address, NULL, 0);
+        return NULL;
+    }
 }
 
 // Moves allocated indirect stack space, done in
