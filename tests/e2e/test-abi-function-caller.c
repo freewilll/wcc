@@ -346,15 +346,13 @@ void test_bit_fields() {
     test_bitfield_struct_fields(&bfs);
 }
 
-#ifdef __x86_64__
-
 void test_int128() {
     __int128 i128 = (((__int128) 1) << 64) | 2;
     test_int128_in_registers(i128);
-    test_int128_in_stack(-1, -2, -3, -4, -5, i128);
+    test_int128_in_registers_i5(-1, -2, -3, -4, -5, i128);
+    test_int128_in_registers_i6(-1, -2, -3, -4, -5, -6, i128);
+    test_int128_in_registers_i7(-1, -2, -3, -4, -5, -6, -7, i128);
 }
-
-#endif
 
 void test_int128_return() {
     __int128_t r1;
@@ -378,9 +376,7 @@ int main(int argc, char **argv) {
     test_extern_func();
     #endif
     test_bit_fields();
-    #ifdef __x86_64__
     test_int128();
-    #endif
     test_int128_return();
 
     finalize();

@@ -243,6 +243,9 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
 // Add a type to a call value allocation
 void add_type_to_cva(CallValueAllocation *cva, Type *type) {
     if (type->type == TYPE_INT128) {
+        // aapcs64 C.10
+        // If the argument has an alignment of 16 then the NGRN is rounded up to the next even number.
+        cva->single_int_register_arg_count = (cva->single_int_register_arg_count + 1) & ~1;
         add_int128_call_value_locations(cva, type);
     }
 

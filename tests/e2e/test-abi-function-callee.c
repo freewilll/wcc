@@ -591,10 +591,8 @@ void test_int128_in_registers(__int128 i128) {
     ASSERT_INT128(1, 2, i128, "An int128 in registers");
 }
 
-#ifdef __x86_64__
-
-// Test an int128 that is on the stack since 5/6 registers have already been taken
-void test_int128_in_stack(int i1, int i2, int i3, int i4, int i5, __int128 i128) {
+// Test an int128 with 5 registers already taken
+void test_int128_in_registers_i5(int i1, int i2, int i3, int i4, int i5, __int128 i128) {
     assert_int(   -1,   i1,   "A int128 on the stack 1");
     assert_int(   -2,   i2,   "A int128 on the stack 2");
     assert_int(   -3,   i3,   "A int128 on the stack 3");
@@ -603,7 +601,28 @@ void test_int128_in_stack(int i1, int i2, int i3, int i4, int i5, __int128 i128)
     ASSERT_INT128(1, 2, i128, "A int128 on the stack 6");
 }
 
-#endif
+// Test an int128 with 6 registers already taken
+void test_int128_in_registers_i6(int i1, int i2, int i3, int i4, int i5, int i6, __int128 i128) {
+    assert_int(   -1,   i1,   "A int128 on the stack 1");
+    assert_int(   -2,   i2,   "A int128 on the stack 2");
+    assert_int(   -3,   i3,   "A int128 on the stack 3");
+    assert_int(   -4,   i4,   "A int128 on the stack 4");
+    assert_int(   -5,   i5,   "A int128 on the stack 5");
+    assert_int(   -6,   i6,   "A int128 on the stack 6");
+    ASSERT_INT128(1, 2, i128, "A int128 on the stack 7");
+}
+
+// Test an int128 with 7 registers already taken
+void test_int128_in_registers_i7(int i1, int i2, int i3, int i4, int i5, int i6, int i7, __int128 i128) {
+    assert_int(   -1,   i1,   "A int128 on the stack 1");
+    assert_int(   -2,   i2,   "A int128 on the stack 2");
+    assert_int(   -3,   i3,   "A int128 on the stack 3");
+    assert_int(   -4,   i4,   "A int128 on the stack 4");
+    assert_int(   -5,   i5,   "A int128 on the stack 5");
+    assert_int(   -6,   i6,   "A int128 on the stack 6");
+    assert_int(   -7,   i7,   "A int128 on the stack 7");
+    ASSERT_INT128(1, 2, i128, "A int128 on the stack 8");
+}
 
 __int128_t return_int128() {
     __int128_t r = MAKE_SINT128(1, 2);

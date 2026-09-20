@@ -72,12 +72,15 @@ void test_struct_params() {
 }
 
 void test_int128() {
+    // Just P1s
     test_param_allocation(P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00       |          | 000 | ");
     test_param_allocation(P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "0011     |          | 000 | ");
-    test_param_allocation(P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "0011     |          | 000 | ");
-    test_param_allocation(P1, P1, PI, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00112    |          | 010 | 3");
+    test_param_allocation(P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "001122   |          | 000 | ");
     test_param_allocation(P1, P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "001122   |          | 010 | 3");
     test_param_allocation(P1, P1, P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "001122   |          | 020 | 3 4");
+
+    // With some integers thrown in
+    test_param_allocation(P1, P1, PI, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00112    |          | 010 | 3");
     test_param_allocation(P1, P1, P1, P1, P1, PI, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "001122   |          | 028 | 3 4 5");
 }
 

@@ -139,5 +139,7 @@ int get_sei();
 void set_sei(int i);
 void test_bitfield_struct_fields(struct bfs *bfs);
 void test_int128_in_registers(__int128 i128);
-void test_int128_in_stack(int i1, int i2, int i3, int i4, int i5, __int128 i128);
+void test_int128_in_registers_i5(int i1, int i2, int i3, int i4, int i5, __int128 i128);
+void test_int128_in_registers_i6(int i1, int i2, int i3, int i4, int i5, int i6, __int128 i128);
+void test_int128_in_registers_i7(int i1, int i2, int i3, int i4, int i5, int i6, int i7, __int128 i128);
 __int128_t return_int128();

@@ -119,6 +119,24 @@ void test_struct_params() {
     assert_string(cva_result_str(cva), "01223489 | 567      | 008 | a", "Example from x86_64  ABI doc v0.98");
 }
 
+void test_int128() {
+    // Just P1s
+    test_param_allocation(P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00       |          | 000 | ");
+    test_param_allocation(P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "0011     |          | 000 | ");
+    test_param_allocation(P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "001122   |          | 000 | ");
+    test_param_allocation(P1, P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00112233 |          | 000 | ");
+    test_param_allocation(P1, P1, P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00112233 |          | 010 | 4");
+
+    // With some integers thrown in
+    test_param_allocation(P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00       |          | 000 | ");
+    test_param_allocation(PI, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "0 11     |          | 000 | ");
+    test_param_allocation(PI, P1, P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "0 112233 |          | 010 | 4");
+    test_param_allocation(P1, P1, PI, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00112 33 |          | 000 | ");
+    test_param_allocation(P1, P1, P1, P1, P1, PI, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00112233 |          | 020 | 4 5");
+    test_param_allocation(P1, P1, P1, P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00112233 |          | 020 | 4 5");
+    test_param_allocation(PI, PI, PI, PI, PI, PI, PI, P1, PI, 0,  0,  0,  0,  0,  0,  0 , "0123456  |          | 020 | 7 8");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -129,7 +147,7 @@ int main(int argc, char **argv) {
 
     test_scalar_params();
     test_struct_params();
-    // test_int128(); // TODO aarch64
+    test_int128();
 
     finalize();
 }
