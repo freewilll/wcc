@@ -148,6 +148,7 @@ void test_struct_params() {
     // Alignment 16 struct with 8 bytes on the stack underneath it
     struct sld2 sld2; sld2.ld1 = 8.1; sld2.ld2 = 9.1; accept_i7sld2(1, 2, 3, 4, 5, 6, 7, sld2);
 
+    #endif
     // Example from x86_64 ABI doc v0.98
     structparm s;
     int e = 1; int f = 2; int g = 3; int h = 4; int i = 5; int j = 6; int k = 7;
@@ -159,7 +160,6 @@ void test_struct_params() {
     struct us us;
     us.i = 1; us.c = 2; us.j = 3;
     accept_us(us);
-    #endif
 }
 
 void test_struct_return_values() {

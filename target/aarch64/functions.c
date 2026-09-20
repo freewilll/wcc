@@ -171,8 +171,6 @@ static void add_struct_or_union_call_value_location_for_non_hfa_struct(CallValue
         }
 
         append_to_list(cva->locations, cvl);
-
-        cva->single_int_register_arg_count += needed_int_registers;
     }
     else {
         // The struct goes into the stack
