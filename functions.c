@@ -773,7 +773,7 @@ static void check_param_value_has_used_in_an_address_of(ParamDetails *param_deta
 }
 
 // Convert stack_index in value v to a parameter register
-static void convert_register_param_stack_index_to_register(Function *function, ParamDetails *param_details, Value *v) {
+static void convert_register_param_stack_index_to_register(ParamDetails *param_details, Value *v) {
     if (!v || v->stack.index <= 0) return;
 
     if (param_details[v->stack.index - 1].register_param_vreg.low != -1 && v->offset == 0) {
@@ -829,7 +829,7 @@ static void convert_indirect_param_stack_index_to_register(Function *function, P
 }
 
 // Convert stack_index in value v to a parameter in the stack
-static void convert_register_param_stack_index_to_stack(Function *function, ParamDetails *param_details, Value *v) {
+static void convert_register_param_stack_index_to_stack(ParamDetails *param_details, Value *v) {
     if (v && v->stack.index > 0 && param_details[v->stack.index - 1].register_param_stack_index) {
         v->stack.index = param_details[v->stack.index - 1].register_param_stack_index;
         v->is_lvalue = 0;
@@ -1050,9 +1050,9 @@ void add_function_param_moves(Function *function) {
 
     // Convert IR
     #define CONVERT_IR(v) \
-        convert_register_param_stack_index_to_register(function, param_details, v); \
+        convert_register_param_stack_index_to_register(param_details, v); \
         convert_indirect_param_stack_index_to_register(function, param_details, ir, v); \
-        convert_register_param_stack_index_to_stack(function, param_details, v);
+        convert_register_param_stack_index_to_stack(param_details, v);
 
     LOOP_OVER_FUNCTION_IR(function) {
         DO_ON_ALL_TAC_VALUES(tac, CONVERT_IR);
