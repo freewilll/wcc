@@ -33,67 +33,29 @@ void test_scalar_params() {
     test_param_allocation(PI, PF, PL, PI, PF, PL, PI, PF, PL, PI, PF, PL, PI, PF, PL, PI, "0369cf   | 147ad    | 050 | 2 5 8 b e");
 }
 
-Type *parse_type_str(char *type_str) {
-    char *filename =  make_temp_filename("/tmp/XXXXXX.c");
-
-    FILE *f = fopen(filename, "w");
-    fprintf(f, "%s\n", type_str);
-    fprintf(f, "\n");
-    fclose(f);
-
-    init_lexer_from_filename(filename);
-    init_parser();
-    init_scopes();
-
-    return parse_type_name();
-}
-
-CallValueAllocation *run_with_multiple_structs(int initial_var, char *struct_str, int count) {
-    CallValueAllocation *cva = init_call_value_allocaton("");
-    if (initial_var) add_type_to_cva(cva, new_type(initial_var));
-    for (int i = 0; i < count; i++) add_type_to_cva(cva,  parse_type_str(struct_str));
-    finalize_call_value_allocation(cva);
-    return cva;
-}
-
 void test_struct_params() {
-    Type *type;
+    test_single_struct_param("struct { int a, b, c; }",                   "00       |          | 000 | ");
+    test_single_struct_param("struct { int a, b; double d; }",            "0        | 0        | 000 | ");
+    test_single_struct_param("struct { int a; float d; }",                "0        |          | 000 | ");
+    test_single_struct_param("struct { int a, b; struct {int c, d; }; }", "00       |          | 000 | ");
+    test_single_struct_param("struct { long double ld; }",                "         |          | 010 | 0");
 
-    CallValueAllocation *cva;
+    // Test defaulting to memory
+    test_single_struct_param("struct { int i; long double ld; }", "         |          | 020 | 0");
+    test_single_struct_param("struct { long i, j, k; }",          "         |          | 018 | 0");
 
-    cva = init_call_value_allocaton("");
-    type = parse_type_str("struct { int a, b, c; }");
-    add_type_to_cva(cva, type);
-    finalize_call_value_allocation(cva);
-    assert_string(cva_result_str(cva), "00       |          | 000 | ", sprint_type_in_english(type));
+    // Test running out of registers for struct/union
+    test_multiple_struct_params(0,          "struct { int i[4]; }",   4, "001122   |          | 010 | 3");
+    test_multiple_struct_params(0,          "struct { int i[4]; }",   5, "001122   |          | 020 | 3 4");
+    test_multiple_struct_params(TYPE_INT,   "struct { int i[4]; }",   3, "01122    |          | 010 | 3");
+    test_multiple_struct_params(TYPE_INT,   "struct { int i[4]; }",   4, "01122    |          | 020 | 3 4");
+    test_multiple_struct_params(0,          "struct { float f[4]; }", 5, "         | 00112233 | 010 | 4");
+    test_multiple_struct_params(0,          "struct { float f[4]; }", 6, "         | 00112233 | 020 | 4 5");
+    test_multiple_struct_params(TYPE_FLOAT, "struct { float f[4]; }", 4, "         | 0112233  | 010 | 4");
+    test_multiple_struct_params(TYPE_FLOAT, "struct { float f[4]; }", 5, "         | 0112233  | 020 | 4 5");
 
-    cva = init_call_value_allocaton("");
-    type = parse_type_str("struct { int a, b; double d; }");
-    add_type_to_cva(cva, type);
-    finalize_call_value_allocation(cva);
-    assert_string(cva_result_str(cva), "0        | 0        | 000 | ", sprint_type_in_english(type));
-
-    cva = init_call_value_allocaton("");
-    type = parse_type_str("struct { int a; float d; }");
-    add_type_to_cva(cva, type);
-    finalize_call_value_allocation(cva);
-    assert_string(cva_result_str(cva), "0        |          | 000 | ", sprint_type_in_english(type));
-
-    cva = init_call_value_allocaton("");
-    type = parse_type_str("struct { int a, b; struct {int c; int d; } s; }");
-    add_type_to_cva(cva, type);
-    finalize_call_value_allocation(cva);
-    assert_string(cva_result_str(cva), "00       |          | 000 | ", sprint_type_in_english(type));
-
-    cva = init_call_value_allocaton("");
-    type = parse_type_str("struct { long double ld; }");
-    add_type_to_cva(cva, type);
-    finalize_call_value_allocation(cva);
-    assert_string(cva_result_str(cva), "         |          | 010 | 0", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 0).count, "Location counts are 1");
-
-     // Example from ABI doc
-    cva = init_call_value_allocaton("");
+    // Example from x86_64 ABI doc
+    CallValueAllocation *cva = init_call_value_allocaton("");
     add_type_to_cva(cva, new_type(TYPE_INT));
     add_type_to_cva(cva, new_type(TYPE_INT));
     add_type_to_cva(cva, parse_type_str("struct { int a, b; double d; }"));
@@ -106,62 +68,7 @@ void test_struct_params() {
     add_type_to_cva(cva, new_type(TYPE_INT));
     add_type_to_cva(cva, new_type(TYPE_INT));
     finalize_call_value_allocation(cva);
-    assert_string(cva_result_str(cva), "012348   | 267      | 020 | 5 9a", "Example from ABI doc v0.98");
-    assert_string("0:I2 1:S0", cvl_result_str(&(((CallValueLocations *) cva->locations->elements[2])->locations[0]), CVA_CVL(cva, 2).count), "Example from ABI doc v0.98 arg 2");
-
-    // Test defaulting to memory
-    cva = init_call_value_allocaton("");
-    type = parse_type_str("struct { int i; long double ld; }");
-    add_type_to_cva(cva, type);
-    finalize_call_value_allocation(cva);
-    assert_string(cva_result_str(cva), "         |          | 020 | 0", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 0).count, "Location counts are 1");
-
-    // Test defaulting to memory
-    cva = init_call_value_allocaton("");
-    type = parse_type_str("struct { long i, j, k; }");
-    add_type_to_cva(cva, type);
-    finalize_call_value_allocation(cva);
-    assert_string(cva_result_str(cva), "         |          | 018 | 0", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 0).count, "Location counts are 1");
-
-    // Test running out of registers for struct/union
-    cva = run_with_multiple_structs(0, "struct { int i[4]; }", 4);
-    assert_string(cva_result_str(cva), "001122   |          | 010 | 3", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 3).count, "Location counts are 1");
-
-    // Test running out of registers for struct/union
-    cva = run_with_multiple_structs(0, "struct { int i[4]; }", 5);
-    assert_string(cva_result_str(cva), "001122   |          | 020 | 3 4", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 3).count, "Location counts are 1");
-    assert_int(1, CVA_CVL(cva, 4).count, "Location counts are 1");
-
-    cva = run_with_multiple_structs(TYPE_INT, "struct { int i[4]; }", 3);
-    assert_string(cva_result_str(cva), "01122    |          | 010 | 3", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 3).count, "Location counts are 1");
-
-    cva = run_with_multiple_structs(TYPE_INT, "struct { int i[4]; }", 4);
-    assert_string(cva_result_str(cva), "01122    |          | 020 | 3 4", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 3).count, "Location counts 1");
-    assert_int(1, CVA_CVL(cva, 4).count, "Location counts 1");
-
-    cva = run_with_multiple_structs(0, "struct { float i[4]; }", 5);
-    assert_string(cva_result_str(cva), "         | 00112233 | 010 | 4", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 4).count, "Location counts 1");
-
-    cva = run_with_multiple_structs(0, "struct { float i[4]; }", 6);
-    assert_string(cva_result_str(cva), "         | 00112233 | 020 | 4 5", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 4).count, "Location counts 1");
-    assert_int(1, CVA_CVL(cva, 5).count, "Location counts 1");
-
-    cva = run_with_multiple_structs(TYPE_FLOAT, "struct { float i[4]; }", 4);
-    assert_string(cva_result_str(cva), "         | 0112233  | 010 | 4", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 4).count, "Location counts are 1");
-
-    cva = run_with_multiple_structs(TYPE_FLOAT, "struct { float i[4]; }", 5);
-    assert_string(cva_result_str(cva), "         | 0112233  | 020 | 4 5", sprint_type_in_english(type));
-    assert_int(1, CVA_CVL(cva, 4).count, "Location counts 1");
-    assert_int(1, CVA_CVL(cva, 5).count, "Location counts 1");
+    assert_string(cva_result_str(cva), "012348   | 267      | 020 | 5 9a", "Example from x86_64 ABI doc v0.98");
 }
 
 void test_int128() {

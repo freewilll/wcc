@@ -1643,7 +1643,7 @@ void convert_target_arg_move_to_stack_instructions(Function *function, Tac *tac)
 Value *convert_target_arg_move_to_indirect_stack_instructions(Function *function, Tac *tac, Tac *arg_ir);
 void process_target_functions(Function *function);
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
-void move_indirect_stack_args(Function *function, CallValueAllocation *cva);
+void move_indirect_stack_args(CallValueAllocation *cva);
 
 // Target instruction rules related code
 char *add_size_to_template(char *template, int size);

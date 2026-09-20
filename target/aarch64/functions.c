@@ -566,7 +566,7 @@ Value *convert_target_arg_move_to_indirect_stack_instructions(Function *function
 // followed by the large structs.
 // See the comment above process_stack_offset()
 // for an illustration of the full stack layout.
-void move_indirect_stack_args(Function *function, CallValueAllocation *cva) {
+void move_indirect_stack_args(CallValueAllocation *cva) {
     int total_indirect_block_size = 0;
     for (int i = 0; i < cva->locations->length; i++) {
         CallValueLocations *cvls = cva->locations->elements[i];

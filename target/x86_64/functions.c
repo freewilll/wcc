@@ -985,7 +985,7 @@ Value *convert_target_arg_move_to_indirect_stack_instructions(Function *function
 }
 
 // Not used in x86_64
-void move_indirect_stack_args(Function *function, CallValueAllocation *cva) {}
+void move_indirect_stack_args(CallValueAllocation *cva) {}
 
 // Process target function calls, args, params and return values
 void process_target_functions(Function *function) {

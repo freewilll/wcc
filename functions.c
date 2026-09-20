@@ -288,7 +288,7 @@ void process_function_call_arg_allocations(Function *function) {
             if (!cva) panic("cva was NULL in an IR_END_CALL for a function call to %s in function %s", symbol_name, function->identifier);
 
             finalize_call_value_allocation(cva);
-            move_indirect_stack_args(function, cva);
+            move_indirect_stack_args(cva);
 
             arg->function_call.function_call_stack_size = cva->size;
         }

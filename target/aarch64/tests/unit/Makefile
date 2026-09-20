@@ -1,6 +1,6 @@
 GCC ?= gcc
 
-TEST_BUILD_DIR = ${BUILD_DIR}/target/x86_64/tests/unit
+TEST_BUILD_DIR = ${BUILD_DIR}/target/aarch64/tests/unit
 UNIT_TEST_FLAGS := ${GCC_OPTS} -g -I ${BUILD_DIR}
 UNIT_TEST_WARN_FLAGS := -Wno-int-conversion -Wno-pointer-to-int-cast
 

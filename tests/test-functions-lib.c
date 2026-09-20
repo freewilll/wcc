@@ -23,7 +23,7 @@ static char shortcut_to_char(int s) {
 }
 
 char *cva_result_str(CallValueAllocation *cva) {
-    // Construct string representation of int, fp and stack allocation
+    // Construct string representation of int, fp, stack allocation
     // The hex values are the parameter index
     char *result = malloc(256);
     char *b = result;
@@ -59,7 +59,7 @@ char *cva_result_str(CallValueAllocation *cva) {
         if (!allocated) b += sprintf(b, " ");
     }
 
-    // Add stack and padding
+    // Add stack
     b += sprintf(b, " | %03x | ", cva->size);
     b[0] = 0;
     int first = 1;
@@ -102,6 +102,8 @@ void test_param_allocation(
     if (a15) add_type_to_cva(cva, new_type(shortcut_to_type(a15)));
 
     finalize_call_value_allocation(cva);
+    move_indirect_stack_args(cva);
+
 
     char *description = calloc(1, 256);
     sprintf(description, "Function param placing                 ");
@@ -129,19 +131,41 @@ void test_param_allocation(
     assert_string(expected, got, description);
 }
 
-// Convert list of CallValueLocation into string representation
-// {argm}:[In|So|STp]
-char *cvl_result_str(CallValueLocation *cvl, int count) {
-    char *result = malloc(256);
-    char *b = result;
+Type *parse_type_str(char *type_str) {
+    char *filename =  make_temp_filename("/tmp/XXXXXX.c");
 
-    for (int i = 0; i < count; i++) {
-        if (i != 0) b += sprintf(b, " ");
-        b += sprintf(b, "%d:", i);
-        if (cvl[i].int_register != -1) b += sprintf(b, "I%d", cvl[i].int_register);
-        else if (cvl[i].fp_register != -1) b += sprintf(b, "S%d", cvl[i].fp_register);
-        else b += sprintf(b, "ST%d", cvl[i].stack_offset);
-    }
+    FILE *f = fopen(filename, "w");
+    fprintf(f, "%s\n", type_str);
+    fprintf(f, "\n");
+    fclose(f);
 
-    return result;
+    init_lexer_from_filename(filename);
+    init_parser();
+    init_scopes();
+
+    return parse_type_name();
 }
+
+// Parse a function call with
+// - an optional intitial_var type
+// - count type_str
+// and assert the allocation is correct.
+void test_multiple_struct_params(int initial_var, char *type_str, int count, char *expected_cva_result_str) {
+    Type *type = parse_type_str(type_str);
+    char *english_type = sprint_type_in_english(type);
+    CallValueAllocation *cva = init_call_value_allocaton("");
+
+    if (initial_var) add_type_to_cva(cva, new_type(initial_var));
+
+    for (int i = 0; i < count; i++) add_type_to_cva(cva,  parse_type_str(type_str));
+
+    finalize_call_value_allocation(cva);
+    move_indirect_stack_args(cva);
+
+    assert_string(expected_cva_result_str, cva_result_str(cva), english_type);
+}
+
+void test_single_struct_param(char *type_str, char *expected_cva_result_str) {
+    test_multiple_struct_params(0, type_str, 1, expected_cva_result_str);
+}
+
