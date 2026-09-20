@@ -1048,26 +1048,22 @@ void add_function_param_moves(Function *function) {
 
     if (function->type->function->is_variadic) add_function_vararg_param_moves(function, cva, ir);
 
-    // Adapt the function's IR to use the values in registers/stack
-    for (Tac *ir = function->ir; ir; ir = ir->next) {
-        convert_register_param_stack_index_to_register(function, param_details, ir->dst);
-        convert_register_param_stack_index_to_register(function, param_details, ir->src1);
-        convert_register_param_stack_index_to_register(function, param_details, ir->src2);
+    // Convert IR
+    #define CONVERT_IR(v) \
+        convert_register_param_stack_index_to_register(function, param_details, v); \
+        convert_indirect_param_stack_index_to_register(function, param_details, ir, v); \
+        convert_register_param_stack_index_to_stack(function, param_details, v);
 
-        convert_indirect_param_stack_index_to_register(function, param_details, ir, ir->dst);
-        convert_indirect_param_stack_index_to_register(function, param_details, ir, ir->src1);
-        convert_indirect_param_stack_index_to_register(function, param_details, ir, ir->src2);
-
-        convert_register_param_stack_index_to_stack(function, param_details, ir->dst);
-        convert_register_param_stack_index_to_stack(function, param_details, ir->src1);
-        convert_register_param_stack_index_to_stack(function, param_details, ir->src2);
+    LOOP_OVER_FUNCTION_IR(function) {
+        DO_ON_ALL_TAC_VALUES(tac, CONVERT_IR);
     }
+    #undef CONVERT_IR
 
     // Process parameters in the stack
-    for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->dst ) ir->dst ->has_been_renamed = 0;
-        if (ir->src1) ir->src1->has_been_renamed = 0;
-        if (ir->src2) ir->src2->has_been_renamed = 0;
+    LOOP_OVER_FUNCTION_IR(function) {
+        if (tac->dst ) tac->dst ->has_been_renamed = 0;
+        if (tac->src1) tac->src1->has_been_renamed = 0;
+        if (tac->src2) tac->src2->has_been_renamed = 0;
     }
 
     // Add moves for params in the stack.
@@ -1104,15 +1100,15 @@ void add_function_param_moves(Function *function) {
         }
     }
 
-    for (Tac *ir = function->ir; ir; ir = ir->next) {
-        remap_stack_index(stack_index_remap, ir->dst);
-        remap_stack_index(stack_index_remap, ir->src1);
-        remap_stack_index(stack_index_remap, ir->src2);
+    // Convert IR
+    #define CONVERT_IR(v) \
+        remap_stack_index(stack_index_remap, v); \
+        convert_pushed_param_stack_index_to_register(function, stack_param_vregs, v);
 
-        convert_pushed_param_stack_index_to_register(function, stack_param_vregs, ir->dst);
-        convert_pushed_param_stack_index_to_register(function, stack_param_vregs, ir->src1);
-        convert_pushed_param_stack_index_to_register(function, stack_param_vregs, ir->src2);
+    LOOP_OVER_FUNCTION_IR(function) {
+        DO_ON_ALL_TAC_VALUES(tac, CONVERT_IR);
     }
+    #undef CONVERT_IR
 
     ir = function->ir->next; // Need to rewind to bring ir back to the top. Instructions may have been inserted.
 
