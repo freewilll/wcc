@@ -967,6 +967,60 @@ static void add_moves_for_params_in_registers(Function *function, Tac *ir, Param
     }
 }
 
+// Add moves for params in the stack.
+// Parameter stack indexes go from 1, 2, 3, 4 for arg 0, arg 1, arg 2,
+// Determine the actual stack index based on type sizes and alignment and
+// remap stack_index.
+static void add_moves_for_params_in_stack(Function *function, Tac *ir, ParamDetails *param_details, CallValueAllocation *cva, int cva_start) {
+    int *stack_index_remap = wmalloc(sizeof(int) * (function->type->function->param_count + 2));
+    memset(stack_index_remap, -1, sizeof(int) * (function->type->function->param_count + 2));
+
+    // The stack is never bigger than function->type->function->param_count * 2 & starts at 2
+    RegisterParamLocations *stack_param_vregs = wmalloc(sizeof(RegisterParamLocations) * (function->type->function->param_count * 2 + 2));
+    memset(stack_param_vregs, -1, sizeof(RegisterParamLocations) * (function->type->function->param_count * 2 + 2));
+
+
+    // Determine stack offsets for parameters on the stack and add moves
+    for (int i = 0; i < function->type->function->param_count; i++) {
+        CallValueLocations cvl = CVA_CVL(cva, cva_start + i);
+        if (cvl.locations[0].stack_offset == -1) continue;
+
+        Type *type = function->type->function->param_types->elements[i];
+
+        int stack_index = (CVA_CVL(cva, cva_start + i).locations[0].stack_offset + 8) >> 3;
+
+        // The rightmost arg has stack index 1
+        if (stack_index != i + 1) stack_index_remap[i + 1] = stack_index;
+
+        if (debug_function_param_mapping) printf("Param %d SI %d -> SI %d\n", i, i + 2, stack_index);
+
+        if (!param_details[i].has_address_of && type->type == TYPE_INT128) {
+            Type *long_type = dup_type(type);
+            long_type->type = TYPE_LONG;
+
+            stack_param_vregs[stack_index - 1].low = add_param_move_to_register_tac(function, ir, long_type, stack_index, 0);
+            stack_param_vregs[stack_index - 1].high = add_param_move_to_register_tac(function, ir, long_type, stack_index, 1);
+        }
+
+        else if (!param_details[i].has_address_of && (!long_doubles_are_in_the_stack || type->type != TYPE_LONG_DOUBLE) && type->type != TYPE_STRUCT_OR_UNION) {
+            stack_param_vregs[stack_index - 1].low = add_param_move_to_register_tac(function, ir, type, stack_index, 0);
+        }
+    }
+
+    // Convert IR
+    #define CONVERT_IR(v) \
+        remap_stack_index(stack_index_remap, v); \
+        convert_pushed_param_stack_index_to_register(function, stack_param_vregs, v);
+
+    LOOP_OVER_FUNCTION_IR(function) {
+        DO_ON_ALL_TAC_VALUES(tac, CONVERT_IR);
+    }
+    #undef CONVERT_IR
+
+    wfree(stack_index_remap);
+    wfree(stack_param_vregs);
+}
+
 // Add instructions that deal with the function arguments. Several cases are possible
 // - Scalar in register -> register
 // - Scalar in register -> stack, if an address of is used
@@ -1018,10 +1072,6 @@ void add_function_param_moves(Function *function) {
         param_details[i].has_address_of = 0;
     }
 
-    // The stack is never bigger than function->type->function->param_count * 2 & starts at 2
-    RegisterParamLocations *stack_param_vregs = wmalloc(sizeof(RegisterParamLocations) * (function->type->function->param_count * 2 + 2));
-    memset(stack_param_vregs, -1, sizeof(RegisterParamLocations) * (function->type->function->param_count * 2 + 2));
-
     // Determine which parameters in registers are used in IR_ADDRESS_OF instructions
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         check_param_value_has_used_in_an_address_of(param_details, ir, ir->dst);
@@ -1066,51 +1116,9 @@ void add_function_param_moves(Function *function) {
         if (tac->src2) tac->src2->has_been_renamed = 0;
     }
 
-    // Add moves for params in the stack.
-    // Parameter stack indexes go from 1, 2, 3, 4 for arg 0, arg 1, arg 2,
-    // Determine the actual stack index based on type sizes and alignment and
-    // remap stack_index.
-    int *stack_index_remap = wmalloc(sizeof(int) * (function->type->function->param_count + 2));
-    memset(stack_index_remap, -1, sizeof(int) * (function->type->function->param_count + 2));
-
-    // Determine stack offsets for parameters on the stack and add moves
-    for (int i = 0; i < function->type->function->param_count; i++) {
-        CallValueLocations cvl = CVA_CVL(cva, cva_start + i);
-        if (cvl.locations[0].stack_offset == -1) continue;
-
-        Type *type = function->type->function->param_types->elements[i];
-
-        int stack_index = (CVA_CVL(cva, cva_start + i).locations[0].stack_offset + 8) >> 3;
-
-        // The rightmost arg has stack index 1
-        if (stack_index != i + 1) stack_index_remap[i + 1] = stack_index;
-
-        if (debug_function_param_mapping) printf("Param %d SI %d -> SI %d\n", i, i + 2, stack_index);
-
-        if (!param_details[i].has_address_of && type->type == TYPE_INT128) {
-            Type *long_type = dup_type(type);
-            long_type->type = TYPE_LONG;
-
-            stack_param_vregs[stack_index - 1].low = add_param_move_to_register_tac(function, ir, long_type, stack_index, 0);
-            stack_param_vregs[stack_index - 1].high = add_param_move_to_register_tac(function, ir, long_type, stack_index, 1);
-        }
-
-        else if (!param_details[i].has_address_of && (!long_doubles_are_in_the_stack || type->type != TYPE_LONG_DOUBLE) && type->type != TYPE_STRUCT_OR_UNION) {
-            stack_param_vregs[stack_index - 1].low = add_param_move_to_register_tac(function, ir, type, stack_index, 0);
-        }
-    }
-
-    // Convert IR
-    #define CONVERT_IR(v) \
-        remap_stack_index(stack_index_remap, v); \
-        convert_pushed_param_stack_index_to_register(function, stack_param_vregs, v);
-
-    LOOP_OVER_FUNCTION_IR(function) {
-        DO_ON_ALL_TAC_VALUES(tac, CONVERT_IR);
-    }
-    #undef CONVERT_IR
-
     ir = function->ir->next; // Need to rewind to bring ir back to the top. Instructions may have been inserted.
+
+    add_moves_for_params_in_stack(function, ir, param_details, cva, cva_start);
 
     // Part 2 of pointer to struct handling. This adds the param move to the
     // register which has the pointer to the struct/union.
@@ -1139,8 +1147,6 @@ void add_function_param_moves(Function *function) {
                 i, tac->src1->vreg, tac->src1->stack.index, tac->dst->vreg);
     }
 
-    wfree(stack_param_vregs);
-    wfree(stack_index_remap);
     wfree(param_details);
 
     if (debug_function_param_mapping) {
