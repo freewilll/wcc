@@ -1021,6 +1021,52 @@ static void add_moves_for_params_in_stack(Function *function, Tac *ir, ParamDeta
     wfree(stack_param_vregs);
 }
 
+// Handle a param which is a pointer to a struct in a register or the stack.
+// Allocate a vreg, which is used to access the pointer.
+// A param move is added further down.
+static void make_indirect_param_vregs(Function *function, ParamDetails *param_details, CallValueAllocation *cva, int cva_start) {
+    // Handle a param which is a pointer to a struct in a register or the stack.
+    // Allocate a vreg, which is used to access the pointer.
+    // A param move is added further down.
+    for (int i = 0; i < function->type->function->param_count; i++) {
+        CallValueLocations cvls = CVA_CVL(cva, cva_start + i);
+        if (cvls.count != 2 || cvls.locations[0].indirect_stack_offset == -1) continue;
+
+        param_details[i].indirect_param_vreg = ++function->vreg_count;
+    }
+}
+
+// // Part 2 of pointer to struct handling. This adds the param move to the
+// // register which has the pointer to the struct/union.
+static void move_indirect_param_vregs(Function *function, ParamDetails *param_details, CallValueAllocation *cva, int cva_start) {
+    Tac *ir = function->ir->next; // Need to rewind to bring ir back to the top. Instructions may have been inserted.
+
+    for (int i = 0; i < function->type->function->param_count; i++) {
+        int vreg = param_details[i].indirect_param_vreg;
+        if (vreg == -1) continue;
+
+        CallValueLocations cvls = CVA_CVL(cva, cva_start + i);
+        CallValueLocation *cvl_indirect_arg = &cvls.locations[1];
+        int in_register = cvl_indirect_arg->int_register != -1;
+
+        Tac *tac = make_param_move_to_register_tac(function, make_pointer_to_void(), vreg, cvl_indirect_arg->int_register);
+
+        if (!in_register) {
+            // Conventionally the first stack_index entry starts at 1
+            tac->src1->stack.index = cvl_indirect_arg->stack_offset / 8 + 1;
+            insert_tac_before(ir, tac, 0);
+        }
+        else {
+            tac->src1->vreg = ++function->vreg_count;
+            insert_tac_before(ir, tac, 0);
+        }
+
+        if (debug_function_param_mapping)
+            printf("Param %d reg param reg %d or stack index %d -> local reg %d for indirect struct\n",
+                i, tac->src1->vreg, tac->src1->stack.index, tac->dst->vreg);
+    }
+}
+
 // Add instructions that deal with the function arguments. Several cases are possible
 // - Scalar in register -> register
 // - Scalar in register -> stack, if an address of is used
@@ -1086,15 +1132,7 @@ void add_function_param_moves(Function *function) {
         add_moves_for_params_in_registers(function, ir, param_details, i, cva, cva_start, &cvl);
     }
 
-    // Handle a param which is a pointer to a struct in a register or the stack.
-    // Allocate a vreg, which is used to access the pointer.
-    // A param move is added further down.
-    for (int i = 0; i < function->type->function->param_count; i++) {
-        CallValueLocations cvls = CVA_CVL(cva, cva_start + i);
-        if (cvls.count != 2 || cvls.locations[0].indirect_stack_offset == -1) continue;
-
-        param_details[i].indirect_param_vreg = ++function->vreg_count;
-    }
+    make_indirect_param_vregs(function, param_details, cva, cva_start);
 
     if (function->type->function->is_variadic) add_function_vararg_param_moves(function, cva, ir);
 
@@ -1116,36 +1154,9 @@ void add_function_param_moves(Function *function) {
         if (tac->src2) tac->src2->has_been_renamed = 0;
     }
 
-    ir = function->ir->next; // Need to rewind to bring ir back to the top. Instructions may have been inserted.
-
     add_moves_for_params_in_stack(function, ir, param_details, cva, cva_start);
 
-    // Part 2 of pointer to struct handling. This adds the param move to the
-    // register which has the pointer to the struct/union.
-    for (int i = 0; i < function->type->function->param_count; i++) {
-        int vreg = param_details[i].indirect_param_vreg;
-        if (vreg == -1) continue;
-
-        CallValueLocations cvls = CVA_CVL(cva, cva_start + i);
-        CallValueLocation *cvl_indirect_arg = &cvls.locations[1];
-        int in_register = cvl_indirect_arg->int_register != -1;
-
-        Tac *tac = make_param_move_to_register_tac(function, make_pointer_to_void(), vreg, cvl_indirect_arg->int_register);
-
-        if (!in_register) {
-            // Conventionally the first stack_index entry starts at 1
-            tac->src1->stack.index = cvl_indirect_arg->stack_offset / 8 + 1;
-            insert_tac_before(ir, tac, 0);
-        }
-        else {
-            tac->src1->vreg = ++function->vreg_count;
-            insert_tac_before(ir, tac, 0);
-        }
-
-        if (debug_function_param_mapping)
-            printf("Param %d reg param reg %d or stack index %d -> local reg %d for indirect struct\n",
-                i, tac->src1->vreg, tac->src1->stack.index, tac->dst->vreg);
-    }
+    move_indirect_param_vregs(function, param_details, cva, cva_start);
 
     wfree(param_details);
 
