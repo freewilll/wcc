@@ -763,6 +763,23 @@ Value *allocate_stack_space_for_type(Function *function, Tac *ir, Type *type) {
     return v;
 }
 
+// Make CVA for the function's parameter moves
+static CallValueAllocation *make_function_param_move_cva(Function *function, int *pcva_start) {
+    Tac *ir = ir = function->ir->next;;
+    CallValueAllocation *cva = init_call_value_allocaton(function->identifier);
+    function->cva = cva;
+
+    // cva_start is the index in cva->locations that has the first actual parameter
+    *pcva_start = prepend_function_params(function, ir);
+
+    for (int i = 0; i < function->type->function->param_count; i++)
+        add_type_to_cva(cva, function->type->function->param_types->elements[i]);
+
+    finalize_call_value_allocation(cva);
+
+    return cva;
+}
+
 // Set has_address_of to 1 if a value is a parameter in a register and it's used in a & instruction
 static void check_param_value_has_used_in_an_address_of(ParamDetails *param_details, Tac *tac, Value *v) {
     if (!v) return;
@@ -1099,16 +1116,8 @@ void add_function_param_moves(Function *function) {
     ir = function->ir->next;
 
     // Make CVA for the function
-    CallValueAllocation *cva = init_call_value_allocaton(function->identifier);
-    function->cva = cva;
-
-    // cva_start is the index in cva->locations that has the first actual parameter
-    int cva_start = prepend_function_params(function, ir);
-
-    for (int i = 0; i < function->type->function->param_count; i++)
-        add_type_to_cva(cva, function->type->function->param_types->elements[i]);
-
-    finalize_call_value_allocation(cva);
+    int cva_start;
+    CallValueAllocation *cva = make_function_param_move_cva(function, &cva_start);
 
     ParamDetails *param_details = wcalloc(function->type->function->param_count, sizeof(ParamDetails));
     memset(param_details, -1, sizeof(ParamDetails) * function->type->function->param_count);
