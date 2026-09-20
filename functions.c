@@ -859,6 +859,17 @@ int *allocate_vregs_for_cvl(Function *function, Tac *ir, CallValueLocations *cvl
     return live_range_pregs;
 }
 
+static int add_param_move_to_register_tac(Function *function, Tac *ir, Type *type, int stack_index, int is_high) {
+    Tac *tac = make_param_move_to_register_tac(function, type, 0, -1);
+    tac->src1->function_call.function_param_original_stack.index = stack_index + is_high;
+    tac->src1->stack.index = stack_index;
+    tac->src1->offset = is_high * 8;
+    tac->src1->has_been_renamed = 1; // Stop remap_stack_index() from changing the stack index again
+    insert_tac_before(ir, tac, 0);
+
+    return tac->dst->vreg;
+}
+
 // Add instructions that deal with the function arguments. Several cases are possible
 // - Scalar in register -> register
 // - Scalar in register -> stack, if an address of is used
@@ -1075,29 +1086,12 @@ void add_function_param_moves(Function *function) {
             Type *long_type = dup_type(type);
             long_type->type = TYPE_LONG;
 
-            Tac *tac_low = make_param_move_to_register_tac(function, long_type, 0, -1);
-            stack_param_vregs[stack_index - 1].low = tac_low->dst->vreg;
-            tac_low->src1->function_call.function_param_original_stack.index = stack_index;
-            tac_low->src1->stack.index = stack_index;
-            tac_low->src1->has_been_renamed = 1; // Stop remap_stack_index() from changing the stack index again
-            insert_tac_before(ir, tac_low, 0);
-
-            Tac *tac_high = make_param_move_to_register_tac(function, long_type, 0, -1);
-            stack_param_vregs[stack_index - 1].high = tac_high->dst->vreg;
-            tac_high->src1->function_call.function_param_original_stack.index = stack_index + 1;
-            tac_high->src1->stack.index = stack_index;
-            tac_high->src1->offset = 8;
-            tac_high->src1->has_been_renamed = 1; // Stop remap_stack_index() from changing the stack index again
-            insert_tac_before(ir, tac_high, 0);
+            stack_param_vregs[stack_index - 1].low = add_param_move_to_register_tac(function, ir, long_type, stack_index, 0);
+            stack_param_vregs[stack_index - 1].high = add_param_move_to_register_tac(function, ir, long_type, stack_index, 1);
         }
 
         else if (!has_address_of[i] && (!long_doubles_are_in_the_stack || type->type != TYPE_LONG_DOUBLE) && type->type != TYPE_STRUCT_OR_UNION) {
-            Tac *tac = make_param_move_to_register_tac(function, type, 0, -1);
-            stack_param_vregs[stack_index - 1].low = tac->dst->vreg;
-            tac->src1->function_call.function_param_original_stack.index = stack_index;
-            tac->src1->stack.index = stack_index;
-            tac->src1->has_been_renamed = 1; // Stop remap_stack_index() from changing the stack index again
-            insert_tac_before(ir, tac, 0);
+            stack_param_vregs[stack_index - 1].low = add_param_move_to_register_tac(function, ir, type, stack_index, 0);
         }
     }
 
