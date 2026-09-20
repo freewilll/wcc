@@ -877,6 +877,96 @@ static int add_param_move_to_register_tac(Function *function, Tac *ir, Type *typ
     return tac->dst->vreg;
 }
 
+// Add moves for params in registers
+static void add_moves_for_params_in_registers(Function *function, Tac *ir, ParamDetails *param_details, int param_index, CallValueAllocation *cva, int cva_start, CallValueLocations *cvl) {
+    Type *type = function->type->function->param_types->elements[param_index];
+
+    if (type->type == TYPE_INT128)  {
+        // int128 value
+
+        if (param_details[param_index].has_address_of) {
+            // Add move instructions to save the registers to the stack
+
+            int low_arg_register = cvl->locations[0].int_register;
+            int high_arg_register = cvl->locations[1].int_register;
+
+            Type *long_type = dup_type(type);
+            long_type->type = TYPE_LONG;
+
+            Tac *tac_high = make_param_move_to_stack_tac(function, long_type, high_arg_register);
+            tac_high->src1->vreg = ++function->vreg_count;
+            tac_high->src1->type->type = TYPE_LONG;
+            insert_tac_before(ir, tac_high, 0);
+
+            Tac *tac_low = make_param_move_to_stack_tac(function, long_type, low_arg_register);
+            param_details[param_index].register_param_stack_index = tac_low->dst->stack.index;
+            tac_low->src1->vreg = ++function->vreg_count;
+            tac_low->src1->type->type = TYPE_LONG;
+            insert_tac_before(ir, tac_low, 0);
+
+            if (debug_function_param_mapping)
+                printf("Param %d, reg param reg %d / %d -> local SI %d / %d\n",
+                    param_index, tac_low->src1->vreg, tac_high->src1->vreg, tac_low->dst->stack.index, tac_high->dst->stack.index);
+        }
+        else {
+            int low_arg_register = cvl->locations[0].int_register;
+            int high_arg_register = cvl->locations[1].int_register;
+
+            Type *long_type = dup_type(type);
+            long_type->type = TYPE_LONG;
+
+            // Add a move instruction to copy register to another register
+            Tac *tac_low = make_param_move_to_register_tac(function, long_type, 0, low_arg_register);
+            param_details[param_index].register_param_vreg.low = tac_low->dst->vreg;
+            tac_low->src1->vreg = ++function->vreg_count;
+            insert_tac_before(ir, tac_low, 0);
+
+            Tac *tac_high = make_param_move_to_register_tac(function, long_type, 0, high_arg_register);
+            param_details[param_index].register_param_vreg.high = tac_high->dst->vreg;
+            tac_high->src1->vreg = ++function->vreg_count;
+            insert_tac_before(ir, tac_high, 0);
+
+            if (debug_function_param_mapping)
+                printf("Param %d reg param reg %d / %d -> local reg %d / %d\n", param_index,
+                    tac_low->src1->vreg, tac_high->src1->vreg,
+                    tac_low->dst->vreg, tac_high->dst->vreg);
+        }
+    }
+
+    else if (type->type == TYPE_STRUCT_OR_UNION)  {
+        int stack_index = add_struct_or_union_param_move(function, ir, type, cva->locations->elements[cva_start + param_index], &arg_register_set);
+        param_details[param_index].register_param_stack_index = stack_index;
+    }
+
+    else {
+        // Scalar value
+
+        int single_register_arg_count = cvl->locations[0].int_register == -1
+            ? cvl->locations[0].fp_register
+            : cvl->locations[0].int_register;
+
+        if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+        if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
+
+        if (param_details[param_index].has_address_of) {
+            // Add a move instruction to save the register to the stack
+            Tac *tac = make_param_move_to_stack_tac(function, type, single_register_arg_count);
+            param_details[param_index].register_param_stack_index = tac->dst->stack.index;
+            tac->src1->vreg = ++function->vreg_count;
+            insert_tac_before(ir, tac, 0);
+            if (debug_function_param_mapping) printf("Param %d reg param reg %d -> local SI %d\n", param_index, tac->src1->vreg, tac->dst->stack.index);
+        }
+        else {
+            // Add a move instruction to copy register to another register
+            Tac *tac = make_param_move_to_register_tac(function, type, 0, single_register_arg_count);
+            param_details[param_index].register_param_vreg.low = tac->dst->vreg;
+            tac->src1->vreg = ++function->vreg_count;
+            insert_tac_before(ir, tac, 0);
+            if (debug_function_param_mapping) printf("Param %d reg param reg %d -> local reg %d\n", param_index, tac->src1->vreg, tac->dst->vreg);
+        }
+    }
+}
+
 // Add instructions that deal with the function arguments. Several cases are possible
 // - Scalar in register -> register
 // - Scalar in register -> stack, if an address of is used
@@ -943,93 +1033,7 @@ void add_function_param_moves(Function *function) {
     for (int i = 0; i < function->type->function->param_count; i++) {
         CallValueLocations cvl = CVA_CVL(cva, cva_start + i);
         if (cvl.locations[0].stack_offset != -1 || cvl.locations[0].indirect_stack_offset != -1) continue;
-
-        Type *type = function->type->function->param_types->elements[i];
-
-        if (type->type == TYPE_INT128)  {
-            // int128 value
-
-            if (param_details[i].has_address_of) {
-                // Add move instructions to save the registers to the stack
-
-                int low_arg_register = cvl.locations[0].int_register;
-                int high_arg_register = cvl.locations[1].int_register;
-
-                Type *long_type = dup_type(type);
-                long_type->type = TYPE_LONG;
-
-                Tac *tac_high = make_param_move_to_stack_tac(function, long_type, high_arg_register);
-                tac_high->src1->vreg = ++function->vreg_count;
-                tac_high->src1->type->type = TYPE_LONG;
-                insert_tac_before(ir, tac_high, 0);
-
-                Tac *tac_low = make_param_move_to_stack_tac(function, long_type, low_arg_register);
-                param_details[i].register_param_stack_index = tac_low->dst->stack.index;
-                tac_low->src1->vreg = ++function->vreg_count;
-                tac_low->src1->type->type = TYPE_LONG;
-                insert_tac_before(ir, tac_low, 0);
-
-                if (debug_function_param_mapping)
-                    printf("Param %d, reg param reg %d / %d -> local SI %d / %d\n",
-                        i, tac_low->src1->vreg, tac_high->src1->vreg, tac_low->dst->stack.index, tac_high->dst->stack.index);
-            }
-            else {
-                int low_arg_register = cvl.locations[0].int_register;
-                int high_arg_register = cvl.locations[1].int_register;
-
-                Type *long_type = dup_type(type);
-                long_type->type = TYPE_LONG;
-
-                // Add a move instruction to copy register to another register
-                Tac *tac_low = make_param_move_to_register_tac(function, long_type, 0, low_arg_register);
-                param_details[i].register_param_vreg.low = tac_low->dst->vreg;
-                tac_low->src1->vreg = ++function->vreg_count;
-                insert_tac_before(ir, tac_low, 0);
-
-                Tac *tac_high = make_param_move_to_register_tac(function, long_type, 0, high_arg_register);
-                param_details[i].register_param_vreg.high = tac_high->dst->vreg;
-                tac_high->src1->vreg = ++function->vreg_count;
-                insert_tac_before(ir, tac_high, 0);
-
-                if (debug_function_param_mapping)
-                    printf("Param %d reg param reg %d / %d -> local reg %d / %d\n", i,
-                        tac_low->src1->vreg, tac_high->src1->vreg,
-                        tac_low->dst->vreg, tac_high->dst->vreg);
-            }
-        }
-
-        else if (type->type == TYPE_STRUCT_OR_UNION)  {
-            int stack_index = add_struct_or_union_param_move(function, ir, type, cva->locations->elements[cva_start + i], &arg_register_set);
-            param_details[i].register_param_stack_index = stack_index;
-        }
-
-        else {
-            // Scalar value
-
-            int single_register_arg_count = cvl.locations[0].int_register == -1
-                ? cvl.locations[0].fp_register
-                : cvl.locations[0].int_register;
-
-            if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
-            if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
-
-            if (param_details[i].has_address_of) {
-                // Add a move instruction to save the register to the stack
-                Tac *tac = make_param_move_to_stack_tac(function, type, single_register_arg_count);
-                param_details[i].register_param_stack_index = tac->dst->stack.index;
-                tac->src1->vreg = ++function->vreg_count;
-                insert_tac_before(ir, tac, 0);
-                if (debug_function_param_mapping) printf("Param %d reg param reg %d -> local SI %d\n", i, tac->src1->vreg, tac->dst->stack.index);
-            }
-            else {
-                // Add a move instruction to copy register to another register
-                Tac *tac = make_param_move_to_register_tac(function, type, 0, single_register_arg_count);
-                param_details[i].register_param_vreg.low = tac->dst->vreg;
-                tac->src1->vreg = ++function->vreg_count;
-                insert_tac_before(ir, tac, 0);
-                if (debug_function_param_mapping) printf("Param %d reg param reg %d -> local reg %d\n", i, tac->src1->vreg, tac->dst->vreg);
-            }
-        }
+        add_moves_for_params_in_registers(function, ir, param_details, i, cva, cva_start, &cvl);
     }
 
     // Handle a param which is a pointer to a struct in a register or the stack.
