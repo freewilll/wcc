@@ -34,12 +34,13 @@ struct si8 { int i1, i2, i3, i4, i5, i6, i7, i8; };
 struct si9 { int i1, i2, i3, i4, i5, i6, i7, i8, i9; };
 
 struct sld2 { long double ld1, ld2; };
+struct sld3 { long double ld1, ld2, ld3; };
 
 struct sia2a2 { int i[2][2]; };
 struct sia4 { int i[4]; };
 struct sfa4 { float f[4]; };
-
-struct ld3 { long double ld1, ld2, ld3; };
+struct sda2 { double d[2]; };
+struct slda4 { long double ld[4]; };
 
 // Example from ABI doc v0.98
 typedef struct { int a, b; double d; } structparm;
@@ -95,10 +96,13 @@ void accept_sia2a2(struct sia2a2 sia2a2);
 void accept_i5sia2a2(int i1, int i2, int i3, int i4, int i5, struct sia2a2 sia2a2);
 void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sffff sffff);
 void accept_sfa4(struct sfa4 sfa4);
+void accept_sda2_2(struct sda2 sda21, struct sda2 sda22);
 void accept_f5sfa4(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4);
 void accept_f5sfa4f1(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4, float f6);
 
 void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2);
+
+void accept_slda4(struct slda4 slda4);
 
 void accept_abi_example(int e, int f, structparm s, int g, int h, long double ld, double m, double n, int i, int j, int k);
 
@@ -127,7 +131,7 @@ struct si5 return_si5();
 
 struct si5 return_si5_with_params(int i, float f);
 
-struct ld3 return_ld3();
+struct sld3 return_sld3();
 
 void accept_array(int a[4]);
 

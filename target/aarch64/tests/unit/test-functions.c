@@ -42,14 +42,18 @@ void test_struct_params() {
     test_single_struct_param("struct { int [9]; }",         "0        |          | 030 | ");
 
     // HFA Structs
-    test_single_struct_param("struct { float f[1]; }",  "         | 0        | 000 | "); // HFA structs
-    test_single_struct_param("struct { float f[2]; }",  "         | 00       | 000 | ");
-    test_single_struct_param("struct { float f[3]; }",  "         | 000      | 000 | ");
-    test_single_struct_param("struct { float f[4]; }",  "         | 0000     | 000 | ");
-    test_single_struct_param("struct { double d[1]; }", "         | 0        | 000 | ");
-    test_single_struct_param("struct { double d[2]; }", "         | 00       | 000 | ");
-    test_single_struct_param("struct { double d[3]; }", "         | 000      | 000 | ");
-    test_single_struct_param("struct { double d[4]; }", "         | 0000     | 000 | ");
+    test_single_struct_param("struct { float f[1]; }",        "         | 0        | 000 | "); // HFA structs
+    test_single_struct_param("struct { float f[2]; }",        "         | 00       | 000 | ");
+    test_single_struct_param("struct { float f[3]; }",        "         | 000      | 000 | ");
+    test_single_struct_param("struct { float f[4]; }",        "         | 0000     | 000 | ");
+    test_single_struct_param("struct { double d[1]; }",       "         | 0        | 000 | ");
+    test_single_struct_param("struct { double d[2]; }",       "         | 00       | 000 | ");
+    test_single_struct_param("struct { double d[3]; }",       "         | 000      | 000 | ");
+    test_single_struct_param("struct { double d[4]; }",       "         | 0000     | 000 | ");
+    test_single_struct_param("struct { long double ld[1]; }", "         | 0        | 000 | ");
+    test_single_struct_param("struct { long double ld[2]; }", "         | 00       | 000 | ");
+    test_single_struct_param("struct { long double ld[3]; }", "         | 000      | 000 | ");
+    test_single_struct_param("struct { long double ld[4]; }", "         | 0000     | 000 | ");
 
     // Mixed structs
     test_single_struct_param("struct { int i; float f; }",       "0        |          | 000 | ");
@@ -62,6 +66,7 @@ void test_struct_params() {
     test_single_struct_param("struct { char c[17]; }",           "0        |          | 020 | ");
     test_single_struct_param("struct { float f[5]; }",           "0        |          | 020 | ");
     test_single_struct_param("struct { double d[5]; }",          "0        |          | 030 | ");
+    test_single_struct_param("struct { long double d[5]; }",     "0        |          | 050 | ");
 
     // Test running out of registers for struct/union
     test_multiple_struct_params(0,          "struct { int i[4]; }",   4, "00112233 |          | 000 | ");
@@ -69,10 +74,25 @@ void test_struct_params() {
     test_multiple_struct_params(TYPE_INT,   "struct { int i[4]; }",   3, "0112233  |          | 000 | ");
     test_multiple_struct_params(TYPE_INT,   "struct { int i[4]; }",   4, "0112233  |          | 010 | 4");
     test_multiple_struct_params(TYPE_INT,   "struct { int i[4]; }",   5, "0112233  |          | 020 | 4 5");
-    test_multiple_struct_params(0,          "struct { float f[4]; }", 5, "         | 0000     | 040 | 1 2 3 4");
-    test_multiple_struct_params(0,          "struct { float f[4]; }", 6, "         | 0000     | 050 | 1 2 3 4 5");
+    test_multiple_struct_params(0,          "struct { float f[4]; }", 5, "         | 00001111 | 030 | 2 3 4");
+    test_multiple_struct_params(0,          "struct { float f[4]; }", 6, "         | 00001111 | 040 | 2 3 4 5");
     test_multiple_struct_params(TYPE_FLOAT, "struct { float f[4]; }", 4, "         | 01111    | 030 | 2 3 4");
     test_multiple_struct_params(TYPE_FLOAT, "struct { float f[4]; }", 5, "         | 01111    | 040 | 2 3 4 5");
+
+    test_multiple_struct_params(0,          "struct { double d[2]; }", 1, "         | 00       | 000 | ");
+    test_multiple_struct_params(0,          "struct { double d[2]; }", 2, "         | 0011     | 000 | ");
+    test_multiple_struct_params(0,          "struct { double d[2]; }", 5, "         | 00112233 | 010 | 4");
+    test_multiple_struct_params(0,          "struct { double d[2]; }", 6, "         | 00112233 | 020 | 4 5");
+    test_multiple_struct_params(TYPE_FLOAT, "struct { double d[2]; }", 4, "         | 0112233  | 010 | 4");
+    test_multiple_struct_params(TYPE_FLOAT, "struct { double d[2]; }", 5, "         | 0112233  | 020 | 4 5");
+
+    test_multiple_struct_params(0,          "struct { long double d[2]; }", 1, "         | 00       | 000 | ");
+    test_multiple_struct_params(0,          "struct { long double d[2]; }", 2, "         | 0011     | 000 | ");
+    test_multiple_struct_params(0,          "struct { long double d[2]; }", 4, "         | 00112233 | 000 | ");
+    test_multiple_struct_params(0,          "struct { long double d[2]; }", 5, "4        | 00112233 | 020 | "); // TODO aarch64 this is wrong
+    test_multiple_struct_params(0,          "struct { long double d[2]; }", 6, "45       | 00112233 | 040 | "); // TODO aarch64 this is wrong
+    test_multiple_struct_params(TYPE_FLOAT, "struct { long double d[2]; }", 4, "4        | 0112233  | 020 | "); // TODO aarch64 this is wrong
+    test_multiple_struct_params(TYPE_FLOAT, "struct { long double d[2]; }", 5, "45       | 0112233  | 040 | "); // TODO aarch64 this is wrong
 
     // C.3 in aarch64 ABI doc
     // If the argument is an HFA or an HVA then the NSRN is set to 8 and the size of the argument is rounded up to the nearest multiple of 8 bytes.

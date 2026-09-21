@@ -149,6 +149,15 @@ void test_struct_params() {
     struct sld2 sld2; sld2.ld1 = 8.1; sld2.ld2 = 9.1; accept_i7sld2(1, 2, 3, 4, 5, 6, 7, sld2);
 
     #endif
+
+    struct slda4 slda4;
+    slda4.ld[0] = 6.1; slda4.ld[1] = 7.1; slda4.ld[2] = 8.1; slda4.ld[3] = 9.1;
+    accept_slda4(slda4);
+
+    struct sda2 sda21 = {1.1, 2.1};
+    struct sda2 sda22 = {3.1, 4.1};
+    accept_sda2_2(sda21, sda22);
+
     // Example from x86_64 ABI doc v0.98
     structparm s;
     int e = 1; int f = 2; int g = 3; int h = 4; int i = 5; int j = 6; int k = 7;
@@ -205,13 +214,11 @@ void test_struct_return_values() {
     assert_int(4, si5.i4, "return_si5");
     assert_int(5, si5.i5, "return_si5");
 
-    #ifdef __x86_64__
-
-    struct ld3 ld3;
-    ld3 = return_ld3();
-    assert_float(1.1, ld3.ld1, "return_ld3");
-    assert_float(2.1, ld3.ld2, "return_ld3");
-    assert_float(3.1, ld3.ld3, "return_ld3");
+    struct sld3 sld3;
+    sld3 = return_sld3();
+    assert_long_double(1.1, sld3.ld1, "return_ld3");
+    assert_long_double(2.1, sld3.ld2, "return_ld3");
+    assert_long_double(3.1, sld3.ld3, "return_ld3");
 
     gsi1 = return_si1();
     assert_int(1, gsi1.i1, "return_si1 with global");
@@ -220,7 +227,6 @@ void test_struct_return_values() {
     *&gsi1 = return_si1();
     assert_int(1, gsi1.i1, "return_si1 with temp");
 
-    #endif
     struct sffff sffff = return_sffff();
     assert_float(1.1, sffff.f1, "return_sffff");
     assert_float(2.1, sffff.f2, "return_sffff");

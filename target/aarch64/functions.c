@@ -30,6 +30,16 @@ void init_target_call_value_allocaton(Type *function_type, CallValueAllocation *
         initialize_function_return_value_cva(function_type);
 }
 
+static int float_type_from_stru_size(int stru_size) {
+    if (stru_size != 4 && stru_size != 8 && stru_size != 16)
+        panic("Expected 4, 8 or 16 stru size in float_type_from_stru_size()");
+
+    return
+          stru_size == 4 ? TYPE_FLOAT
+        : stru_size == 8 ? TYPE_DOUBLE
+        : TYPE_LONG_DOUBLE;
+}
+
 // This implements the reverse of make_struct_or_union_to_abi_hfa_registers_move_instructions
 // This is also used for moving struct/unions into function return value registers.
 static int make_hfa_struct_or_union_move_from_registers_to_stack_instructions(
@@ -47,7 +57,7 @@ static int make_hfa_struct_or_union_move_from_registers_to_stack_instructions(
     int live_range_preg = register_set->fp_registers[register_index];
     param_register->live_range_preg = live_range_preg;
 
-    int type = cvl->stru_size == 4 ? TYPE_FLOAT : TYPE_DOUBLE;
+    int type = float_type_from_stru_size(cvl->stru_size);
     param_register->type = new_type(type);
     Value *dst = new_value_in_stack(type, stack_index, cvl->stru_offset);
     new_tac_before(ir, IR_MOVE, dst, param_register, 0, 0);
@@ -165,9 +175,22 @@ static void add_struct_or_union_call_value_location_for_big_struct(CallValueAllo
     append_to_list(cva->locations, cvls);
 }
 
-// Each member in an HFA struct, which consists of entirely floats or doubles, gets its own register.
-static void add_struct_or_union_call_value_location_for_hfa_struct_in_registers(CallValueAllocation *cva, Type *type, int for_floats, StructOrUnionScalars *scalars) {
-    int member_size = for_floats ? 4 : 8;
+// Each member in an HFA struct, which consists of entirely floats, doubles or long doubles, gets its own register.
+// One of seen_floats, seen_doubles and seen_long_doubles is non-zero. The rest are zero.
+static void add_struct_or_union_call_value_location_for_hfa_struct_in_registers(
+        CallValueAllocation *cva,
+        int seen_floats, int seen_doubles, int seen_long_doubles,
+        StructOrUnionScalars *scalars) {
+
+    int member_size =
+          seen_floats ? 4
+        : seen_doubles ? 8
+        : 16;
+
+    int type =
+          seen_floats ? TYPE_FLOAT
+        : seen_doubles ? TYPE_DOUBLE
+        : TYPE_LONG_DOUBLE;
 
     CallValueLocations *cvl = allocate_call_value_locations(scalars->count);
 
@@ -175,12 +198,10 @@ static void add_struct_or_union_call_value_location_for_hfa_struct_in_registers(
         cvl->locations[i].fp_register = cva->single_fp_register_arg_count + i;
         cvl->locations[i].stru_size = member_size;
         cvl->locations[i].stru_offset = i * member_size;
-        add_type_to_cvl(cva, &(cvl->locations[i]), new_type(for_floats ? TYPE_FLOAT : TYPE_DOUBLE), 0);
+        add_type_to_cvl(cva, &(cvl->locations[i]), new_type(type), 0);
     }
 
     append_to_list(cva->locations, cvl);
-
-    cva->single_fp_register_arg_count += scalars->count;
 }
 
 // The struct goes either into int registers, of if there aren't enough,
@@ -224,6 +245,7 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
     // Categorize the members by looking at what types are present
     int seen_floats = 0;
     int seen_doubles = 0;
+    int seen_long_doubles = 0;
     int seen_others = 0;
 
     // Check if the struct is a Homogeneous Floating-point Aggregate (HFA)
@@ -234,13 +256,19 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
             seen_floats++;
         else if (scalar->type->type == TYPE_DOUBLE)
             seen_doubles++;
+        else if (scalar->type->type == TYPE_LONG_DOUBLE)
+            seen_long_doubles++;
         else
             seen_others++;
     }
 
     int is_hfa = (
         !seen_others &&
-        ((seen_floats <= 4 && !seen_doubles) || (seen_doubles <= 4 && !seen_floats))
+        (
+            (seen_floats <= 4 && !seen_doubles && !seen_long_doubles) ||
+            (seen_doubles <= 4 && !seen_floats && !seen_long_doubles) ||
+            (seen_long_doubles <= 4 && !seen_floats && !seen_doubles)
+        )
     );
     int hfa_fits = (is_hfa && cva->single_fp_register_arg_count + scalars->count <= 8);
 
@@ -253,7 +281,7 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
     // aapcs64 C.2
     // If it's an HFA and there are enough FP registers left, use them
     else if (is_hfa && cva->single_fp_register_arg_count + scalars->count <= 8) {
-        add_struct_or_union_call_value_location_for_hfa_struct_in_registers(cva, type, seen_floats, scalars);
+        add_struct_or_union_call_value_location_for_hfa_struct_in_registers(cva, seen_floats, seen_doubles, seen_long_doubles, scalars);
     }
 
     // aapcs64 C.3
@@ -302,10 +330,10 @@ static int make_struct_or_union_to_abi_hfa_registers_move_instructions(Function 
 
     if (debug_function_arg_mapping) printf("Adding arg move from struct to SSE register_index=%d register size=%d\n", register_index, cvl->stru_size);
 
-    if (cvl->stru_size != 4 && cvl->stru_size != 8)
-        panic("Expected 4 or 8 stru size in make_struct_or_union_to_abi_hfa_registers_move_instructions()");
+    if (cvl->stru_size != 4 && cvl->stru_size != 8 && cvl->stru_size != 16)
+        panic("Expected 4, 8 or 16 stru size in make_struct_or_union_to_abi_hfa_registers_move_instructions()");
 
-    int type = cvl->stru_size == 4 ? TYPE_FLOAT : TYPE_DOUBLE;
+    int type = float_type_from_stru_size(cvl->stru_size);
     Value *temp = load_struct_scalar_into_new_vreg(function, ir, arg, cvl, new_type(type));
     return add_arg_move_to_register(function, ir, new_type(type), temp, preg_class, register_index, register_set);
 }

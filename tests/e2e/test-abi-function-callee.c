@@ -424,10 +424,10 @@ void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sff
 }
 
 void accept_sfa4(struct sfa4 sfa4) {
-    assert_float(6.1, sfa4.f[0], "accept_i5sfa4 6");
-    assert_float(7.1, sfa4.f[1], "accept_i5sfa4 7");
-    assert_float(8.1, sfa4.f[2], "accept_i5sfa4 8");
-    assert_float(9.1, sfa4.f[3], "accept_i5sfa4 9");
+    assert_float(6.1, sfa4.f[0], "accept_sfa4 6");
+    assert_float(7.1, sfa4.f[1], "accept_sfa4 7");
+    assert_float(8.1, sfa4.f[2], "accept_sfa4 8");
+    assert_float(9.1, sfa4.f[3], "accept_sfa4 9");
 }
 
 void accept_f5sfa4(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4) {
@@ -471,6 +471,20 @@ void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struc
 }
 
 #endif
+
+void accept_sda2_2(struct sda2 sda21, struct sda2 sda22) {
+    assert_double(1.1, sda21.d[0], "accept_sda2_2 1");
+    assert_double(2.1, sda21.d[1], "accept_sda2_2 1");
+    assert_double(3.1, sda22.d[0], "accept_sda2_2 3");
+    assert_double(4.1, sda22.d[1], "accept_sda2_2 4");
+}
+
+void accept_slda4(struct slda4 slda4) {
+    assert_long_double(6.1, slda4.ld[0], "accept_slda4 6");
+    assert_long_double(7.1, slda4.ld[1], "accept_slda4 7");
+    assert_long_double(8.1, slda4.ld[2], "accept_slda4 8");
+    assert_long_double(9.1, slda4.ld[3], "accept_slda4 9");
+}
 
 // Example from ABI doc v0.98
 void accept_abi_example(int e, int f, structparm s, int g, int h, long double ld, double m, double n, int i, int j, int k) {
@@ -517,7 +531,7 @@ struct si2    return_si2()    { struct si2 si2;         si2.i1 = 1; si2.i2 = 2; 
 struct si3    return_si3()    { struct si3 si3;         si3.i1 = 1; si3.i2 = 2; si3.i3 = 3; return si3; }
 struct si4    return_si4()    { struct si4 si4;         si4.i1 = 1; si4.i2 = 2; si4.i3 = 3; si4.i4 = 4; return si4; }
 struct si5    return_si5()    { struct si5 si5;         si5.i1 = 1; si5.i2 = 2; si5.i3 = 3; si5.i4 = 4; si5.i5 = 5; return si5; }
-struct ld3    return_ld3()    { struct ld3 ld3;         ld3.ld1 = 1.1; ld3.ld2 = 2.1; ld3.ld3 = 3.1; return ld3; }
+struct sld3   return_sld3()   { struct sld3 ld3;        ld3.ld1 = 1.1; ld3.ld2 = 2.1; ld3.ld3 = 3.1; return ld3; }
 
 struct si5 return_si5_with_params(int i, float f) {
     assert_int(1, i, "return_si5_with_params i");
