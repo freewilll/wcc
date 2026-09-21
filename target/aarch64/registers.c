@@ -25,6 +25,7 @@ const int fp_arg_registers[] = {
 };
 
 const int clobbered_registers_in_function_call[] = {
+    LIVE_RANGE_PREG_R08,
     LIVE_RANGE_PREG_R09,
     LIVE_RANGE_PREG_R10,
     LIVE_RANGE_PREG_R11,
@@ -52,7 +53,7 @@ int clobbered_registers_in_function_call_count = sizeof(clobbered_registers_in_f
 // Called once at startup
 void init_allocate_registers(void) {
     physical_register_count     =  32 + 32; // integer + floating point
-    physical_int_register_count =  23;      // Allocatable registers for integers
+    physical_int_register_count =  24;      // Allocatable registers for integers
     physical_fp_register_count  =  28;      // Allocatable registers for floating points
 
     preg_map = wcalloc(physical_register_count + 1, sizeof(int));
@@ -92,7 +93,8 @@ void init_allocate_registers(void) {
     preg_map[LIVE_RANGE_PREG_R04 - 1] = REG_R04;
     preg_map[LIVE_RANGE_PREG_R05 - 1] = REG_R05;
     preg_map[LIVE_RANGE_PREG_R06 - 1] = REG_R06;
-    preg_map[LIVE_RANGE_PREG_R07 - 1] = REG_R07; // Skip R08
+    preg_map[LIVE_RANGE_PREG_R07 - 1] = REG_R07;
+    preg_map[LIVE_RANGE_PREG_R08 - 1] = REG_R08;
     preg_map[LIVE_RANGE_PREG_R09 - 1] = REG_R09;
     preg_map[LIVE_RANGE_PREG_R10 - 1] = REG_R10;
     preg_map[LIVE_RANGE_PREG_R11 - 1] = REG_R11;

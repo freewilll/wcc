@@ -454,7 +454,6 @@ void add_function_call_arg_moves(Function *function);
 void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset);
 void remap_stack_index(int *stack_index_remap, Value *v);
 Value *make_function_call_value(int function_call, Type *type);
-CallValueAllocation *init_call_value_allocaton(char *function_identifier);
 int *allocate_vregs_for_cvl(Function *function, Tac *ir, CallValueLocations *cvl);
 void add_function_param_moves(Function *function);
 Value *allocate_stack_space_for_type(Function *function, Tac *ir, Type *type);
@@ -463,6 +462,8 @@ void add_function_return_moves_for_scalar(Function *function, Tac *ir, int live_
 void add_function_return_moves_for_struct_or_union_to_abi_register(Function *function, Tac *ir);
 void add_function_result_moves_for_scalar(Function *function, Tac *ir, int live_range_preg);
 void add_function_call_result_moves_for_int128(Function *function, Tac *ir, int live_range_preg_low, int live_range_preg_high);
+void setup_return_value_pointer(Function *function, Tac *ir, int live_range_preg);
+CallValueAllocation *init_call_value_allocaton(char *function_identifier);
 void free_call_value_allocaton(CallValueAllocation *cva);
 void free_call_value_locations(CallValueLocations *cvl);
 void finalize_call_value_allocation(CallValueAllocation *cva);

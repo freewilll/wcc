@@ -303,20 +303,7 @@ static int setup_return_for_struct_or_union(Function *function, Tac *ir) {
     if (!cva) panic("In setup_return_for_struct_or_union() got an empty RV cva");
     if (CVA_CVL(cva, 0).locations[0].stack_offset == -1) return 0;
 
-    function->return_value_pointer = new_value();
-    function->return_value_pointer->vreg = ++function->vreg_count;
-    function->return_value_pointer->type = make_pointer_to_void();
-
-    // Make value for rdi register
-    Value *src1 = new_value();
-    src1->type = make_pointer_to_void();
-    src1->live_range_preg = LIVE_RANGE_PREG_RDI;
-    src1->type = make_pointer_to_void();
-    src1->vreg = ++function->vreg_count;
-
-    Value *dst = dup_value(function->return_value_pointer);
-
-    new_tac_before(ir, IR_MOVE, dst, src1, 0, 0);
+    setup_return_value_pointer(function, ir, LIVE_RANGE_PREG_RDI);
 
     return 1;
 }

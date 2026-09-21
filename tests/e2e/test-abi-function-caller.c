@@ -190,7 +190,6 @@ void test_struct_return_values() {
     assert_int(2, si4.i2, "return_si4");
     assert_int(3, si4.i3, "return_si4");
     assert_int(4, si4.i4, "return_si4");
-    #ifdef __x86_64__
 
     struct si5 si5 = return_si5();
     assert_int(1, si5.i1, "return_si5");
@@ -205,6 +204,8 @@ void test_struct_return_values() {
     assert_int(3, si5.i3, "return_si5");
     assert_int(4, si5.i4, "return_si5");
     assert_int(5, si5.i5, "return_si5");
+
+    #ifdef __x86_64__
 
     struct ld3 ld3;
     ld3 = return_ld3();
@@ -231,7 +232,6 @@ void test_struct_return_values() {
     assert_float(2.1, sffii.f2, "return_sffii");
     assert_int(3, sffii.i1, "return_sffii");
     assert_int(4, sffii.i2, "return_sffii");
-    #ifdef __x86_64__
 
     struct sffiii sffiii = return_sffiii();
     assert_float(1.1, sffiii.f1, "return_sffiii");
@@ -240,13 +240,11 @@ void test_struct_return_values() {
     assert_int(4, sffiii.i2, "return_sffiii");
     assert_int(5, sffiii.i3, "return_sffiii");
 
-    #endif
     struct siiff siiff = return_siiff();
     assert_int(1, siiff.i1, "return_siiff");
     assert_int(2, siiff.i2, "return_siiff");
     assert_float(3.1, siiff.f1, "return_siiff");
     assert_float(4.1, siiff.f2, "return_siiff");
-    #ifdef __x86_64__
 
     struct siifff siifff = return_siifff();
     assert_int(1, siifff.i1, "return_siifff");
@@ -255,7 +253,6 @@ void test_struct_return_values() {
     assert_float(4.1, siifff.f2, "return_siifff");
     assert_float(5.1, siifff.f3, "return_siifff");
 
-    #endif
     struct sifif sifif = return_sifif();
     assert_int(1, sifif.i1, "return_sifif");
     assert_float(2.1, sifif.f1, "return_sifif");

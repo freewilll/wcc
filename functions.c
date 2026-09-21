@@ -1243,8 +1243,8 @@ void add_function_return_moves_for_struct_or_union_to_abi_register(Function *fun
         CallValueLocation *location = &(cvl->locations[loc]);
         int preg_class = (location->int_register != -1) ? PC_INT : PC_FP;
         int register_index = (preg_class == PC_INT) ? location->int_register : location->fp_register;
-        Value *param = ir->src1;
-        int vreg = make_struct_or_union_to_abi_move_instructions(function, ir, param, preg_class, register_index, location, &function_return_value_register_set);
+        Value *arg = ir->src1;
+        int vreg = make_struct_or_union_to_abi_move_instructions(function, ir, arg, preg_class, register_index, location, &function_return_value_register_set);
         function_call_values[loc] = new_value();
         function_call_values[loc]->type = preg_class == PC_INT ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
         function_call_values[loc]->vreg = vreg;
@@ -1307,6 +1307,27 @@ void add_function_call_result_moves_for_int128(Function *function, Tac *ir, int 
     // up in the live range determination code.
     new_tac_before(ir, IR_FUNCTION_CALL_REG, src1_low, 0, 0, 1);
     new_tac_before(ir, IR_FUNCTION_CALL_REG, src1_high, 0, 0, 1);
+}
+
+// If the function returns a struct/union in memory, then the caller puts a pointer to
+// the target in a target specific register.
+// Make a copy of the register in return_value_pointer for use in the
+// return value code.
+void setup_return_value_pointer(Function *function, Tac *ir, int live_range_preg) {
+    function->return_value_pointer = new_value();
+    function->return_value_pointer->vreg = ++function->vreg_count;
+    function->return_value_pointer->type = make_pointer_to_void();
+
+    // Make value for rdi register
+    Value *src1 = new_value();
+    src1->type = make_pointer_to_void();
+    src1->live_range_preg = live_range_preg;
+    src1->type = make_pointer_to_void();
+    src1->vreg = ++function->vreg_count;
+
+    Value *dst = dup_value(function->return_value_pointer);
+
+    new_tac_before(ir, IR_MOVE, dst, src1, 0, 0);
 }
 
 // Initialize data structures for the function param & arg allocation processor

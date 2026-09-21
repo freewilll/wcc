@@ -154,6 +154,7 @@ void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
         case LIVE_RANGE_PREG_R05: printf("r05"); break;
         case LIVE_RANGE_PREG_R06: printf("r06"); break;
         case LIVE_RANGE_PREG_R07: printf("r07"); break;
+        case LIVE_RANGE_PREG_R08: printf("r08"); break;
         case LIVE_RANGE_PREG_R09: printf("r09"); break;
         case LIVE_RANGE_PREG_R10: printf("r10"); break;
         case LIVE_RANGE_PREG_R11: printf("r11"); break;

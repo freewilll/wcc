@@ -5,7 +5,22 @@ Set *allocate_return_value_live_ranges(void) {
     return new_set(LIVE_RANGE_PREG_V07 + 1);
 }
 
+// For non-HFA struct/unions > 16 bytes, the caller puts a pointer
+// to the return value struct in x8. Add a move and put it in function->return_value_pointer.
+static int setup_return_for_struct_or_union(Function *function, Tac *ir) {
+    CallValueAllocation *cva = function->type->function->return_value_cva;
+    if (!cva) panic("In setup_return_for_struct_or_union() got an empty RV cva");
+    if (CVA_CVL(cva, 0).locations[0].indirect_stack_offset == -1) return 0;
+
+    setup_return_value_pointer(function, ir, LIVE_RANGE_PREG_R08);
+
+    return 1;
+}
+
 int prepend_function_params(Function *function, Tac *ir) {
+    if (function->type->target->type == TYPE_STRUCT_OR_UNION)
+        setup_return_for_struct_or_union(function, ir);
+
     return 0;
 }
 
@@ -57,6 +72,23 @@ int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, Call
     }
 
     return v->stack.index;
+}
+
+// return_value_pointer contains the vreg moves from the x8 register move at the top of the function
+// and has a pointer to where the return value has to be copied to.
+static void add_function_return_moves_for_indirect_struct_or_union_to_abi_register(Function *function, Tac *ir, CallValueLocations *cvl) {
+    ir->operation.id = IR_NOP;
+
+    // Convert src1 to be a pointer to void
+    Value *src1 = dup_value(ir->src1);
+    src1->type = make_pointer_to_void();
+    Value *dst = dup_value(function->return_value_pointer);
+    dst->is_lvalue = 1;
+
+    int size = get_type_size(ir->src1->type);
+    ir = add_memory_copy(function, ir, dst, src1, size);
+
+    ir = new_tac_after(ir, IR_RETURN, 0, 0, 0);
 }
 
 void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva, Tac *ir) {
@@ -306,7 +338,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
     if (!cva) panic("In add_function_call_result_moves_for_struct_or_union() got an empty RV cva");
     CallValueLocations *cvl = cva->locations->elements[0];
 
-    if (cvl->locations[0].stack_offset == -1) {
+    if (cvl->locations[0].stack_offset == -1 && cvl->locations[0].indirect_stack_offset == -1) {
         // Move registers to a struct/union on the stack
 
         ir->dst = NULL;
@@ -337,6 +369,25 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
         }
 
         wfree(live_range_pregs);
+    }
+    else if (cvl->locations[0].indirect_stack_offset != -1) {
+        // Put the address of the struct/union in the x8 register.
+        // The caller copies the result over.
+
+        // Take address of dst struct/union on the stack
+        Value *address_value = new_value();
+        address_value->vreg = ++function->vreg_count;
+        address_value->type = make_pointer_to_void();
+        new_tac_before(ir, IR_ADDRESS_OF, address_value, ir->dst, 0, 1);
+
+        // Move struct/union target address into x8
+        Value *x8_value = new_value();
+        x8_value->vreg = ++function->vreg_count;
+        x8_value->type = make_pointer_to_void();
+        x8_value->live_range_preg = LIVE_RANGE_PREG_R08;
+        new_tac_before(ir, IR_MOVE, x8_value, address_value, 0, 1);
+
+        add_to_set(function_value->return_value_live_ranges, x8_value->live_range_preg);
     }
     else {
         panic("TODO add_function_call_result_moves_for_struct_or_union in stack"); // TODO aarch64
@@ -378,12 +429,14 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
     add_type_to_cva(cva, ir->src1->type);
     CallValueLocations *cvl = cva->locations->elements[0];
 
-    if (cvl->locations[0].stack_offset != -1) {
-        printf("TODO add_function_return_moves_for_struct_or_union in stack\n"); // TODO aarch64
+    if (cvl->locations[0].indirect_stack_offset != -1) {
+        // Return a pointer toe the struct
+        add_function_return_moves_for_indirect_struct_or_union_to_abi_register(function, ir, cvl);
     }
-    else
+    else {
         // Move the data into registers
         add_function_return_moves_for_struct_or_union_to_abi_register(function, ir);
+    }
 }
 
 

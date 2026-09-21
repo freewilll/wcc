@@ -508,19 +508,14 @@ struct sff    return_sff()    { struct sff sff;         sff.f1 = 5.1; sff.f2 = 6
 struct sdd    return_sdd()    { struct sdd sdd;         sdd.d1 = 7.1; sdd.d2 = 8.1; return sdd; }
 struct sffff  return_sffff()  { struct sffff sffff;     sffff.f1 = 1.1; sffff.f2 = 2.1; sffff.f3 = 3.1; sffff.f4 = 4.1; return  sffff; }
 struct sffii  return_sffii()  { struct sffii sffii;     sffii.f1 = 1.1; sffii.f2 = 2.1; sffii.i1 = 3; sffii.i2 = 4; return  sffii; }
-#ifdef __x86_64__
 struct sffiii return_sffiii() { struct sffiii sffiii;   sffiii.f1 = 1.1; sffiii.f2 = 2.1; sffiii.i1 = 3; sffiii.i2 = 4; sffiii.i3 = 5; return  sffiii; }
-#endif
 struct siiff  return_siiff()  { struct siiff siiff;     siiff.i1 = 1; siiff.i2 = 2; siiff.f1 = 3.1; siiff.f2 = 4.1; return  siiff; }
-#ifdef __x86_64__
 struct siifff return_siifff() { struct siifff siifff;   siifff.i1 = 1; siifff.i2 = 2; siifff.f1 = 3.1; siifff.f2 = 4.1; siifff.f3 = 5.1; return  siifff; }
-#endif
 struct sifif  return_sifif()  { struct sifif sifif;     sifif.i1 = 1; sifif.f1 = 2.1; sifif.i2 = 3; sifif.f2 = 4.1; return  sifif; }
 struct si1    return_si1()    { struct si1 si1;         si1.i1 = 1; return si1; }
 struct si2    return_si2()    { struct si2 si2;         si2.i1 = 1; si2.i2 = 2; return si2; }
 struct si3    return_si3()    { struct si3 si3;         si3.i1 = 1; si3.i2 = 2; si3.i3 = 3; return si3; }
 struct si4    return_si4()    { struct si4 si4;         si4.i1 = 1; si4.i2 = 2; si4.i3 = 3; si4.i4 = 4; return si4; }
-#ifdef __x86_64__
 struct si5    return_si5()    { struct si5 si5;         si5.i1 = 1; si5.i2 = 2; si5.i3 = 3; si5.i4 = 4; si5.i5 = 5; return si5; }
 struct ld3    return_ld3()    { struct ld3 ld3;         ld3.ld1 = 1.1; ld3.ld2 = 2.1; ld3.ld3 = 3.1; return ld3; }
 
@@ -535,8 +530,6 @@ struct si5 return_si5_with_params(int i, float f) {
     si5.i5 = 5;
     return *&si5;
 }
-
-#endif
 
 void accept_array(int a[4]) {
     assert_int(1, a[0], "Accept array 1");

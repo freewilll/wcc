@@ -91,6 +91,7 @@ enum {
     LIVE_RANGE_PREG_R05,        // Parameter/result registers
     LIVE_RANGE_PREG_R06,        // Parameter/result registers
     LIVE_RANGE_PREG_R07,        // Parameter/result registers
+    LIVE_RANGE_PREG_R08,        // Indirect result location register
     LIVE_RANGE_PREG_R09,        // Temporary registers
     LIVE_RANGE_PREG_R10,        // Temporary registers
     LIVE_RANGE_PREG_R11,        // Temporary registers
