@@ -274,13 +274,9 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
 
     int size = get_type_size(type);
 
-    if (size > 16 && !hfa_fits) {
-        add_struct_or_union_call_value_location_for_big_struct(cva, type);
-    }
-
     // aapcs64 C.2
     // If it's an HFA and there are enough FP registers left, use them
-    else if (is_hfa && cva->single_fp_register_arg_count + scalars->count <= 8) {
+    if (is_hfa && cva->single_fp_register_arg_count + scalars->count <= 8) {
         add_struct_or_union_call_value_location_for_hfa_struct_in_registers(cva, seen_floats, seen_doubles, seen_long_doubles, scalars);
     }
 
@@ -291,6 +287,11 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
         cva->single_fp_register_arg_count = 8;
         add_single_call_value_location(cva, type);
     }
+
+    else if (size > 16 && !hfa_fits) {
+        add_struct_or_union_call_value_location_for_big_struct(cva, type);
+    }
+
     else {
         add_struct_or_union_call_value_location_for_non_hfa_struct(cva, type);
     }

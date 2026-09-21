@@ -40,6 +40,7 @@ struct sia2a2 { int i[2][2]; };
 struct sia4 { int i[4]; };
 struct sfa4 { float f[4]; };
 struct sda2 { double d[2]; };
+struct slda2 { long double ld[2]; };
 struct slda4 { long double ld[4]; };
 
 // Example from ABI doc v0.98
@@ -97,6 +98,7 @@ void accept_i5sia2a2(int i1, int i2, int i3, int i4, int i5, struct sia2a2 sia2a
 void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sffff sffff);
 void accept_sfa4(struct sfa4 sfa4);
 void accept_sda2_2(struct sda2 sda21, struct sda2 sda22);
+void accept_lda2i9(struct slda2 s1, struct slda2 s2, struct slda2 s3, struct slda2 s4, struct slda2 s5, int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8, int i9);
 void accept_f5sfa4(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4);
 void accept_f5sfa4f1(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4, float f6);
 

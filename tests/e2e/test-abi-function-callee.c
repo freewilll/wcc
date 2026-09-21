@@ -479,6 +479,31 @@ void accept_sda2_2(struct sda2 sda21, struct sda2 sda22) {
     assert_double(4.1, sda22.d[1], "accept_sda2_2 4");
 }
 
+// Convoluted test for aarch64 to check the stack layout is correct.
+// Struct 5 should be on the stack first, then i9.
+void accept_lda2i9(struct slda2 s1, struct slda2 s2, struct slda2 s3, struct slda2 s4, struct slda2 s5, int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8, int i9) {
+    assert_long_double(1.1,  s1.ld[0], "accept_lda2i9 1");
+    assert_long_double(2.1,  s1.ld[1], "accept_lda2i9 2");
+    assert_long_double(3.1,  s2.ld[0], "accept_lda2i9 3");
+    assert_long_double(4.1,  s2.ld[1], "accept_lda2i9 4");
+    assert_long_double(5.1,  s3.ld[0], "accept_lda2i9 5");
+    assert_long_double(6.1,  s3.ld[1], "accept_lda2i9 6");
+    assert_long_double(7.1,  s4.ld[0], "accept_lda2i9 7");
+    assert_long_double(8.1,  s4.ld[1], "accept_lda2i9 8");
+    assert_long_double(9.1,  s5.ld[0], "accept_lda2i9 9");
+    assert_long_double(10.1, s5.ld[1], "accept_lda2i9 10");
+
+    assert_int(1, i1, "accept_lda2i9 11");
+    assert_int(2, i2, "accept_lda2i9 12");
+    assert_int(3, i3, "accept_lda2i9 13");
+    assert_int(4, i4, "accept_lda2i9 14");
+    assert_int(5, i5, "accept_lda2i9 15");
+    assert_int(6, i6, "accept_lda2i9 16");
+    assert_int(7, i7, "accept_lda2i9 17");
+    assert_int(8, i8, "accept_lda2i9 18");
+    assert_int(9, i9, "accept_lda2i9 19");
+}
+
 void accept_slda4(struct slda4 slda4) {
     assert_long_double(6.1, slda4.ld[0], "accept_slda4 6");
     assert_long_double(7.1, slda4.ld[1], "accept_slda4 7");

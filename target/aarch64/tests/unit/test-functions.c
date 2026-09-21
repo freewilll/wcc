@@ -89,10 +89,10 @@ void test_struct_params() {
     test_multiple_struct_params(0,          "struct { long double d[2]; }", 1, "         | 00       | 000 | ");
     test_multiple_struct_params(0,          "struct { long double d[2]; }", 2, "         | 0011     | 000 | ");
     test_multiple_struct_params(0,          "struct { long double d[2]; }", 4, "         | 00112233 | 000 | ");
-    test_multiple_struct_params(0,          "struct { long double d[2]; }", 5, "4        | 00112233 | 020 | "); // TODO aarch64 this is wrong
-    test_multiple_struct_params(0,          "struct { long double d[2]; }", 6, "45       | 00112233 | 040 | "); // TODO aarch64 this is wrong
-    test_multiple_struct_params(TYPE_FLOAT, "struct { long double d[2]; }", 4, "4        | 0112233  | 020 | "); // TODO aarch64 this is wrong
-    test_multiple_struct_params(TYPE_FLOAT, "struct { long double d[2]; }", 5, "45       | 0112233  | 040 | "); // TODO aarch64 this is wrong
+    test_multiple_struct_params(0,          "struct { long double d[2]; }", 5, "         | 00112233 | 020 | 4");
+    test_multiple_struct_params(0,          "struct { long double d[2]; }", 6, "         | 00112233 | 040 | 4   5");
+    test_multiple_struct_params(TYPE_FLOAT, "struct { long double d[2]; }", 4, "         | 0112233  | 020 | 4");
+    test_multiple_struct_params(TYPE_FLOAT, "struct { long double d[2]; }", 5, "         | 0112233  | 040 | 4   5");
 
     // C.3 in aarch64 ABI doc
     // If the argument is an HFA or an HVA then the NSRN is set to 8 and the size of the argument is rounded up to the nearest multiple of 8 bytes.

@@ -158,6 +158,13 @@ void test_struct_params() {
     struct sda2 sda22 = {3.1, 4.1};
     accept_sda2_2(sda21, sda22);
 
+    struct slda2 i1 = {1.1, 2.1};
+    struct slda2 i2 = {3.1, 4.1};
+    struct slda2 i3 = {5.1, 6.1};
+    struct slda2 i4 = {7.1, 8.1};
+    struct slda2 i5 = {9.1, 10.1};
+    accept_lda2i9(i1, i2, i3, i4, i5, 1,2,3,4,5,6,7,8,9);
+
     // Example from x86_64 ABI doc v0.98
     structparm s;
     int e = 1; int f = 2; int g = 3; int h = 4; int i = 5; int j = 6; int k = 7;
