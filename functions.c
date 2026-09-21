@@ -1096,9 +1096,6 @@ static void move_indirect_param_vregs(Function *function, ParamDetails *param_de
 // moves will go to a new physical register, or, when possible, will remain in the
 // original registers. They might get spilled, in which case
 // function_param_original_stack.index is used rather than allocating more space.
-//
-// Return values for structs & unions with size > 16 bytes are passed in memory,
-// with rdi containing a pointer to the memory. TODO aarch64 x86_64 specific
 void add_function_param_moves(Function *function) {
     if (debug_function_param_mapping) {
         printf("Mapping function parameters for %s\n", function->identifier);
