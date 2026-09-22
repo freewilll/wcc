@@ -208,6 +208,13 @@ static void add_struct_or_union_call_value_location_for_hfa_struct_in_registers(
 // on the stack.
 static void add_struct_or_union_call_value_location_for_non_hfa_struct(CallValueAllocation *cva, Type *type) {
     int size = get_type_size(type);
+    int alignment = get_type_alignment(type);
+
+    // aapcs64 C.10
+    // If the argument has an alignment of 16 then the NGRN is rounded up to the next even number.
+    if (alignment == 16)
+        cva->single_int_register_arg_count = (cva->single_int_register_arg_count + 1) & ~1;
+
     // aapcs64 C.12
     int needed_int_registers = (size + 7) / 8;
 

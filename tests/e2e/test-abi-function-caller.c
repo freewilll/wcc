@@ -366,6 +366,13 @@ void test_int128() {
     test_int128_in_registers_i5(-1, -2, -3, -4, -5, i128);
     test_int128_in_registers_i6(-1, -2, -3, -4, -5, -6, i128);
     test_int128_in_registers_i7(-1, -2, -3, -4, -5, -6, -7, i128);
+
+    // TODO there is a bug in x86_64 with __int128 in structs
+    #ifdef __aarch64__
+    struct si128 s;
+    s.i = MAKE_SINT128(3, 4);
+    accept_i_and_int128(1, s);
+    #endif
 }
 
 void test_int128_return() {

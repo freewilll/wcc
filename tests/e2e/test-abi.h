@@ -45,6 +45,8 @@ struct sda2 { double d[2]; };
 struct slda2 { long double ld[2]; };
 struct slda4 { long double ld[4]; };
 
+struct si128 { __int128 i; };
+
 // Example from ABI doc v0.98
 typedef struct { int a, b; double d; } structparm;
 
@@ -152,4 +154,5 @@ void test_int128_in_registers(__int128 i128);
 void test_int128_in_registers_i5(int i1, int i2, int i3, int i4, int i5, __int128 i128);
 void test_int128_in_registers_i6(int i1, int i2, int i3, int i4, int i5, int i6, __int128 i128);
 void test_int128_in_registers_i7(int i1, int i2, int i3, int i4, int i5, int i6, int i7, __int128 i128);
+void accept_i_and_int128(int i, struct si128 s);
 __int128_t return_int128();

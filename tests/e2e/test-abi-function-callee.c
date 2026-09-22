@@ -662,6 +662,11 @@ void test_int128_in_registers_i7(int i1, int i2, int i3, int i4, int i5, int i6,
     ASSERT_INT128(1, 2, i128, "A int128 on the stack 8");
 }
 
+void accept_i_and_int128(int i, struct si128 s) {
+    assert_int(1, i, "accept_i_and_int128 1");
+    ASSERT_INT128(3, 4, s.i, "accept_i_and_int128 2");
+}
+
 __int128_t return_int128() {
     __int128_t r = MAKE_SINT128(1, 2);
     return r;

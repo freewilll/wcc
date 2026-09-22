@@ -110,6 +110,9 @@ char *sprint_type_in_english(Type *type) {
             case TYPE_LONG:
                 buffer += sprintf(buffer, "long");
                 break;
+            case TYPE_INT128:
+                buffer += sprintf(buffer, "int128");
+                break;
             case TYPE_FLOAT:
                 buffer += sprintf(buffer, "float");
                 break;
