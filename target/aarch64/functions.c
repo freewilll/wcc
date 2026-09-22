@@ -423,10 +423,13 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
         x8_value->live_range_preg = LIVE_RANGE_PREG_R08;
         new_tac_before(ir, IR_MOVE, x8_value, address_value, 0, 1);
 
+        // Keep x8 alive, since args may be inserted between the above move and the call.
+        new_tac_before(ir, IR_FUNCTION_CALL_REG, 0, x8_value, 0, 1);
+
         add_to_set(function_value->return_value_live_ranges, x8_value->live_range_preg);
     }
     else {
-        panic("TODO add_function_call_result_moves_for_struct_or_union in stack"); // TODO aarch64
+        panic("Unhandled result move for struct/union");
     }
 }
 
