@@ -6,6 +6,8 @@ The [was assembler](https://github.com/freewilll/wbinutils/tree/master/was) and 
 
 This compiler is a hobby project and even close to be ready for production use.
 
+An aarch64 target is work in progress.
+
 # Installation
 ```
 $ ./configure
@@ -14,7 +16,9 @@ $ make install
 
 # Running wcc from source
 ```
-$ ./configure
+$ mkdir build
+$ cd build
+$ .../wcc/configure
 $ make wcc
 $ ./wcc -I include test.c -o test
 ```
@@ -69,6 +73,7 @@ GCC=musl-gcc WCC_OPTS="--libc musl" make test
 # Example compilation
 ```
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef struct s1 {
     int i, j;
@@ -88,14 +93,15 @@ void main() {
 }
 ```
 
+**x86_64**
 ```
 main:
     push        %rbp            # Function prologue
     mov         %rsp, %rbp
     push        %rbx
     subq        $8, %rsp
-    movq        $8, %rdi        # s2 = malloc(sizeof(S2));
-    callq       malloc@PLT
+    movq        $8, %rdi
+    callq       malloc@PLT      # s2 = malloc(sizeof(S2));
     movq        %rax, %rbx      # rbx = s2
     movq        $8, %rdi        # s2->s1 = malloc(sizeof(S1));
     callq       malloc@PLT
@@ -118,6 +124,36 @@ main:
     popq        %rbx            # Function epilogue
     leaveq
     retq
+```
+
+**Work in progress aarch64**
+```
+.Lmain.start:
+    stp         x29, x30, [sp, -16]!    // Function prologue
+    str         x19, [sp, #-16]!
+    movz        x0, 8                   // s2 = malloc(sizeof(S2));
+    bl          malloc
+    mov         x1, x0
+    mov         x19, x1                 // x19 = s2
+    movz        x0, 8
+    bl          malloc                  // s2->s1 = malloc(sizeof(S1));
+    mov         x1, x0
+    mov         x0, x1
+    str         x0, [x19]
+    ldr         x0, [x19]               // s2->s1->j = 1;
+    mov         x1, x0
+    movz        w0, 1
+    str         w0, [x1, 4]
+    adrp        x0, .LS1                // printf("%d\n", s2->s1->j);
+    add         x0, x0, :lo12:.LS1
+    ldr         x1, [x19]
+    ldr         w1, [x1, 4]
+    bl          printf
+    mov         w0, 0                   // Function exit code zero
+    ldr         x19, [sp], #16          // Function epilogue
+    ldp         x29, x30, [sp], 16
+    ret
+    .size       main, .-main
 ```
 
 # Testing
