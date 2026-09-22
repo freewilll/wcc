@@ -156,7 +156,9 @@ void test_int128() {
     test_param_allocation(P1, P1, P1, P1, P1, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00112233 |          | 020 | 4 5");
     test_param_allocation(PI, PI, PI, PI, PI, PI, PI, P1, PI, 0,  0,  0,  0,  0,  0,  0 , "0123456  |          | 020 | 7 8");
 
-    // Test alignment of an __int128 in a struct
+    // Test an __int128 in a struct
+    test_multiple_struct_params(0,        "struct { __int128 i; }",   1, "00       |          | 000 | ");
+    test_multiple_struct_params(0,        "struct { __int128 i; }",   4, "00112233 |          | 000 | ");
     test_multiple_struct_params(TYPE_INT, "struct { __int128 i; }",   1, "0 11     |          | 000 | ");
     test_multiple_struct_params(TYPE_INT, "struct { __int128 i; }",   4, "0 112233 |          | 010 | 4");
 }

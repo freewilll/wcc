@@ -785,6 +785,10 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
 
         if (type_fits_in_single_int_register(scalar->type))
             seen_integer[eight_byte] = 1;
+        else if (scalar->type->type == TYPE_INT128) {
+            seen_integer[eight_byte] = 1;
+            seen_integer[eight_byte + 1] = 1;
+        }
         else if (is_sse_floating_point_type(scalar->type))
             seen_sse[eight_byte] = 1;
         else {

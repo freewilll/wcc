@@ -82,6 +82,12 @@ void test_int128() {
     // With some integers thrown in
     test_param_allocation(P1, P1, PI, P1, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "00112    |          | 010 | 3");
     test_param_allocation(P1, P1, P1, P1, P1, PI, 0,  0,  0,  0,  0,  0,  0,  0,  0,  0 , "001122   |          | 028 | 3 4 5");
+
+    // Test an __int128 in a struct
+    test_multiple_struct_params(0,        "struct { __int128 i; }",   1, "00       |          | 000 | ");
+    test_multiple_struct_params(0,        "struct { __int128 i; }",   4, "001122   |          | 010 | 3");
+    test_multiple_struct_params(TYPE_INT, "struct { __int128 i; }",   1, "011      |          | 000 | ");
+    test_multiple_struct_params(TYPE_INT, "struct { __int128 i; }",   4, "01122    |          | 020 | 3 4");
 }
 
 int main(int argc, char **argv) {
