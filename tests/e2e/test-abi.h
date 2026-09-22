@@ -33,6 +33,8 @@ struct si7 { int i1, i2, i3, i4, i5, i6, i7; };
 struct si8 { int i1, i2, i3, i4, i5, i6, i7, i8; };
 struct si9 { int i1, i2, i3, i4, i5, i6, i7, i8, i9; };
 
+struct sl3 { long l1, l2, l3; };
+
 struct sld2 { long double ld1, ld2; };
 struct sld3 { long double ld1, ld2, ld3; };
 
@@ -96,6 +98,8 @@ void accept_i7sia4i1(int i1, int i2, int i3, int i4, int i5, int i6, int i7, str
 void accept_sia2a2(struct sia2a2 sia2a2);
 void accept_i5sia2a2(int i1, int i2, int i3, int i4, int i5, struct sia2a2 sia2a2);
 void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sffff sffff);
+long accept_sl3(struct sl3 s);
+
 void accept_sfa4(struct sfa4 sfa4);
 void accept_sda2_2(struct sda2 sda21, struct sda2 sda22);
 void accept_lda2i9(struct slda2 s1, struct slda2 s2, struct slda2 s3, struct slda2 s4, struct slda2 s5, int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8, int i9);

@@ -129,6 +129,10 @@ void test_struct_params() {
     sia2a2.i[0][0] = 6; sia2a2.i[0][1] = 7; sia2a2.i[1][0] = 8; sia2a2.i[1][1] = 9;
     accept_i5sia2a2(1, 2, 3, 4, 5, sia2a2);
 
+    struct sl3 sl3 = {0};
+    long r = accept_sl3(sl3);
+    assert_int(42, r, "accept_sl3");
+
     // Forcing of sffff onto the stack due to partial register exhaustion
     sffff.f1 = 6.1; sffff.f2 = 7.1; sffff.f3 = 8.1; sffff.f4 = 9.1;
     accept_f5sffff(1.1, 2.1, 3.1, 4.1, 5.1, sffff);

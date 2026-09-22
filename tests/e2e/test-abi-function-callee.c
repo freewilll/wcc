@@ -411,6 +411,12 @@ void accept_i5sia2a2(int i1, int i2, int i3, int i4, int i5, struct sia2a2 sia2a
     assert_int(9, sia2a2.i[1][1], "accept_i5sia2a2 9");
 }
 
+// This tests a bug where code was being inserted at the top of the function instead of in the IR.
+long accept_sl3(struct sl3 s) {
+    s.l1 = 42;
+    return s.l1;
+}
+
 void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sffff sffff) {
     assert_int(1.1, f1,       "accept_f5sffff 1");
     assert_int(2.1, f2,       "accept_f5sffff 2");

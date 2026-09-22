@@ -1145,7 +1145,7 @@ void add_function_param_moves(Function *function) {
     // Convert IR
     #define CONVERT_IR(v) \
         convert_register_param_stack_index_to_register(param_details, v); \
-        convert_indirect_param_stack_index_to_register(function, param_details, ir, v); \
+        convert_indirect_param_stack_index_to_register(function, param_details, tac, v); \
         convert_register_param_stack_index_to_stack(param_details, v);
 
     LOOP_OVER_FUNCTION_IR(function) {
