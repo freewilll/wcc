@@ -786,6 +786,12 @@ __int128_t return_int128_from_stack() {
     return r;
 }
 
+// Return an int128 conditionally
+__int128 return_int128_conditionally(int i, __int128 i1, __int128 i2) {
+    if (i) return i1;
+    return i2;
+}
+
 void test_int128_return() {
     // Call a function that returns an int128 and stored in in local registers
     __int128_t r1, r2;
@@ -798,6 +804,14 @@ void test_int128_return() {
     r2 = return_int128();
     &r2;
     ASSERT_INT128(1, 2, r2, "int128 returned to stack");
+
+    __int128 i1 = (((__int128) 1) << 64) | 2;
+    __int128 i2 = (((__int128) 3) << 64) | 4;
+
+    r2 = return_int128_conditionally(0, i1, i2);
+    ASSERT_INT128(3, 4, r2, "int128 returned conditionally 1");
+    r2 = return_int128_conditionally(1, i1, i2);
+    ASSERT_INT128(1, 2, r2, "int128 returned conditionally 2");
 }
 
 int main(int argc, char **argv) {

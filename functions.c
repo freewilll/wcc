@@ -1203,11 +1203,6 @@ void add_function_return_moves_for_int128(Function *function, Tac *ir, int live_
 
     new_tac_before(ir, IR_MOVE, dst_low, src1_low, 0, 1);
     new_tac_before(ir, IR_MOVE, dst_high, src1_high, 0, 1);
-
-    ir->operation.id = IR_NOP;
-    ir->dst = NULL;
-    ir->src1 = NULL;
-    ir->src2 = NULL;
 }
 
 // Add a copy from a single register to an ABI return register
