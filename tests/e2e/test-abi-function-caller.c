@@ -180,6 +180,34 @@ void test_struct_params() {
     struct us us;
     us.i = 1; us.c = 2; us.j = 3;
     accept_us(us);
+
+    // Union tests
+    union uii uii = {1};
+    accept_uii(uii);
+
+    union uff uff = {1.1};
+    accept_uff(uff);
+
+    union ufi ufi = {1.1};
+    accept_ufi(ufi);
+
+    union uf5i1 uf5i1 = {1.1, 2.1};
+    accept_uf5i1(uf5i1);
+
+    union uf5 uf5 = {1.1, 2.1};
+    accept_uf5(uf5);
+
+    union uf6 uf6 = {1.1, 2.1};
+    accept_uf6(uf6);
+
+    union uf8 uf8 = {1.1, 2.1, 3.1, 4.1};
+    accept_uf8(uf8);
+
+    union ud8 ud8 = {1.1, 2.1, 3.1, 4.1};
+    accept_ud8(ud8);
+
+    union uld8 uld8 = {1.1, 2.1, 3.1, 4.1};
+    accept_uld8(uld8);
 }
 
 void test_struct_return_values() {

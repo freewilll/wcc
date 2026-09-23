@@ -176,25 +176,15 @@ static void add_struct_or_union_call_value_location_for_big_struct(CallValueAllo
 }
 
 // Each member in an HFA struct, which consists of entirely floats, doubles or long doubles, gets its own register.
-// One of seen_floats, seen_doubles and seen_long_doubles is non-zero. The rest are zero.
-static void add_struct_or_union_call_value_location_for_hfa_struct_in_registers(
-        CallValueAllocation *cva,
-        int seen_floats, int seen_doubles, int seen_long_doubles,
-        StructOrUnionScalars *scalars) {
-
+static void add_struct_or_union_call_value_location_for_hfa_struct_in_registers(CallValueAllocation *cva, int type, int count) {
     int member_size =
-          seen_floats ? 4
-        : seen_doubles ? 8
+          type == TYPE_FLOAT ? 4
+        : type == TYPE_DOUBLE ? 8
         : 16;
 
-    int type =
-          seen_floats ? TYPE_FLOAT
-        : seen_doubles ? TYPE_DOUBLE
-        : TYPE_LONG_DOUBLE;
+    CallValueLocations *cvl = allocate_call_value_locations(count);
 
-    CallValueLocations *cvl = allocate_call_value_locations(scalars->count);
-
-    for (int i = 0; i < scalars->count; i++) {
+    for (int i = 0; i < count; i++) {
         cvl->locations[i].fp_register = cva->single_fp_register_arg_count + i;
         cvl->locations[i].stru_size = member_size;
         cvl->locations[i].stru_offset = i * member_size;
@@ -239,9 +229,25 @@ static void add_struct_or_union_call_value_location_for_non_hfa_struct(CallValue
     }
 }
 
-static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Type *type) {
-    if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
-    if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
+typedef struct  {
+    int is_hfa;                 // Is the struct an HFA
+    int fits_in_fp_registers;   // Does it fit into the available floating point registers in the CVA?
+    int type;                   // TYPE_FLOAT, TYPE_DOUBLE or TYPE_LONG_DOUBLE;
+    int count;                  // The amount of scalars. Must be < 4
+} HfaDetails;
+
+// Check if the struct/union is a Homogeneous Floating-point Aggregate (HFA)
+// and if it can fit into the available floating point registers.
+// The max size is 4 * 16 bytes.
+// The type is an HFA if:
+// - The struct must only have one type of float, double or long doubles
+// - Overlapping types due to unions have to be the same
+//
+static HfaDetails make_hfa_details(Type *type, int size, CallValueAllocation *cva) {
+    HfaDetails h = {0}; // Defaults to not an HFA
+
+    int seen_types[4] = {0};
+    int seen_type = 0;
 
     // Break the struct up into individual scalars
     StructOrUnionScalars *scalars = wmalloc(sizeof(StructOrUnionScalars));
@@ -250,62 +256,83 @@ static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Ty
     flatten_type(type, scalars, 0);
 
     // Categorize the members by looking at what types are present
-    int seen_floats = 0;
-    int seen_doubles = 0;
-    int seen_long_doubles = 0;
-    int seen_others = 0;
 
-    // Check if the struct is a Homogeneous Floating-point Aggregate (HFA)
     for (int i = 0; i < scalars->count; i++) {
         StructOrUnionScalar *scalar = scalars->scalars[i];
 
+        int position;
+
         if (scalar->type->type == TYPE_FLOAT)
-            seen_floats++;
+            position = scalar->offset / 4;
         else if (scalar->type->type == TYPE_DOUBLE)
-            seen_doubles++;
+            position = scalar->offset / 8;
         else if (scalar->type->type == TYPE_LONG_DOUBLE)
-            seen_long_doubles++;
+            position = scalar->offset / 16;
         else
-            seen_others++;
+            goto done; // Any non-floating point type means it's not an HFA
+
+        if (position >= 4) goto done; // An HFA can have no more than 4 FP types
+
+        if (seen_type && seen_type != scalar->type->type) goto done; // There are mixed types
+        seen_type = scalar->type->type;
+
+        if (seen_types[position] && seen_types[position] != scalar->type->type) goto done; // Type mismatch at same offset
+        seen_types[position] = scalar->type->type;
     }
 
-    int is_hfa = (
-        !seen_others &&
-        (
-            (seen_floats <= 4 && !seen_doubles && !seen_long_doubles) ||
-            (seen_doubles <= 4 && !seen_floats && !seen_long_doubles) ||
-            (seen_long_doubles <= 4 && !seen_floats && !seen_doubles)
-        )
-    );
-    int hfa_fits = (is_hfa && cva->single_fp_register_arg_count + scalars->count <= 8);
+    if (!seen_type) panic("Unexpectedly got 0 seen_type");
+
+    // Count the amount of scalars
+    int count = 0;
+    for (int i = 0; i < 4; i++) if (seen_types[i]) count++;
+    if (count > 4) goto done; // HFAs have max 4 scalars
+
+    h.is_hfa = 1;
+    h.type = seen_type;
+    h.count = count;
+
+    h.fits_in_fp_registers = (h.is_hfa && cva->single_fp_register_arg_count + count <= 8);
+
+done:
+    for (int i = 0; i < scalars->count; i++) wfree(scalars->scalars[i]);
+    wfree(scalars->scalars);
+    wfree(scalars);
+
+    return h;
+}
+
+static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Type *type) {
+    if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+    if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
 
     int size = get_type_size(type);
 
+    // Determine if the struct is an HFA. The largest possible HFA struct has 4 long doubles,
+    // so only check structs smaller than that size.
+    HfaDetails hfad = {0};
+    if (size <= 4 * 16) hfad = make_hfa_details(type, size, cva);
+
     // aapcs64 C.2
     // If it's an HFA and there are enough FP registers left, use them
-    if (is_hfa && cva->single_fp_register_arg_count + scalars->count <= 8) {
-        add_struct_or_union_call_value_location_for_hfa_struct_in_registers(cva, seen_floats, seen_doubles, seen_long_doubles, scalars);
+    if (hfad.is_hfa && cva->single_fp_register_arg_count + hfad.count <= 8) {
+        add_struct_or_union_call_value_location_for_hfa_struct_in_registers(cva, hfad.type, hfad.count);
     }
 
     // aapcs64 C.3
     // Set all FP registers to allocated, round size up to 8 bytes,
     // and allocate stack space
-    else if (is_hfa) {
+    else if (hfad.is_hfa) {
         cva->single_fp_register_arg_count = 8;
         add_single_call_value_location(cva, type);
     }
 
-    else if (size > 16 && !hfa_fits) {
+    else if (size > 16 && !hfad.fits_in_fp_registers) {
         add_struct_or_union_call_value_location_for_big_struct(cva, type);
     }
 
     else {
         add_struct_or_union_call_value_location_for_non_hfa_struct(cva, type);
     }
-
-    for (int i = 0; i < scalars->count; i++) wfree(scalars->scalars[i]);
-    wfree(scalars->scalars);
-    wfree(scalars);
 }
 
 // Add a type to a call value allocation

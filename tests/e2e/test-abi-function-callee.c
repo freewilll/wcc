@@ -540,6 +540,54 @@ void accept_us(struct us us) {
     assert_int(3, us.j, "accept-us j");
 }
 
+void accept_uii(union uii uii) {
+    assert_int(1, uii.u.i1, "accept_uii");
+}
+
+void accept_uff(union uff uff) {
+    assert_float(1.1, uff.u.f1, "accept_uff");
+}
+
+void accept_ufi(union ufi ufi) {
+    assert_float(1.1, ufi.u.f, "accept_ufi");
+}
+
+void accept_uf5i1(union uf5i1 uf5i1) {
+    assert_float(1.1, uf5i1.u.s1.f1, "accept_uf5i1 1");
+    assert_float(2.1, uf5i1.u.s1.f2, "accept_uf5i1 2");
+}
+
+void accept_uf5(union uf5 uf5) {
+    assert_float(1.1, uf5.u.s1.f1, "accept_uf5 1");
+    assert_float(2.1, uf5.u.s1.f2, "accept_uf5 2");
+}
+
+void accept_uf6(union uf6 uf6) {
+    assert_float(1.1, uf6.u.s1.f1, "accept_uf6 1");
+    assert_float(2.1, uf6.u.s1.f2, "accept_uf6 2");
+}
+
+void accept_uf8(union uf8 uf8) {
+    assert_float(1.1, uf8.u.s1.f1, "accept_uf8 1");
+    assert_float(2.1, uf8.u.s1.f2, "accept_uf8 2");
+    assert_float(3.1, uf8.u.s1.f3, "accept_uf8 3");
+    assert_float(4.1, uf8.u.s1.f4, "accept_uf8 4");
+}
+
+void accept_ud8(union ud8 ud8) {
+    assert_double(1.1, ud8.u.s1.d1, "accept_ud8 1");
+    assert_double(2.1, ud8.u.s1.d2, "accept_ud8 2");
+    assert_double(3.1, ud8.u.s1.d3, "accept_ud8 3");
+    assert_double(4.1, ud8.u.s1.d4, "accept_ud8 4");
+}
+
+void accept_uld8(union uld8 uld8) {
+    assert_long_double(1.1, uld8.u.s1.ld1, "accept_uld8 1");
+    assert_long_double(2.1, uld8.u.s1.ld2, "accept_uld8 2");
+    assert_long_double(3.1, uld8.u.s1.ld3, "accept_uld8 3");
+    assert_long_double(4.1, uld8.u.s1.ld4, "accept_uld8 4");
+}
+
 struct spf gspf;
 
 struct spf    return_spf() { struct spf spf; spf.f1 = 1.1; return spf; }
@@ -671,4 +719,3 @@ __int128_t return_int128() {
     __int128_t r = MAKE_SINT128(1, 2);
     return r;
 }
-

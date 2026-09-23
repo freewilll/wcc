@@ -68,6 +68,18 @@ void test_struct_params() {
     test_single_struct_param("struct { double d[5]; }",          "0        |          | 030 | ");
     test_single_struct_param("struct { long double d[5]; }",     "0        |          | 050 | ");
 
+    // Unions
+    test_single_struct_param("union { float f1, f2; }",                                                             "         | 0        | 000 | "); // HFA
+    test_single_struct_param("struct { union { float f1, f2; } u; float f2;}",                                      "         | 00       | 000 | "); // HFA
+    test_single_struct_param("struct { union { float f1, f2; } u1; union { float f1, f2; } u2; }",                  "         | 00       | 000 | "); // HFA
+    test_single_struct_param("struct { union { double d1, d2, d3, d4; } u1; union { double d1; } u2; }",            "         | 00       | 000 | "); // HFA
+    test_single_struct_param("struct { union { long double d1, d2, d3, d4; } u1; union { long double d1; } u2; }",  "         | 00       | 000 | "); // HFA
+    test_single_struct_param("union { float f; int i; }",                                                           "0        |          | 000 | "); // non-HFA
+    test_single_struct_param("union { float f; double d; }",                                                        "0        |          | 000 | "); // non-HFA
+    test_single_struct_param("struct { union { float f1, f2; } u1; union { float f1; int i1; } u2; }",              "0        |          | 000 | "); // non-HFA
+    test_single_struct_param("struct { union { long double d1, d2, d3, d4; } u1; union { double d1; } u2; }",       "0        |          | 020 | "); // non-HFA
+    test_single_struct_param("union { float f; long double ld; }",                                                  "00       |          | 000 | "); // non-HFA
+
     // Test running out of registers for struct/union
     test_multiple_struct_params(0,          "struct { int i[4]; }",   4, "00112233 |          | 000 | ");
     test_multiple_struct_params(0,          "struct { int i[4]; }",   5, "00112233 |          | 010 | 4");

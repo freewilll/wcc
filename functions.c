@@ -674,7 +674,9 @@ void add_function_call_arg_moves(Function *function) {
     // From this point onwards, IR_ARG are no longer present.
 }
 
-// Recurse through a type and make list of all scalars + their offsets
+// Recurse through a type and make list of all scalars + their offsets.
+// This doesn't distinguish between structs and unions.
+// The caller is expected to deal with that.
 void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset) {
     if (type->type == TYPE_STRUCT_OR_UNION) {
         StructOrUnion *s = type->struct_or_union_desc;

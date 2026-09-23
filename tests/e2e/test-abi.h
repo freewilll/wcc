@@ -56,6 +56,73 @@ struct __attribute__ ((__packed__)) us { int i; char c; int j; };
 // A struct with a bunch of bit fields
 struct bfs { int i1; int i2:16; int i3:3; int i4:3; int i5:3; int i6:5; int i7:5; int i8; };
 
+// Used in union tests
+
+union uii { union { int i1, i2; } u; };
+union uff { union { float f1, f2; } u; };
+union ufi { union { float f; int i; } u; };
+
+// aarch64: Not HFA
+union uf5i1 {
+    union {
+        struct {float f1, f2;    } s1;
+        struct {float f1, f2;    } s2;
+        struct {float f3; int i1;} s3;
+    } u;
+};
+
+// aarch64: HFA
+union uf5 {
+    union {
+        struct {float f1, f2; } s1;
+        struct {float f1, f2; } s2;
+        struct {float f3;     } s3;
+    } u;
+};
+
+// aarch64: HFA
+union uf6 {
+    union {
+        struct {float f1, f2; } s1;
+        struct {float f1, f2; } s2;
+        struct {float f1, f2; } s3;
+    } u;
+};
+
+// aarch64: HFA
+union uf8 {
+    union {
+        struct {float f1, f2, f3, f4; } s1;
+        struct {float f1, f2, f3, f4; } s2;
+    } u;
+};
+
+// aarch64: HFA
+union ud8 {
+    union {
+        struct {double d1, d2, d3, d4; } s1;
+        struct {double d1, d2, d3, d4; } s2;
+    } u;
+};
+
+// aarch64: HFA
+union uld8 {
+    union {
+        struct {long double ld1, ld2, ld3, ld4; } s1;
+        struct {long double ld1, ld2, ld3, ld4; } s2;
+    } u;
+};
+
+void accept_uii(union uii uii);
+void accept_uff(union uff uff);
+void accept_ufi(union ufi ufi);
+void accept_uf5i1(union uf5i1 uf5i1);
+void accept_uf5(union uf5 uf5);
+void accept_uf6(union uf6 uf6);
+void accept_uf8(union uf8 uf8);
+void accept_ud8(union ud8 ud8);
+void accept_uld8(union uld8 uld8);
+
 void accept_spf(struct spf spf);
 void accept_spd(struct spd spd);
 void accept_spdf(struct spdf spdf);
@@ -156,3 +223,13 @@ void test_int128_in_registers_i6(int i1, int i2, int i3, int i4, int i5, int i6,
 void test_int128_in_registers_i7(int i1, int i2, int i3, int i4, int i5, int i6, int i7, __int128 i128);
 void accept_i_and_int128(int i, struct si128 s);
 __int128_t return_int128();
+
+void accept_uii(union uii uii);
+void accept_uff(union uff uff);
+void accept_ufi(union ufi ufi);
+void accept_uf5i1(union uf5i1 uf5i1);
+void accept_uf5(union uf5 uf5);
+void accept_uf6(union uf6 uf6);
+void accept_uf8(union uf8 uf8);
+void accept_ud8(union ud8 ud8);
+void accept_uld8(union uld8 uld8);

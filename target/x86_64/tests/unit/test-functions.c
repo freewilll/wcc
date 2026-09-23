@@ -54,6 +54,11 @@ void test_struct_params() {
     test_multiple_struct_params(TYPE_FLOAT, "struct { float f[4]; }", 4, "         | 0112233  | 010 | 4");
     test_multiple_struct_params(TYPE_FLOAT, "struct { float f[4]; }", 5, "         | 0112233  | 020 | 4 5");
 
+    // Unions
+    test_single_struct_param("union { int i1, i2; }",     "0        |          | 000 | ");
+    test_single_struct_param("union { int i; float f; }", "0        |          | 000 | ");
+    test_single_struct_param("union { float f1, f2; }",   "         | 0        | 000 | ");
+
     // Example from x86_64 ABI doc
     CallValueAllocation *cva = init_call_value_allocaton("");
     add_type_to_cva(cva, new_type(TYPE_INT));
