@@ -7,7 +7,7 @@ static int cur_function_stack_size;                     // The stack size of the
 static int cur_function_has_function_calls;             // If the current function makes any function calls
 static int cur_function_stack_space_for_x29_x30;        // Amount of stack space allocated for x29 and x30
 static int function_call_args_stack_size;               // The size of the argument stack for the current function
-static int cur_function_has_function_param_in_stack;    // Does the current function have any params in the stack
+static int cur_function_can_have_function_param_in_stack;    // Does the current function have any params in the stack
 
 static void append_register_name(char *buffer, int preg, int size) {
     if (preg >= REG_R00 && preg <= REG_R30) {
@@ -385,7 +385,7 @@ static Tac *insert_x29_and_x30_save(Function *function, Tac *ir) {
     if (cur_function_stack_space_for_x29_x30)
         ir = insert_target_instruction(ir, AARCH64_OP_STP, 0, 0, 0, "stp x29, x30, [sp, -16]!");
 
-    if (cur_function_has_function_param_in_stack)
+    if (cur_function_can_have_function_param_in_stack)
         ir = insert_target_instruction(ir, AARCH64_OP_MOV, new_preg_value(REG_R29), new_preg_value(REG_SP), 0, "mov x29, sp");
 
     return ir;
@@ -440,13 +440,13 @@ static void prepare_x29_x30_stack_saves(Function *function) {
 
     // Determine if the function uses any pushed params for function calls. If so,
     // x29 is set to sp and must be preserved
-    cur_function_has_function_param_in_stack = 0;
+    cur_function_can_have_function_param_in_stack = function->type->function->is_variadic;
 
     // Check stack access to the function param area
-    #define CHECK_FUNCTION_PARAM(v) if ((v) && v->stack.area == SA_UNSPECIFIED && v->stack.index > 0) cur_function_has_function_param_in_stack = 1;
+    #define CHECK_FUNCTION_PARAM(v) if ((v) && v->stack.area == SA_UNSPECIFIED && v->stack.index > 0) cur_function_can_have_function_param_in_stack = 1;
 
     // R29 is used directly in offset adding code. If it's there, then it's related to a function parameter in the stack.
-    #define CHECK_R29_USE(v) if ((v) && v->preg == REG_R29) cur_function_has_function_param_in_stack = 1;
+    #define CHECK_R29_USE(v) if ((v) && v->preg == REG_R29) cur_function_can_have_function_param_in_stack = 1;
 
     // #define WTF(v) if ((v)) printf("%s %d %d %d\n", function->identifier,  v->stack.area, v->stack.index, v->stack.offset);
     LOOP_OVER_FUNCTION_IR(function) {
@@ -454,7 +454,7 @@ static void prepare_x29_x30_stack_saves(Function *function) {
         DO_ON_ALL_TAC_VALUES(tac, CHECK_R29_USE);
     }
 
-    cur_function_stack_space_for_x29_x30 = cur_function_has_function_param_in_stack || cur_function_has_function_calls ? 16 : 0;
+    cur_function_stack_space_for_x29_x30 = cur_function_can_have_function_param_in_stack || cur_function_has_function_calls ? 16 : 0;
 }
 
 static void register_floating_point_literals(Function *function) {

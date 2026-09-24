@@ -11,6 +11,11 @@ int failures;
 
 struct sca {char c[3];};
 
+// Used for aarch64 testing of HVA structs
+struct hfaf { float f1, f2; };
+struct hfad { double d1, d2, d3; };
+struct hfald { long double ld1, ld2, ld3, ld4; };
+
 int gi;
 
 int vp(char *template, char *expected, ...) {
@@ -24,37 +29,73 @@ int vp(char *template, char *expected, ...) {
 // Test va_start and va_list are correct by handing va_list over to vsprintf
 // and asserting the result is correct.
 int test_va_start_va_list_abi() {
-    vp("%d %d %d %d",          "1 2 3 4",       1, 2, 3, 4);
-    vp("%d %d %d %d %d",       "1 2 3 4 5",     1, 2, 3, 4, 5);
-    vp("%d %d %d %d %d %d",    "1 2 3 4 5 6",   1, 2, 3, 4, 5, 6);
-    vp("%d %d %d %d %d %d %d", "1 2 3 4 5 6 7", 1, 2, 3, 4, 5, 6, 7);
+    vp("%d %d %d %d",                "1 2 3 4",           1, 2, 3, 4);
+    vp("%d %d %d %d %d",             "1 2 3 4 5",         1, 2, 3, 4, 5);
+    vp("%d %d %d %d %d %d",          "1 2 3 4 5 6",       1, 2, 3, 4, 5, 6);
+    vp("%d %d %d %d %d %d %d",       "1 2 3 4 5 6 7",     1, 2, 3, 4, 5, 6, 7);
+    vp("%d %d %d %d %d %d %d %d",    "1 2 3 4 5 6 7 8",   1, 2, 3, 4, 5, 6, 7, 8);
+    vp("%d %d %d %d %d %d %d %d %d", "1 2 3 4 5 6 7 8 9", 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
-    vp("%.1f %.1f %.1f %.1f",                "1.1 2.1 3.1 4.1",             1.1, 2.1, 3.1, 4.1);
-    vp("%.1f %.1f %.1f %.1f %.1f",           "1.1 2.1 3.1 4.1 5.1",         1.1, 2.1, 3.1, 4.1, 5.1);
-    vp("%.1f %.1f %.1f %.1f %.1f %.1f",      "1.1 2.1 3.1 4.1 5.1 6.1",     1.1, 2.1, 3.1, 4.1, 5.1, 6.1);
-    vp("%.1f %.1f %.1f %.1f %.1f %.1f %.1f", "1.1 2.1 3.1 4.1 5.1 6.1 7.1", 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1);
+    // integer stress test
+    vp(
+        "%d %d %d %d %d %d %d %d %d %d %d %d %d",
+        "1 2 3 4 5 6 7 8 9 10 11 12 13",
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
 
-    vp("%.1Lf %.1Lf %.1Lf %.1Lf",                   "1.1 2.1 3.1 4.1",             1.1L, 2.1L, 3.1L, 4.1L);
-    vp("%.1Lf %.1Lf %.1Lf %.1Lf %.1Lf",             "1.1 2.1 3.1 4.1 5.1",         1.1L, 2.1L, 3.1L, 4.1L, 5.1L);
-    vp("%.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf",       "1.1 2.1 3.1 4.1 5.1 6.1",     1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L);
-    vp("%.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf", "1.1 2.1 3.1 4.1 5.1 6.1 7.1", 1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L);
+    vp("%.1f %.1f %.1f %.1f",                          "1.1 2.1 3.1 4.1",                     1.1, 2.1, 3.1, 4.1);
+    vp("%.1f %.1f %.1f %.1f %.1f",                     "1.1 2.1 3.1 4.1 5.1",                 1.1, 2.1, 3.1, 4.1, 5.1);
+    vp("%.1f %.1f %.1f %.1f %.1f %.1f",                "1.1 2.1 3.1 4.1 5.1 6.1",             1.1, 2.1, 3.1, 4.1, 5.1, 6.1);
+    vp("%.1f %.1f %.1f %.1f %.1f %.1f %.1f",           "1.1 2.1 3.1 4.1 5.1 6.1 7.1",         1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1);
+    vp("%.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f",      "1.1 2.1 3.1 4.1 5.1 6.1 7.1 8.1",     1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1);
+    vp("%.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f", "1.1 2.1 3.1 4.1 5.1 6.1 7.1 8.1 9.1", 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1);
+
+    // FP stress test
+    vp(
+        "%.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f",
+        "1.1 2.1 3.1 4.1 5.1 6.1 7.1 8.1 9.1 10.1 11.1 12.1 13.1",
+        1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1, 12.1, 13.1);
+
+    vp("%.1Lf %.1Lf %.1Lf %.1Lf",                               "1.1 2.1 3.1 4.1",                     1.1L, 2.1L, 3.1L, 4.1L);
+    vp("%.1Lf %.1Lf %.1Lf %.1Lf %.1Lf",                         "1.1 2.1 3.1 4.1 5.1",                 1.1L, 2.1L, 3.1L, 4.1L, 5.1L);
+    vp("%.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf",                   "1.1 2.1 3.1 4.1 5.1 6.1",             1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L);
+    vp("%.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf",             "1.1 2.1 3.1 4.1 5.1 6.1 7.1",         1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L);
+    vp("%.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf",       "1.1 2.1 3.1 4.1 5.1 6.1 7.1 8.1",     1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L);
+    vp("%.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf", "1.1 2.1 3.1 4.1 5.1 6.1 7.1 8.1 9.1", 1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L);
+
+
+    // long double stress test
+    vp(
+        "%.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf %.1Lf",
+        "1.1 2.1 3.1 4.1 5.1 6.1 7.1 8.1 9.1 10.1 11.1 12.1 13.1",
+        1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L, 10.1L, 11.1L, 12.1L, 13.1L);
 
     vp("%d %.1f", "1 1.1", 1, 1.1);
     vp("%d %.1f %.1Lf", "1 1.1 2.1", 1, 1.1, 2.1L);
     vp("%d %.1f %.1Lf %s", "1 1.1 2.1 foo", 1, 1.1, 2.1L, "foo");
+
+    // Over the top mixes of ints and floats
+    vp(
+        "%.1f %d %.1f %d %.1f %d %.1f %d %.1f %d %.1f %d %.1f %d %.1f %d %.1f %d %.1f %d",
+        "1.1 2 3.1 4 5.1 6 7.1 8 9.1 10 11.1 12 13.1 14 15.1 16 17.1 18 19.1 20",
+        1.1, 2, 3.1, 4, 5.1, 6, 7.1, 8, 9.1, 10, 11.1, 12, 13.1, 14, 15.1, 16, 17.1, 18, 19.1, 20);
+
 }
 
 typedef long double LD;
 
 int   add_ini(int   c, ...) { va_list ap; va_start(ap, c); int   r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, int   ); va_end(ap); return r; }
 float add_fli(int   c, ...) { va_list ap; va_start(ap, c); float r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, double); va_end(ap); return r; }
+#ifdef __x86_64__
 LD    add_ldi(int   c, ...) { va_list ap; va_start(ap, c); LD    r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, LD    ); va_end(ap); return r; }
+#endif
 int   add_inf(float c, ...) { va_list ap; va_start(ap, c); int   r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, int   ); va_end(ap); return r; }
 float add_flf(float c, ...) { va_list ap; va_start(ap, c); float r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, double); va_end(ap); return r; }
+#ifdef __x86_64__
 LD    add_ldf(float c, ...) { va_list ap; va_start(ap, c); LD    r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, LD    ); va_end(ap); return r; }
 int   add_inl(LD    c, ...) { va_list ap; va_start(ap, c); int   r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, int   ); va_end(ap); return r; }
 float add_fll(LD    c, ...) { va_list ap; va_start(ap, c); float r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, double); va_end(ap); return r; }
 LD    add_ldl(LD    c, ...) { va_list ap; va_start(ap, c); LD    r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, LD    ); va_end(ap); return r; }
+#endif
 
 void test_additions() {
     // With an integer as a parameter
@@ -83,6 +124,7 @@ void test_additions() {
     assert_float(56.0, add_fli(10, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1),       "add_fli 56");
     assert_float(67.1, add_fli(11, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1), "add_fli 67");
 
+    #ifdef __x86_64__
     assert_long_double(0.0,  add_ldi(0),                                                               "add_ldi 0");
     assert_long_double(1.1,  add_ldi(1,  1.1L),                                                        "add_ldi 1");
     assert_long_double(3.2,  add_ldi(2,  1.1L, 2.1L),                                                  "add_ldi 3");
@@ -94,6 +136,7 @@ void test_additions() {
     assert_long_double(36.8, add_ldi(8,  1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L),              "add_ldi 36");
     assert_long_double(45.9, add_ldi(9,  1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L),        "add_ldi 45");
     assert_long_double(56.0, add_ldi(10, 1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L, 10.1L), "add_ldi 56");
+    #endif
 
     // With a float as a parameter
     assert_int(0,  add_inf(0),                                 "add_inf 0");
@@ -120,6 +163,8 @@ void test_additions() {
     assert_float(45.9, add_flf(9,  1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1),             "add_flf 45");
     assert_float(56.0, add_flf(10, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1),       "add_flf 56");
     assert_float(67.1, add_flf(11, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1), "add_flf 67");
+
+    #ifdef __x86_64__
 
     assert_long_double(0.0,  add_ldf(0),                                                               "add_ldf 0");
     assert_long_double(1.1,  add_ldf(1,  1.1L),                                                        "add_ldf 1");
@@ -170,12 +215,40 @@ void test_additions() {
     assert_long_double(36.8, add_ldl(8,  1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L),              "add_ldl 36");
     assert_long_double(45.9, add_ldl(9,  1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L),        "add_ldl 45");
     assert_long_double(56.0, add_ldl(10, 1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L, 10.1L), "add_ldl 56");
+
+    #endif
+}
+
+void run_va_to_scalar_in_stack(int c, ...) {
+    va_list ap;
+    va_start(ap, c);
+
+    // To stack
+    int i_in_stack = va_arg(ap, int);
+    &i_in_stack;
+    assert_int(1, i_in_stack, "run_va_to_scalar_in_stack");
+}
+
+void run_va_to_scalar_in_indirect_pointer(int c, ...) {
+    va_list ap;
+    va_start(ap, c);
+
+    // To a pointer in a register
+    int i;
+    int *pi = &i;
+    *pi = va_arg(ap, int);
+    assert_int(1, *pi, "run_va_to_scalar_in_indirect_pointer 1");
+}
+
+void run_va_to_scalar_in_stack_and_indirect_pointer() {
+    run_va_to_scalar_in_stack(-1, 1);
+    run_va_to_scalar_in_indirect_pointer(-1, 1);
 }
 
 struct s { int i[5]; };
 
 // Test returning a struct in memory from a vararg function. The return vector is
-// passed in rdi.
+// passed in rdi on x86_64.
 struct s return_struct(int c, ...) {
     va_list ap; va_start(ap, c);
     int r = 0;
@@ -205,7 +278,9 @@ int test_va_arg_sizes(int i, ...) {
     assert_int(1, sizeof(va_arg(ap, char)),         "Varargs va_arg size 1");
     assert_int(2, sizeof(va_arg(ap, short)),        "Varargs va_arg size 2");
     assert_int(4, sizeof(va_arg(ap, int)),          "Varargs va_arg size 3");
+    #ifdef __x86_64__
     assert_int(3, sizeof(va_arg(ap, struct sca)),   "Varargs va_arg size 4");
+    #endif
     va_end(ap);
 }
 
@@ -238,6 +313,8 @@ static void test_vadd_ints() {
     assert_int(28, vadd_ints2(7, 1, 2, 3, 4, 5, 6, 7),    "Varargs passing va_list as an argument with ints 7");
     assert_int(36, vadd_ints2(8, 1, 2, 3, 4, 5, 6, 7, 8), "Varargs passing va_list as an argument with ints 8");
 }
+
+#ifdef __x86_64__
 
 static float vadd_floats1(int count, va_list ap) {
     float result = 0;
@@ -546,6 +623,165 @@ int test_function_in_vararg(){
     assert_int(1, gi, "Function in vararg with pointer to function");
 }
 
+#endif
+
+void test_va_hfaf(int c, ...) {
+    va_list ap;
+    va_start(ap, c);
+
+    assert_int(-1, c, "test_va_hfaf 0");
+
+    struct hfaf hfaf1 = va_arg(ap, struct hfaf);
+    struct hfaf hfaf2 = va_arg(ap, struct hfaf);
+    struct hfaf hfaf3 = va_arg(ap, struct hfaf);
+    struct hfaf hfaf4 = va_arg(ap, struct hfaf);
+    struct hfaf hfaf5 = va_arg(ap, struct hfaf);
+    struct hfaf hfaf6 = va_arg(ap, struct hfaf);
+    struct hfaf hfaf7 = va_arg(ap, struct hfaf);
+
+    assert_float(1.1,  hfaf1.f1, "test_va_hfaf 1");
+    assert_float(2.1,  hfaf1.f2, "test_va_hfaf 2");
+    assert_float(3.1,  hfaf2.f1, "test_va_hfaf 3");
+    assert_float(4.1,  hfaf2.f2, "test_va_hfaf 4");
+    assert_float(5.1,  hfaf3.f1, "test_va_hfaf 5");
+    assert_float(6.1,  hfaf3.f2, "test_va_hfaf 6");
+    assert_float(7.1,  hfaf4.f1, "test_va_hfaf 7");
+    assert_float(8.1,  hfaf4.f2, "test_va_hfaf 8");
+    assert_float(9.1,  hfaf5.f1, "test_va_hfaf 9");
+    assert_float(10.1, hfaf5.f2, "test_va_hfaf 10");
+    assert_float(11.1, hfaf6.f1, "test_va_hfaf 11");
+    assert_float(12.1, hfaf6.f2, "test_va_hfaf 12");
+    assert_float(13.1, hfaf7.f1, "test_va_hfaf 13");
+    assert_float(14.1, hfaf7.f2, "test_va_hfaf 14");
+}
+
+void test_va_hfad(int c, ...) {
+    va_list ap;
+    va_start(ap, c);
+
+    assert_int(-1, c, "test_va_hfad 0");
+
+    struct hfad hfad1 = va_arg(ap, struct hfad);
+    struct hfad hfad2 = va_arg(ap, struct hfad);
+    struct hfad hfad3 = va_arg(ap, struct hfad);
+
+    assert_double(1.1, hfad1.d1, "test_va_hfad 1");
+    assert_double(2.1, hfad1.d2, "test_va_hfad 2");
+    assert_double(3.1, hfad1.d3, "test_va_hfad 3");
+    assert_double(4.1, hfad2.d1, "test_va_hfad 4");
+    assert_double(5.1, hfad2.d2, "test_va_hfad 5");
+    assert_double(6.1, hfad2.d3, "test_va_hfad 6");
+    assert_double(7.1, hfad3.d1, "test_va_hfad 7");
+    assert_double(8.1, hfad3.d2, "test_va_hfad 8");
+    assert_double(9.1, hfad3.d3, "test_va_hfad 9");
+}
+
+void test_va_hfald(int c, ...) {
+    va_list ap;
+    va_start(ap, c);
+
+    struct hfald hfald1 = va_arg(ap, struct hfald);
+    struct hfald hfald2 = va_arg(ap, struct hfald);
+    struct hfald hfald3 = va_arg(ap, struct hfald);
+
+    assert_long_double(1.1,  hfald1.ld1, "test_va_hfald 1");
+    assert_long_double(2.1,  hfald1.ld2, "test_va_hfald 2");
+    assert_long_double(3.1,  hfald1.ld3, "test_va_hfald 3");
+    assert_long_double(4.1,  hfald1.ld4, "test_va_hfald 4");
+    assert_long_double(5.1,  hfald2.ld1, "test_va_hfald 5");
+    assert_long_double(6.1,  hfald2.ld2, "test_va_hfald 6");
+    assert_long_double(7.1,  hfald2.ld3, "test_va_hfald 7");
+    assert_long_double(8.1,  hfald2.ld4, "test_va_hfald 8");
+    assert_long_double(9.1,  hfald3.ld1, "test_va_hfald 9");
+    assert_long_double(10.1, hfald3.ld2, "test_va_hfald 10");
+    assert_long_double(11.1, hfald3.ld3, "test_va_hfald 11");
+    assert_long_double(12.1, hfald3.ld4, "test_va_hfald 12");
+}
+
+// Test 6 FP registers being used, then 3*8 bytes space being used on the stack,
+// Then a 16-bit aligned struct on the stack.
+// This tests the code that rounds the stack pointer up 16 bytes.
+void test_va_hfa_16_byte_stack_alignment(int c, ...) {
+    va_list ap;
+    va_start(ap, c);
+
+    struct hfad hfad1 = va_arg(ap, struct hfad);
+    struct hfad hfad2 = va_arg(ap, struct hfad);
+    struct hfad hfad3 = va_arg(ap, struct hfad);
+    struct hfald hfald1 = va_arg(ap, struct hfald);
+
+    assert_double(1.1, hfad1.d1, "test_va_hfa_16_byte_stack_alignment 1");
+    assert_double(2.1, hfad1.d2, "test_va_hfa_16_byte_stack_alignment 2");
+    assert_double(3.1, hfad1.d3, "test_va_hfa_16_byte_stack_alignment 3");
+    assert_double(4.1, hfad2.d1, "test_va_hfa_16_byte_stack_alignment 4");
+    assert_double(5.1, hfad2.d2, "test_va_hfa_16_byte_stack_alignment 5");
+    assert_double(6.1, hfad2.d3, "test_va_hfa_16_byte_stack_alignment 6");
+    assert_double(7.1, hfad3.d1, "test_va_hfa_16_byte_stack_alignment 7");
+    assert_double(8.1, hfad3.d2, "test_va_hfa_16_byte_stack_alignment 8");
+    assert_double(9.1, hfad3.d3, "test_va_hfa_16_byte_stack_alignment 9");
+
+    #ifdef __x86__64
+    // These aarch64 HFA struct tests are broken in x86_64
+    assert_long_double(1.1,  hfald1.ld1, "test_va_hfa_16_byte_stack_alignment 10");
+    assert_long_double(2.1,  hfald1.ld2, "test_va_hfa_16_byte_stack_alignment 11");
+    assert_long_double(3.1,  hfald1.ld3, "test_va_hfa_16_byte_stack_alignment 12");
+    assert_long_double(4.1,  hfald1.ld4, "test_va_hfa_16_byte_stack_alignment 13");
+    #endif
+
+    // Read a trailing double, to ensure it ends up in the right place, i.e. the stack
+    double d = va_arg(ap, double);
+    assert_double(-1.1, d, "test_va_hfa_16_byte_stack_alignment 14");
+}
+
+void test_va_f_alignment(float f1, ...) {
+    va_list ap;
+    va_start(ap, f1);
+
+    double d2 = va_arg(ap, double);
+
+    assert_float(1.1, f1, "test_va_f_alignment 1");
+    assert_float(2.1, d2, "test_va_f_alignment 2");
+}
+
+void test_va_ld_alignment(float f, ...) {
+    va_list ap;
+    va_start(ap, f);
+
+    long double ld = va_arg(ap, long double);
+
+    assert_float(      1.1, f,  "test_va_ld_alignment 1");
+    assert_long_double(2.1, ld, "test_va_ld_alignment 2");
+}
+
+void test_va_aarch64_hfa_structs() {
+    // aarch64 HFA struct with 2 floats
+    struct hfaf hfaf1 = {1.1, 2.1};
+    struct hfaf hfaf2 = {3.1, 4.1};
+    struct hfaf hfaf3 = {5.1, 6.1};
+    struct hfaf hfaf4 = {7.1, 8.1};
+    struct hfaf hfaf5 = {9.1, 10.1};
+    struct hfaf hfaf6 = {11.1, 12.1};
+    struct hfaf hfaf7 = {13.1, 14.1};
+    test_va_hfaf(-1, hfaf1, hfaf2, hfaf3, hfaf4, hfaf5, hfaf6, hfaf7);
+
+    // aarch64 HFA struct with 3 doubles
+    struct hfad hfad1 = {1.1, 2.1, 3.1};
+    struct hfad hfad2 = {4.1, 5.1, 6.1};
+    struct hfad hfad3 = {7.1, 8.1, 9.1};
+    test_va_hfad(-1, hfad1, hfad2, hfad3);
+
+    // aarch64 HFA struct with 4 long doubles
+    struct hfald hfald1 = {1.1, 2.1, 3.1, 4.1};
+    struct hfald hfald2 = {5.1, 6.1, 7.1, 8.1};
+    struct hfald hfald3 = {9.1, 10.1, 11.1, 12.1};
+    test_va_hfald(-1, hfald1, hfald2, hfald3);
+
+    test_va_hfa_16_byte_stack_alignment(-1, hfad1, hfad2, hfad3, hfald1, -1.1);
+
+    test_va_f_alignment(1.1, 2.1);
+    test_va_ld_alignment(1.1, 2.1L);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -554,10 +790,11 @@ int main(int argc, char **argv) {
 
     test_va_start_va_list_abi();
     test_additions();
+    run_va_to_scalar_in_stack_and_indirect_pointer();
     test_struct_return();
-
     test_va_arg_sizes(1, 2, 3, 4, 5, 6);
     test_vadd_ints();
+    #ifdef __x86_64__
     test_vadd_floats();
     test_long_double_alignment();
     test_structs();
@@ -565,6 +802,8 @@ int main(int argc, char **argv) {
     test_default_argument_promotions();
     test_big_struct();
     test_function_in_vararg();
+    #endif
+    test_va_aarch64_hfa_structs();
 
     finalize();
 }

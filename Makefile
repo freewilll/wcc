@@ -85,8 +85,8 @@ build:
 make-internals: ${SRC_DIR}/make-internals.c
 	${GCC} ${GCC_OPTS} $< -o $@
 
-internals.c: ${SRC_DIR}/internals.h make-internals
-	./make-internals ${SRC_DIR}/internals.h > internals.c
+internals.c: ${SRC_DIR}/target/${TARGET}/internals.h ${SRC_DIR}/internals.h make-internals
+	./make-internals ${SRC_DIR}/target/${TARGET}/internals.h ${SRC_DIR}/internals.h > internals.c
 
 internals.o: internals.c
 	${GCC} ${GCC_OPTS} -c $< -o $@

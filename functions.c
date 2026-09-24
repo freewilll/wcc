@@ -339,6 +339,15 @@ int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *arg
     return tac->dst->vreg;
 }
 
+// Move a value from a register into a dst
+Tac *add_arg_move_to_dst(Function *function, Tac *ir, Value *dst, int live_range_preg) {
+    Value *src = new_value();
+    src->vreg = ++function->vreg_count;
+    src->type = dup_type(dst->type);
+    src->live_range_preg = live_range_preg;
+    return new_tac_after(ir, IR_MOVE, dst, src, 0);
+}
+
 // Load a scalar in a struct into a register. The scalar can be either a local, global, or lvalue in register
 // If it's an lvalue in a register, it is indirected, otherwise moved.
 void load_struct_scalar_into_value(Function *function, Tac *ir, Value *src, CallValueLocation *pl, Type *type, Value *dst, int offset) {
@@ -1322,6 +1331,69 @@ void setup_return_value_pointer(Function *function, Tac *ir, int live_range_preg
     Value *dst = dup_value(function->return_value_pointer);
 
     new_tac_before(ir, IR_MOVE, dst, src1, 0, 0);
+}
+
+// Read a value from va_list. This could be either directly from the stack or from
+// an lvalue in a register.
+Tac *read_from_va_list(Function *function, Tac *ir, Value *va_list, Type *src_type, Type *dst_type, int offset, Value **result) {
+    *result = new_value();
+    (*result)->type = dst_type;
+    (*result)->vreg = ++function->vreg_count;
+
+    Value *src1 = dup_value(va_list);
+    src1->type = src_type;
+
+    if (src1->vreg) {
+        // va_list is a pointer in a register. Load it, add the offset to it, then
+        // indirect.
+        Value *tmp = dup_value(va_list);
+        tmp->type = make_pointer(dst_type);
+        tmp->vreg = ++function->vreg_count;
+        ir = new_tac_after(ir, IR_MOVE, tmp, va_list, 0);
+
+        src1->type = make_pointer(dst_type);
+        src1->offset = offset;
+        ir = new_tac_after(ir, IR_INDIRECT, *result, src1, 0);
+    }
+    else {
+        // Read from the stack
+        src1->offset = offset;
+        ir = new_tac_after(ir, IR_MOVE, *result, src1, 0);
+    }
+
+    return ir;
+}
+
+// Write a value to va_list. This could be either directly from the stack or from
+// an lvalue in a register.
+Tac *write_to_va_list(Function *function, Tac *ir, Value *va_list, Value *value, int offset) {
+    Value *dst = dup_value(va_list);
+
+    if (va_list->vreg) {
+        // va_list is a pointer in a register. Load it, add the offset to it, then
+        // write to the pointer.
+
+        Value *tmp = dup_value(dst);
+        tmp->is_lvalue = 1;
+        tmp->offset = offset;
+        tmp->type = value->type;
+        ir = new_tac_after(ir, IR_MOVE, tmp, value, 0);
+    }
+    else {
+        // Write to the stack
+        dst->type = value->type;
+        dst->offset = offset;
+        ir = new_tac_after(ir, IR_MOVE, dst, value, 0);
+    }
+
+    return ir;
+}
+
+void process_function_varargs(Function *function) {
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if (ir->operation.id == IR_VA_START) process_function_va_start(function, ir);
+        else if (ir->operation.id == IR_VA_ARG) process_function_va_arg(function, ir);
+    }
 }
 
 // Initialize data structures for the function param & arg allocation processor

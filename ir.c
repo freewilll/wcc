@@ -854,6 +854,15 @@ static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, 
     return ir;
 }
 
+// Make a value in a vreg with type pointer to void
+Value *make_pointer_to_void_in_vreg_value(Function *function) {
+    Value *v = new_value();
+    v->type = make_pointer_to_void();
+    v->vreg = ++function->vreg_count;
+
+    return v;
+}
+
 // For lvalues in a register that also have an offset, add an add
 // instruction to add the offset to the value.
 // This happens for structs inside structs and arrays of structs.
@@ -865,7 +874,7 @@ static Value *add_memcpy_offset_add_instructions(Tac *ir, Value *v) {
 }
 
 // Add memcpy calls for struct/union -> struct/union copies
-Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
+static Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
     int max_function_call_value = make_max_function_call_value(function);
 
     // Add start call instruction

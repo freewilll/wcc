@@ -444,6 +444,7 @@ void add_int128_call_value_locations(CallValueAllocation *cva, Type *type);
 CallValueAllocation *initialize_function_return_value_cva(Type *function_type);
 void process_function_call_arg_allocations(Function *function);
 int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *param, int preg_class, int register_index, RegisterSet *register_set);
+Tac *add_arg_move_to_dst(Function *function, Tac *ir, Value *dst, int live_range_preg);
 void load_struct_scalar_into_value(Function *function, Tac *ir, Value *src, CallValueLocation *pl, Type *type, Value *dst, int offset);
 Value *load_struct_scalar_into_new_vreg(Function *function, Tac *ir, Value *param, CallValueLocation *pl, Type *type);
 Value *make_long_temp_vreg(Function *function);
@@ -463,6 +464,9 @@ void add_function_return_moves_for_struct_or_union_to_abi_register(Function *fun
 void add_function_result_moves_for_scalar(Function *function, Tac *ir, int live_range_preg);
 void add_function_call_result_moves_for_int128(Function *function, Tac *ir, int live_range_preg_low, int live_range_preg_high);
 void setup_return_value_pointer(Function *function, Tac *ir, int live_range_preg);
+Tac *read_from_va_list(Function *function, Tac *ir, Value *va_list, Type *src_type, Type *dst_type, int offset, Value **result);
+Tac *write_to_va_list(Function *function, Tac *ir, Value *va_list, Value *value, int offset);
+void process_function_varargs(Function *function);
 CallValueAllocation *init_call_value_allocaton(char *function_identifier);
 void free_call_value_allocaton(CallValueAllocation *cva);
 void free_call_value_locations(CallValueLocations *cvl);
@@ -1200,6 +1204,7 @@ void determine_bit_field_params(Value *v, int *offset, int *bit_offset, int *bit
 void process_bit_fields(Function *function);
 void remove_unused_function_call_results(Function *function);
 void process_struct_and_union_copies(Function *function);
+Value *make_pointer_to_void_in_vreg_value(Function *function);
 Tac *add_memory_copy_with_registers(Function *function, Tac *ir, Value *dst, Value *src1, int size, int splay_offsets);
 Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);
 void convert_enums(Function *function);
@@ -1645,6 +1650,8 @@ Value *convert_target_arg_move_to_indirect_stack_instructions(Function *function
 void process_target_functions(Function *function);
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
 void move_indirect_stack_args(CallValueAllocation *cva);
+void process_function_va_start(Function *function, Tac *ir);
+void process_function_va_arg(Function *function, Tac *ir);
 
 // Target instruction rules related code
 char *add_size_to_template(char *template, int size);

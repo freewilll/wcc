@@ -1,8 +1,92 @@
 #include "wcc.h"
 #include "aarch64.h"
 
+// Corresponds with the offets of struct __va_list in internals.h
+#define VA_LIST_STACK_OFFSET 0
+#define VA_LIST_GR_TOP_OFFSET 8
+#define VA_LIST_VR_TOP_OFFSET 16
+#define VA_LIST_GR_OFFS_OFFSET 24
+#define VA_LIST_VR_OFFS_OFFSET 28
+
+#define FP_TYPE_TO_SIZE(type) (\
+      type == TYPE_FLOAT ? 4 \
+    : type == TYPE_DOUBLE ? 8 \
+    : 16)
+
+typedef struct  {
+    int is_hfa;                 // Is the struct an HFA
+    int fits_in_fp_registers;   // Does it fit into the available floating point registers in the CVA?
+    int type;                   // TYPE_FLOAT, TYPE_DOUBLE or TYPE_LONG_DOUBLE;
+    int count;                  // The amount of scalars. Must be < 4
+} HfaDetails;
+
 Set *allocate_return_value_live_ranges(void) {
     return new_set(LIVE_RANGE_PREG_V07 + 1);
+}
+
+// Check if the struct/union is a Homogeneous Floating-point Aggregate (HFA)
+// and if it can fit into the available floating point registers.
+// The max size is 4 * 16 bytes.
+// The type is an HFA if:
+// - The struct must only have one type of float, double or long doubles
+// - Overlapping types due to unions have to be the same
+//
+static HfaDetails make_hfa_details(Type *type, int size, CallValueAllocation *cva) {
+    HfaDetails h = {0}; // Defaults to not an HFA
+
+    int seen_types[4] = {0};
+    int seen_type = 0;
+
+    // Break the struct up into individual scalars
+    StructOrUnionScalars *scalars = wmalloc(sizeof(StructOrUnionScalars));
+    scalars->scalars = wmalloc(sizeof(StructOrUnionScalar *) * MAX_STRUCT_OR_UNION_SCALARS);
+    scalars->count = 0;
+    flatten_type(type, scalars, 0);
+
+    // Categorize the members by looking at what types are present
+
+    for (int i = 0; i < scalars->count; i++) {
+        StructOrUnionScalar *scalar = scalars->scalars[i];
+
+        int position;
+
+        if (scalar->type->type == TYPE_FLOAT)
+            position = scalar->offset / 4;
+        else if (scalar->type->type == TYPE_DOUBLE)
+            position = scalar->offset / 8;
+        else if (scalar->type->type == TYPE_LONG_DOUBLE)
+            position = scalar->offset / 16;
+        else
+            goto done; // Any non-floating point type means it's not an HFA
+
+        if (position >= 4) goto done; // An HFA can have no more than 4 FP types
+
+        if (seen_type && seen_type != scalar->type->type) goto done; // There are mixed types
+        seen_type = scalar->type->type;
+
+        if (seen_types[position] && seen_types[position] != scalar->type->type) goto done; // Type mismatch at same offset
+        seen_types[position] = scalar->type->type;
+    }
+
+    if (!seen_type) panic("Unexpectedly got 0 seen_type");
+
+    // Count the amount of scalars
+    int count = 0;
+    for (int i = 0; i < 4; i++) if (seen_types[i]) count++;
+    if (count > 4) goto done; // HFAs have max 4 scalars
+
+    h.is_hfa = 1;
+    h.type = seen_type;
+    h.count = count;
+
+    h.fits_in_fp_registers = (h.is_hfa && cva->single_fp_register_arg_count + count <= 8);
+
+done:
+    for (int i = 0; i < scalars->count; i++) wfree(scalars->scalars[i]);
+    wfree(scalars->scalars);
+    wfree(scalars);
+
+    return h;
 }
 
 // For non-HFA struct/unions > 16 bytes, the caller puts a pointer
@@ -101,8 +185,392 @@ static void add_function_return_moves_for_indirect_struct_or_union_to_abi_regist
     ir = new_tac_after(ir, IR_RETURN, 0, 0, 0);
 }
 
+// For functions with variadic arguments, move registers into the register save area.
+// The register save area has been allocated on the stack by the parser with the
+// value set in function->register_save_area.
 void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva, Tac *ir) {
-    fprintf(stderr, "TODO aarch64 add_function_vararg_param_moves\n");
+    // Add moves for ints registers to register save area
+    for (int i = cva->single_int_register_arg_count; i < 8; i++) {
+        Value *dst = dup_value(function->register_save_area);
+        dst->type = new_type(TYPE_LONG);
+        dst->offset = i * 8;
+        ir = add_arg_move_to_dst(function, ir, dst, int_arg_registers[i]);
+    }
+
+    // Add moves for FP registers to register save area
+    for (int i = cva->single_fp_register_arg_count; i < 8; i++) {
+        Value *dst = dup_value(function->register_save_area);
+        dst->type = new_type(TYPE_LONG_DOUBLE);
+        dst->offset = 64 + i * 16;
+        ir = add_arg_move_to_dst(function, ir, dst, fp_arg_registers[i]);
+    }
+}
+
+// Add code for a va_start() call. The va_list struct, present in src1, has to be
+// populated.
+void process_function_va_start(Function *function, Tac *ir) {
+    Value *va_list = ir->src1;
+    ir->operation.id = IR_NOP;
+    ir->src1 = 0;
+
+    CallValueAllocation *cva = function->cva;
+    int stack_offset = cva->size;
+    stack_offset = (stack_offset + 7) & ~7;
+
+    // Set the "stack" member to the stack pointer after the last named arg on the stack, rounded up to 8 bytes
+    Value *address = make_pointer_to_void_in_vreg_value(function);;
+    Value *va_stack_start = new_value();
+    va_stack_start->type = make_pointer_to_void();
+    va_stack_start->stack.index = stack_offset / 8 + 1; // Conventionally the first stack_index entry starts at 1
+    ir = new_tac_after(ir, IR_ADDRESS_OF, address, va_stack_start, NULL);
+    Value *va_list_stack = dup_value(va_list);
+    va_list_stack->type = address->type;
+    va_list_stack->offset = VA_LIST_STACK_OFFSET;
+    ir = new_tac_after(ir, IR_MOVE, va_list_stack, address, 0);
+
+    // Set the "gr_top" member to the stack pointer after the last integer register
+    address = make_pointer_to_void_in_vreg_value(function);
+    Value *register_save_area_gr_top = dup_value(function->register_save_area);
+    register_save_area_gr_top->type = address->type;
+    register_save_area_gr_top->offset = 64;
+    ir = new_tac_after(ir, IR_ADDRESS_OF, address, register_save_area_gr_top, NULL);
+    Value *va_list_gr_top = dup_value(va_list);
+    va_list_gr_top->type = address->type;
+    va_list_gr_top->offset = VA_LIST_GR_TOP_OFFSET;
+    ir = new_tac_after(ir, IR_MOVE, va_list_gr_top, address, 0);
+
+    // Set the "vr_top" member to the stack pointer after the last floating point register
+    address = make_pointer_to_void_in_vreg_value(function);
+    Value *register_save_area_vr_top = dup_value(function->register_save_area);
+    register_save_area_vr_top->type = address->type;
+    register_save_area_vr_top->offset = 64 + 128;
+    ir = new_tac_after(ir, IR_ADDRESS_OF, address, register_save_area_vr_top, NULL);
+    Value *va_list_vr_top = dup_value(va_list);
+    va_list_vr_top->type = address->type;
+    va_list_vr_top->offset = VA_LIST_VR_TOP_OFFSET;
+    ir = new_tac_after(ir, IR_MOVE, va_list_vr_top, address, 0);
+
+    // Set the "gr_offs" member to to 0 – ((8 – named_gr) * 8)
+    Value *gr_offs_value = new_value();
+    gr_offs_value->type = new_type(TYPE_INT);
+    gr_offs_value->is_constant = 1;
+    gr_offs_value->int_value = 0 - ((8 -function->cva->single_int_register_arg_count) * 8);
+    Value *va_list_gr_offs = dup_value(va_list);
+    va_list_gr_offs->type = new_type(TYPE_INT);
+    va_list_gr_offs->offset = VA_LIST_GR_OFFS_OFFSET;
+    ir = new_tac_after(ir, IR_MOVE, va_list_gr_offs, gr_offs_value, 0);
+
+    // Set the "vr_offs" member to to 0 – ((8 – named_vr) * 16)
+    Value *vr_offs_value = new_value();
+    vr_offs_value->type = new_type(TYPE_INT);
+    vr_offs_value->is_constant = 1;
+    vr_offs_value->int_value = 0 - ((8 -function->cva->single_fp_register_arg_count) * 16);
+    Value *va_list_vr_offs = dup_value(va_list);
+    va_list_vr_offs->type = new_type(TYPE_INT);
+    va_list_vr_offs->offset = VA_LIST_VR_OFFS_OFFSET;
+    ir = new_tac_after(ir, IR_MOVE, va_list_vr_offs, vr_offs_value, 0);
+}
+
+// // Read gr_offs or vr_off into a register
+static Tac *read_va_list_offs(Function *function, Tac *ir, Value *va_list, int is_int_register, Value **output) {
+    // Read gr_offs or vr_off into offs register
+    Type *int_offs_type = new_type(TYPE_INT);
+    int offs_offset = is_int_register ? VA_LIST_GR_OFFS_OFFSET : VA_LIST_VR_OFFS_OFFSET;
+    Value *int_offs;
+    ir = read_from_va_list(function, ir, va_list, int_offs_type, int_offs_type, offs_offset, &int_offs);
+
+    // Convert offs from an int to a long
+    *output = dup_value(int_offs);
+    (*output)->type = new_type(TYPE_LONG);
+    (*output)->vreg = ++function->vreg_count;
+    ir = new_tac_after(ir, IR_MOVE, (*output), int_offs, 0);
+}
+
+// Compare offs to zero with a comparison operator, and if it passes, jump to the stack fetching code
+static Tac *cmp_va_offs_to_zero_and_jump(Function *function, Tac *ir, Value *offs, Value *lfetch_from_stack, int cmp_instruction) {
+    Value *offs_ge_result = new_value();
+    offs_ge_result->type = new_type(TYPE_INT);
+    offs_ge_result->vreg = ++function->vreg_count;
+    ir = new_tac_after(ir, cmp_instruction, offs_ge_result, offs, new_integral_constant(TYPE_LONG, 0));
+    ir = new_tac_after(ir, IR_JNZ, 0, offs_ge_result, lfetch_from_stack);
+
+    return ir;
+}
+
+// Check if offs >= 0, and if so jump to the stack fetching code
+static Tac *check_va_offs_ge_zero(Function *function, Tac *ir, Value *offs, Value *lfetch_from_stack) {
+    return cmp_va_offs_to_zero_and_jump(function, ir, offs, lfetch_from_stack, IR_GE);
+}
+
+// Check if offs > 0, and if so jump to the stack fetching code
+static Tac *check_va_offs_gt_zero(Function *function, Tac *ir, Value *offs, Value *lfetch_from_stack) {
+    return cmp_va_offs_to_zero_and_jump(function, ir, offs, lfetch_from_stack, IR_GT);
+}
+
+// Add a constant value to src and store in dst
+static Tac *add_to_va_offs(Function *function, Tac *ir, Value *src, Value **dst, int delta) {
+    *dst = dup_value(src);
+    (*dst)->vreg = ++function->vreg_count;
+    ir = new_tac_after(ir, IR_ADD, *dst, src, new_integral_constant(TYPE_INT, delta));
+
+    return ir;
+}
+
+static Tac *write_offs_to_va_list(Function *function, Tac *ir, Value *va_list, Value *offs, int is_int) {
+    Value *new_offs = dup_value(offs);
+    Value *int_new_offs = dup_value(new_offs);
+    int_new_offs->type = new_type(TYPE_INT);
+    int_new_offs->vreg = ++function->vreg_count;
+    ir = new_tac_after(ir, IR_MOVE, int_new_offs, new_offs, 0);
+    int offs_offset = is_int ? VA_LIST_GR_OFFS_OFFSET : VA_LIST_VR_OFFS_OFFSET;
+    ir = write_to_va_list(function, ir, va_list, int_new_offs, offs_offset);
+
+    return ir;
+}
+
+// Make a pointer to the type with address top + offs and put in param_address
+static Tac *make_address_of_va_register_save_area(Function *function, Tac *ir, Value *va_list, Value *offs, int is_int, Type *dst_type, Value **param_address, Value *ldone) {
+    // make pointer to gr_top/vr_top + offs
+    // Read gr_top or vr_top
+    Type *top_type = make_pointer(dst_type);
+    int top_offset = is_int ? VA_LIST_GR_TOP_OFFSET : VA_LIST_VR_TOP_OFFSET;
+    Value *top;
+    ir = read_from_va_list(function, ir, va_list, top_type, top_type, top_offset, &top);
+
+    // param_address = top + offs
+    *param_address = new_value();
+    (*param_address)->type = make_pointer(dst_type);
+    (*param_address)->vreg = ++function->vreg_count;
+    ir = new_tac_after(ir, IR_ADD, *param_address, top, offs);
+
+    return ir;
+}
+
+// Create a new value from value which is aligned up 16 bytes.
+// This requires a conversion to int and then back to void *, since the IR_BAND
+// operation has to happen on an integral type.
+Tac *align_value_to_16_bytes(Function *function, Tac *ir, Value *src, Value **dst) {
+    // Convert the src to a long
+    Value *tmp = dup_value(src);
+    tmp->vreg = ++function->vreg_count;
+    tmp->type = new_type(TYPE_LONG);
+    ir = new_tac_after(ir, IR_MOVE, tmp, src, NULL);
+
+    // Add 15
+    Value *tmp2 = dup_value(tmp);
+    tmp2->vreg = ++function->vreg_count;
+    ir = new_tac_after(ir, IR_ADD, tmp2, tmp, new_integral_constant(TYPE_LONG, 15));
+
+    // Binary and ~15
+    Value *tmp3 = dup_value(tmp2);
+    tmp2->vreg = ++function->vreg_count;
+    ir = new_tac_after(ir, IR_BAND, tmp3, tmp2, new_integral_constant(TYPE_LONG, ~15));
+
+    // Convert the result back to the same type as src
+    *dst = dup_value(src);
+    (*dst)->vreg = ++function->vreg_count;
+    ir = new_tac_after(ir, IR_MOVE, *dst, tmp3, NULL);
+
+    return ir;
+}
+
+// Advance the stack pointer by increment and return a value with the pointer to the stack in stack
+Tac *prepare_read_from_va_stack(Function *function, Tac *ir, Type *type, Value *va_list, Value *dst, Value *lfetch_from_stack, Value **stack) {
+    ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
+    ir->label = lfetch_from_stack->label;
+
+    // Read stack pointer from va_list
+    Type *stack_type = make_pointer(dst->type);
+    int stack_offset = VA_LIST_STACK_OFFSET;
+    ir = read_from_va_list(function, ir, va_list, stack_type, stack_type, stack_offset, stack);
+
+    // Align the stack up to 16 bytes if the alignement needs this
+    if (get_type_alignment(type) == 16)
+        ir = align_value_to_16_bytes(function, ir, *stack, stack);
+
+    // new_stack = stack + 8 or 16
+    Value *new_stack = dup_value(*stack);
+    new_stack->vreg = ++function->vreg_count;
+
+    int increment = (get_type_size(type) + 7) & ~7;
+
+    ir = new_tac_after(ir, IR_ADD, new_stack, *stack, new_integral_constant(TYPE_LONG, increment));
+    ir = write_to_va_list(function, ir, va_list, new_stack, stack_offset);
+
+    return ir;
+}
+
+// Load an integer or floating point vararg into dst.
+// First, check the offs pointer to see if the data is in the register save area.
+// Otherwise, it's on the stack.
+static Tac *add_function_va_arg_scalar_read(Function *function, Tac *ir, Type *type, Value *va_list, int is_int, Value *dst) {
+    int alignment = get_type_alignment(type);
+
+    // Make jump labels
+    Value *lfetch_from_stack = new_label_dst();
+    Value *ldone = new_label_dst();
+
+    // Read gr_offs or vr_off into offs register
+    Value *offs;
+    ir = read_va_list_offs(function, ir, va_list, is_int, &offs);
+
+    // Check if offs >= 0, and if so jump to the stack fetching code
+    ir = check_va_offs_ge_zero(function, ir, offs, lfetch_from_stack);
+
+    if (is_int && alignment == 16)
+        printf("Types with 16 byte alignment in a vararg are not implemented\n");
+
+    // Increase offs by 8 for integers and 16 for FP values
+    Value *new_offs;
+    ir = add_to_va_offs(function, ir, offs, &new_offs, is_int ? 8 : 16);
+
+    // Write new_offs to va_list
+    ir = write_offs_to_va_list(function, ir, va_list, new_offs, is_int);
+
+    // Check if offs > 0 and and jump to stack code if the arg isn't in the register save area
+    ir = check_va_offs_gt_zero(function, ir, new_offs, lfetch_from_stack);
+
+    // Read from the register save area at relative offset offs from the top pointer and jump to ldone
+    Value *param_address;
+    ir = make_address_of_va_register_save_area(function, ir, va_list, offs, is_int, dst->type, &param_address, ldone);
+    ir = new_tac_after(ir, IR_INDIRECT, dst, param_address, 0);
+    ir = new_tac_after(ir, IR_JMP, 0, ldone, 0);
+
+    // Read from stack
+    Value *stack;
+    ir = prepare_read_from_va_stack(function, ir, type, va_list, dst, lfetch_from_stack, &stack);
+
+    // Finally, load the param into dst and fall through to the done label
+    ir = new_tac_after(ir, IR_INDIRECT, dst, stack, 0);
+
+    // Add the done label
+    ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
+    ir->label = ldone->label;
+}
+
+// Read an HFA struct/union from the HFA area into dst. This is similar to
+// reading a scalar.
+static Tac *add_function_va_arg_hfa_struct_or_union_read(Function *function, Tac *ir, Value *va_list, Type *type, int member_type_type, int count, Value *dst) {
+    // Make jump labels
+    Value *lfetch_from_stack = new_label_dst();
+    Value *ldone = new_label_dst();
+
+    // Read gr_offs into offs register
+    Value *offs;
+    ir = read_va_list_offs(function, ir, va_list, 0, &offs);
+
+    // Check if offs >= 0, and if so jump to the stack fetching code
+    ir = check_va_offs_ge_zero(function, ir, offs, lfetch_from_stack);
+
+    // Increase offs by 16 * count
+    Value *new_offs;
+    ir = add_to_va_offs(function, ir, offs, &new_offs, 16 * count);
+
+    // Write new_offs to va_list
+    ir = write_offs_to_va_list(function, ir, va_list, new_offs, 0);
+
+    // Check if offs > 0 and and jump to stack code if the arg isn't in the register save area
+    ir = check_va_offs_gt_zero(function, ir, new_offs, lfetch_from_stack);
+
+    // Prepare the base address in the register save area
+    Type *member_type = new_type(member_type_type);
+    Value *base_address;
+    ir = make_address_of_va_register_save_area(function, ir, va_list, offs, 0, member_type, &base_address, ldone);
+
+    // Loop over all FP scalars and add move instructions.
+    // This needs doing one scalar at a time, since the register save area has
+    // 16 bytes for each floating point value, so the layout is different
+    // from the struct.
+    for (int i = 0; i < count; i++) {
+        Value *temp_vreg = new_value();
+        temp_vreg->type = member_type;
+        temp_vreg->vreg = ++function->vreg_count;
+
+        Value *member = dup_value(dst);
+        member->type = member_type;
+        member->offset = i *  FP_TYPE_TO_SIZE(member_type_type);
+
+        Value *base_address_with_offset = dup_value(base_address);
+        base_address_with_offset->offset = i * 16;
+
+        ir = new_tac_after(ir, IR_INDIRECT, temp_vreg, base_address_with_offset, 0);
+        ir = new_tac_after(ir, IR_MOVE, member, temp_vreg, 0);
+    }
+
+    // All done, jump past the stack code
+    ir = new_tac_after(ir, IR_JMP, 0, ldone, 0);
+
+    // Read from stack with a memory copy
+    Value *memory_copy_src;
+    ir = prepare_read_from_va_stack(function, ir, type, va_list, dst, lfetch_from_stack, &memory_copy_src);
+    memory_copy_src = dup_value(memory_copy_src); // The memory copy function needs lvalues for dst and src
+    memory_copy_src->is_lvalue = 1;
+
+    Value *memory_copy_dst = new_value();
+    memory_copy_dst->type = make_pointer_to_void();
+    memory_copy_dst->vreg = ++function->vreg_count;
+    memory_copy_dst->is_lvalue = 1;
+    ir = new_tac_after(ir, IR_ADDRESS_OF, memory_copy_dst, dst, NULL);
+    ir = add_memory_copy(function, ir, memory_copy_dst, memory_copy_src, get_type_size(type));
+
+    // Add the done label
+    ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
+    ir->label = ldone->label;
+}
+
+// Load a integer or floating point vararg from the register save are or stack into dst
+static Tac *add_function_va_arg_struct_or_union_read(Function *function, Tac *ir, Type *type, Value *va_list, int is_int, Value *dst) {
+    int size = get_type_size(type);
+
+    CallValueAllocation *cva = init_call_value_allocaton("vararg struct");
+    add_type_to_cva(cva, type);
+
+    // Determine if the struct is an HFA. The largest possible HFA struct has 4 long doubles,
+    // so only check structs smaller than that size.
+    HfaDetails hfad = {0};
+    if (size <= 4 * 16) hfad = make_hfa_details(type, size, cva);
+
+    if (hfad.is_hfa) {
+        add_function_va_arg_hfa_struct_or_union_read(function, ir, va_list, type, hfad.type, hfad.count, dst);
+    }
+    else {
+        panic("TODO aarch64: non-HFA VA struct/unions\n");
+    }
+}
+
+// Generate code to read a vararg from either the register save area or the stack
+// Following the pseudocode in section 14.4 in aapcs64.pdf
+void process_function_va_arg(Function *function, Tac *ir) {
+    Value *va_list = ir->src1;
+    Value *dst = ir->dst;
+    Type *type = dst->type;
+
+    // Nuke the IR_VA_ARG tac
+    ir->operation.id = IR_NOP;
+    ir->src1 = 0;
+    ir->dst = 0;
+
+    int is_single_int_register = type_fits_in_single_int_register(type);
+    int is_single_fp_register = is_floating_point_type(type);
+
+    if (is_single_int_register || is_single_fp_register) {
+        ir = add_function_va_arg_scalar_read(function, ir, type, va_list, is_single_int_register, dst);
+    }
+
+    else if (type->type == TYPE_INT128) {
+        panic("va_arg isn't implemented for __int128");
+    }
+
+    else if (type->type == TYPE_STRUCT_OR_UNION) {
+        ir = add_function_va_arg_struct_or_union_read(function, ir, type, va_list, is_single_int_register, dst);
+    }
+
+    else {
+        printf("Unhandled aarch64 VA type ");
+        print_type(stdout, type);
+        printf("\n");
+        panic("Bailing");
+    }
 }
 
 // Using the state of already allocated registers & stack entries in cva, determine the location for a non-composite type and set it in cvl.
@@ -177,10 +645,7 @@ static void add_struct_or_union_call_value_location_for_big_struct(CallValueAllo
 
 // Each member in an HFA struct, which consists of entirely floats, doubles or long doubles, gets its own register.
 static void add_struct_or_union_call_value_location_for_hfa_struct_in_registers(CallValueAllocation *cva, int type, int count) {
-    int member_size =
-          type == TYPE_FLOAT ? 4
-        : type == TYPE_DOUBLE ? 8
-        : 16;
+    int member_size = FP_TYPE_TO_SIZE(type);
 
     CallValueLocations *cvl = allocate_call_value_locations(count);
 
@@ -227,78 +692,6 @@ static void add_struct_or_union_call_value_location_for_non_hfa_struct(CallValue
         cva->single_int_register_arg_count = 8;
         add_single_call_value_location(cva, type);
     }
-}
-
-typedef struct  {
-    int is_hfa;                 // Is the struct an HFA
-    int fits_in_fp_registers;   // Does it fit into the available floating point registers in the CVA?
-    int type;                   // TYPE_FLOAT, TYPE_DOUBLE or TYPE_LONG_DOUBLE;
-    int count;                  // The amount of scalars. Must be < 4
-} HfaDetails;
-
-// Check if the struct/union is a Homogeneous Floating-point Aggregate (HFA)
-// and if it can fit into the available floating point registers.
-// The max size is 4 * 16 bytes.
-// The type is an HFA if:
-// - The struct must only have one type of float, double or long doubles
-// - Overlapping types due to unions have to be the same
-//
-static HfaDetails make_hfa_details(Type *type, int size, CallValueAllocation *cva) {
-    HfaDetails h = {0}; // Defaults to not an HFA
-
-    int seen_types[4] = {0};
-    int seen_type = 0;
-
-    // Break the struct up into individual scalars
-    StructOrUnionScalars *scalars = wmalloc(sizeof(StructOrUnionScalars));
-    scalars->scalars = wmalloc(sizeof(StructOrUnionScalar *) * MAX_STRUCT_OR_UNION_SCALARS);
-    scalars->count = 0;
-    flatten_type(type, scalars, 0);
-
-    // Categorize the members by looking at what types are present
-
-    for (int i = 0; i < scalars->count; i++) {
-        StructOrUnionScalar *scalar = scalars->scalars[i];
-
-        int position;
-
-        if (scalar->type->type == TYPE_FLOAT)
-            position = scalar->offset / 4;
-        else if (scalar->type->type == TYPE_DOUBLE)
-            position = scalar->offset / 8;
-        else if (scalar->type->type == TYPE_LONG_DOUBLE)
-            position = scalar->offset / 16;
-        else
-            goto done; // Any non-floating point type means it's not an HFA
-
-        if (position >= 4) goto done; // An HFA can have no more than 4 FP types
-
-        if (seen_type && seen_type != scalar->type->type) goto done; // There are mixed types
-        seen_type = scalar->type->type;
-
-        if (seen_types[position] && seen_types[position] != scalar->type->type) goto done; // Type mismatch at same offset
-        seen_types[position] = scalar->type->type;
-    }
-
-    if (!seen_type) panic("Unexpectedly got 0 seen_type");
-
-    // Count the amount of scalars
-    int count = 0;
-    for (int i = 0; i < 4; i++) if (seen_types[i]) count++;
-    if (count > 4) goto done; // HFAs have max 4 scalars
-
-    h.is_hfa = 1;
-    h.type = seen_type;
-    h.count = count;
-
-    h.fits_in_fp_registers = (h.is_hfa && cva->single_fp_register_arg_count + count <= 8);
-
-done:
-    for (int i = 0; i < scalars->count; i++) wfree(scalars->scalars[i]);
-    wfree(scalars->scalars);
-    wfree(scalars);
-
-    return h;
 }
 
 static void add_struct_or_union_call_value_location(CallValueAllocation *cva, Type *type) {
@@ -658,10 +1051,7 @@ Value *convert_target_arg_move_to_indirect_stack_instructions(Function *function
     add_memory_copy(function, arg_ir, dst, src, size);
 
     // Put the address of the stack in the arg register
-    Value *address = new_value();
-    address->type = make_pointer_to_void();
-    address->vreg = ++function->vreg_count;
-
+    Value *address = make_pointer_to_void_in_vreg_value(function);
     dst = dup_value(dst);
     dst->type = make_pointer_to_void();
     new_tac_before(tac, IR_ADDRESS_OF, address, dst, NULL, 0);
@@ -724,7 +1114,7 @@ void process_target_functions(Function *function) {
     initialize_function_return_value_cva(function->type);
     add_function_param_moves(function);
     add_function_return_moves(function);
-    // process_function_varargs(function); // TODO aarch64
+    process_function_varargs(function);
 
     // Caller
     process_function_call_arg_allocations(function);

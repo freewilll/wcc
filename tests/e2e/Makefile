@@ -54,6 +54,7 @@ WCC_TESTS=\
 	floats-and-doubles \
 	switch \
 	character-and-string-literals \
+	varargs \
 	int128
 endif
 

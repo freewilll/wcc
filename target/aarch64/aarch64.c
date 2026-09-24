@@ -280,7 +280,7 @@ int is_ldr_str_immediate_offset(int size, int offset) {
     if (size < 1 || size > 5)
         panic("Unknown size in is_ldr_str_immediate_offset: %d", size);
 
-    if (size == 1                      && offset <= 4095 ) return 1;
+    if (size == 1                       && offset <= 4095 ) return 1;
     if (size == 2 && (offset & 1)  == 0 && offset <= 8190 ) return 1;
     if (size == 3 && (offset & 3)  == 0 && offset <= 16380) return 1;
     if (size == 4 && (offset & 7)  == 0 && offset <= 32760) return 1;

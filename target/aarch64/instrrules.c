@@ -52,9 +52,9 @@ int uncached_non_terminal_for_value(Value *v) {
     else if (is_global && v->type->type == TYPE_ARRAY)                        result =  MGSA;
 
     // Pointers
-    else if (is_local  && is_pointer && v->type->target->type == TYPE_FLOAT)       result =  RP3;
-    else if (is_local  && is_pointer && v->type->target->type == TYPE_DOUBLE)      result =  RP4;
-    else if (is_local  && is_pointer && v->type->target->type == TYPE_LONG_DOUBLE) result =  RP5;
+    else if (is_local && is_pointer && v->type->target->type == TYPE_FLOAT)       result =  RP3;
+    else if (is_local && is_pointer && v->type->target->type == TYPE_DOUBLE)      result =  RP4;
+    else if (is_local && is_pointer && v->type->target->type == TYPE_LONG_DOUBLE) result =  RP5;
 
     else if (is_in_stack && is_pointer)                                       result =  MSPV;
     else if (is_global && is_pointer)                                         result =  MGPV;
@@ -403,7 +403,6 @@ static void add_int_bitshift_rules(void) {
 static void add_pointer_plus_int_rule(int dst, int src) {
     Rule *r = add_rule(dst, IR_ADD, dst, src, 11);
     add_op(r, AARCH64_OP_ADD, DST, SRC1, SRC2, "add %vdx, %v1x, %v2x");
-    fin_rule(r);
 }
 
 static void add_pointer_add_rules(void) {
@@ -649,11 +648,15 @@ static void add_pointer_rules() {
 
     // Memory -> register rules
     add_stack_memory_into_register_rule (XRP, MSPV, "ldr %vdx, [%v1x]");
+    add_stack_memory_into_register_rule (RP5, MSPV, "ldr %vdx, [%v1x]");
     add_global_memory_into_register_rule(XRP, MGPV, "ldr %vdx, [%v1x]");
+    add_global_memory_into_register_rule(RP5, MGPV, "ldr %vdx, [%v1x]");
 
     // Register -> Memory rules
     r = add_rule(MSPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
+    r = add_rule(MSPV, IR_MOVE, RP5, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
     r = add_rule(MGPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
+    r = add_rule(MGPV, IR_MOVE, RP5, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
 
     add_indirect_rules();
 
@@ -878,6 +881,7 @@ void define_rules(void) {
     r = add_rule(XMS,      0, XMS,      0, 0); fin_rule(r);
     r = add_rule(XMG,      0, XMG,      0, 0); fin_rule(r);
     r = add_rule(XRP,      0, XRP,      0, 0); fin_rule(r);
+    r = add_rule(RP5,      0, RP5,      0, 0); fin_rule(r);
     r = add_rule(MSPV,     0, MSPV,     0, 0);
     r = add_rule(MGPV,     0, MGPV,     0, 0);
     r = add_rule(RO3,      0, RO3,      0, 0);

@@ -134,8 +134,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
         src1->is_lvalue = 1;
 
         // Add the memory copy
-        int size = get_type_size(type);
-        ir = add_memory_copy(function, ir, struct_dst, src1, size);
+        ir = add_memory_copy(function, ir, struct_dst, src1, get_type_size(type));
     }
 }
 
@@ -314,14 +313,10 @@ static int setup_return_for_struct_or_union(Function *function, Tac *ir) {
 void add_function_vararg_param_moves(Function *function, CallValueAllocation *cva, Tac *ir) {
     // Add moves for ints registers to register save area
     for (int i = cva->single_int_register_arg_count; i < 6; i++) {
-        Value *src = new_value();
-        src->vreg = ++function->vreg_count;
-        src->type = new_type(TYPE_LONG);
-        src->live_range_preg = int_arg_registers[i];
         Value *dst = dup_value(function->register_save_area);
         dst->type = new_type(TYPE_LONG);
         dst->offset = i * 8;
-        ir = new_tac_after(ir, IR_MOVE, dst, src, 0);
+        ir = add_arg_move_to_dst(function, ir, dst, int_arg_registers[i]);
     }
 
     // Skip SSE register copying if al is zero with a jump to "done"
@@ -357,7 +352,7 @@ void add_function_vararg_param_moves(Function *function, CallValueAllocation *cv
 
 // Add code for a va_start() call. The va_list struct, present in src1, has to be
 // populated.
-static void process_function_va_start(Function *function, Tac *ir) {
+void process_function_va_start(Function *function, Tac *ir) {
     Value *va_list = ir->src1;
     ir->operation.id = IR_NOP;
     ir->src1 = 0;
@@ -408,62 +403,6 @@ static void process_function_va_start(Function *function, Tac *ir) {
     dst->type = make_pointer_to_void();
     dst->offset = 16;
     ir = new_tac_after(ir, IR_MOVE, dst, tmp_dst, 0);
-}
-
-// Read a value from va_list. This could be either directly from the stack or from
-// an lvalue in a register.
-static Tac *read_from_va_list(Function *function, Tac *ir, Value *va_list, Type *src_type, Type *dst_type, int offset, Value **result) {
-    *result = new_value();
-    (*result)->type = dst_type;
-    (*result)->vreg = ++function->vreg_count;
-
-    Value *src1 = dup_value(va_list);
-    src1->type = src_type;
-
-    if (src1->vreg) {
-        // va_list is a pointer in a register. Load it, add the offset to it, then
-        // indirect.
-        Value *tmp = dup_value(va_list);
-        tmp->type = make_pointer(dst_type);
-        tmp->vreg = ++function->vreg_count;
-        ir = new_tac_after(ir, IR_MOVE, tmp, va_list, 0);
-
-        src1->type = make_pointer(dst_type);
-        src1->offset = offset;
-        ir = new_tac_after(ir, IR_INDIRECT, *result, src1, 0);
-    }
-    else {
-        // Read from the stack
-        src1->offset = offset;
-        ir = new_tac_after(ir, IR_MOVE, *result, src1, 0);
-    }
-
-    return ir;
-}
-
-// Write a value to va_list. This could be either directly from the stack or from
-// an lvalue in a register.
-static Tac *write_to_va_list(Function *function, Tac *ir, Value *va_list, Value *value, int offset) {
-    Value *dst = dup_value(va_list);
-
-    if (va_list->vreg) {
-        // va_list is a pointer in a register. Load it, add the offset to it, then
-        // write to the pointer.
-
-        Value *tmp = dup_value(dst);
-        tmp->is_lvalue = 1;
-        tmp->offset = offset;
-        tmp->type = value->type;
-        ir = new_tac_after(ir, IR_MOVE, tmp, value, 0);
-    }
-    else {
-        // Write to the stack
-    dst->type = value->type;
-        dst->offset = offset;
-        ir = new_tac_after(ir, IR_MOVE, dst, value, 0);
-    }
-
-    return ir;
 }
 
 // Add instructions that read the FP or GP offset, determine if the type can fit
@@ -599,7 +538,7 @@ static Tac *add_function_va_arg_stack_read(Function *function, Tac *ir, Type *ty
 }
 
 // Generate code to read a vararg from either the register save area or the stack
-static void process_function_va_arg(Function *function, Tac *ir) {
+void process_function_va_arg(Function *function, Tac *ir) {
     Value *va_list = ir->src1;
     Value *dst = ir->dst;
     Type *type = dst->type;
@@ -641,12 +580,12 @@ static void process_function_va_arg(Function *function, Tac *ir) {
         fp_count = !gp_count;
     }
 
+    Value *lfetch_from_stack = new_label_dst();
     Value *ldone = new_label_dst();
-    Value *fetch_from_stack = new_label_dst();
 
     // Check if the arg is in the register save area or on stack
     Value *gp_fp_offset;
-    ir = add_function_va_arg_in_register_check(function, ir, type, va_list, gp_count, fp_count, fetch_from_stack, &gp_fp_offset);
+    ir = add_function_va_arg_in_register_check(function, ir, type, va_list, gp_count, fp_count, lfetch_from_stack, &gp_fp_offset);
 
     // Read from register save area & jump to the done label
     ir = add_function_va_arg_register_save_area_read(function, ir, type, va_list, gp_count, fp_count, gp_fp_offset, dst);
@@ -654,7 +593,7 @@ static void process_function_va_arg(Function *function, Tac *ir) {
 
     // Add fetch_from_stack label
     ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
-    ir->label = fetch_from_stack->label;
+    ir->label = lfetch_from_stack->label;
 
     // Read from stack
     ir = add_function_va_arg_stack_read(function, ir, type, va_list, dst);
@@ -662,13 +601,6 @@ static void process_function_va_arg(Function *function, Tac *ir) {
     // Add done label
     ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
     ir->label = ldone->label;
-}
-
-static void process_function_varargs(Function *function) {
-    for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation.id == IR_VA_START) process_function_va_start(function, ir);
-        else if (ir->operation.id == IR_VA_ARG) process_function_va_arg(function, ir);
-    }
 }
 
 // Using the state of already allocated registers & stack entries in cva, determine the location for a non-composite type and set it in cvl.
