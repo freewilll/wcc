@@ -1,5 +1,6 @@
 all: test_softfloat
 
+CC ?= gcc
 SOURCES = testlib.o loadstore.o conversions.o rounding.o integers.o arithmetic.o comparisons.o
 OBJECTS := ${SOURCES:c=o}
 OBJECTS_ABS_PATH := ${OBJECTS:%=$(BUILD_DIR)/softfloat/%}
@@ -10,14 +11,14 @@ ifeq ($(DEBUG),1)
 endif
 
 $(BUILD_DIR)/softfloat/%.o: %.c softfloat.h testlib.h
-	gcc -c $< -o $@ $(CC_OPTS)
+	${CC} -c $< -o $@ $(CC_OPTS)
 
 test_softfloat: $(BUILD_DIR)/softfloat/test_softfloat.o $(OBJECTS_ABS_PATH)
-	gcc $^ -o $(BUILD_DIR)/softfloat/test_softfloat
+	${CC} $^ -o $(BUILD_DIR)/softfloat/test_softfloat
 
 .PHONY: debug
 debug: debug.o $(OBJECTS_ABS_PATH)
-	gcc $^ -o debug
+	${CC} $^ -o debug
 	$(BUILD_DIR)/softfloat/debug
 
 test: test_softfloat
