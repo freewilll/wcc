@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "../test-lib.h"
 
@@ -1231,6 +1232,20 @@ int test_stack_smashing_bug() {
 
 #endif
 
+// Test floating point division by zero makes an infinity
+void test_division_by_zero() {
+    float f = 1.0 / 0.0;
+    assert_float(INFINITY, f, "Floating point division by zero");
+
+    double d = 1.0 / 0.0;
+    assert_float(INFINITY, d, "Double division by zero");
+
+    #ifdef _x86_64__
+    long double ld = 1.0L / 0.0;
+    assert_float(INFINITY, ld, "Long double division by zero");
+    #endif
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1273,6 +1288,7 @@ int main(int argc, char **argv) {
     test_inc_dec();
     #ifdef __x86_64__
     test_stack_smashing_bug();
+    test_division_by_zero();
     #endif
 
     finalize();

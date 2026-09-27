@@ -56,6 +56,9 @@ void assert_long(long expected, long actual, char *message) {
 }
 
 int float_eq(float expected, float actual) {
+    if (isinf(expected) != isinf(actual)) return 0;
+    if (isinf(expected) || isinf(actual)) return 1;
+
     if (isnan(expected) != isnan(actual)) return 0;
 
     float diff = expected - actual;
@@ -81,6 +84,15 @@ void assert_float(float expected, float actual, char *message) {
 }
 
 void assert_double(double expected, double actual, char *message) {
+    if (isinf(expected) != isinf(actual)) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected %f got %f\n", expected, actual);
+        return;
+    }
+
+    if (isinf(expected) || isinf(actual)) goto pass;
+
     if (isnan(expected) != isnan(actual)) {
         failures++;
         printf("%-60s ", message);
@@ -94,17 +106,27 @@ void assert_double(double expected, double actual, char *message) {
         failures++;
         printf("%-60s ", message);
         printf("failed, expected %f got %f\n", expected, actual);
+        return;
     }
-    else {
-        passes++;
-        if (verbose) {
-            printf("%-60s ", message);
-            printf("ok\n");
-        }
+
+pass:
+    passes++;
+    if (verbose) {
+        printf("%-60s ", message);
+        printf("ok\n");
     }
 }
 
 void assert_long_double(long double expected, long double actual, char *message) {
+    if (isinf(expected) != isinf(actual)) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected %Lf got %Lf\n", expected, actual);
+        return;
+    }
+
+    if (isinf(expected) || isinf(actual)) goto pass;
+
     if (isnan(expected) != isnan(actual)) {
         failures++;
         printf("%-60s ", message);
@@ -118,13 +140,14 @@ void assert_long_double(long double expected, long double actual, char *message)
         failures++;
         printf("%-60s ", message);
         printf("failed, expected %Lf got %Lf\n", expected, actual);
+        return;
     }
-    else {
-        passes++;
-        if (verbose) {
-            printf("%-60s ", message);
-            printf("ok\n");
-        }
+
+pass:
+    passes++;
+    if (verbose) {
+        printf("%-60s ", message);
+        printf("ok\n");
     }
 }
 

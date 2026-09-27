@@ -130,10 +130,7 @@ void optimize_floating_point_arithmetic_operation(Tac *tac) {
     else if (tac->operation.id == IR_DIV && cv && tac->src2->is_constant) {
         c = tac->src2->fp_value;
 
-        if (c == 0.0L)
-            panic("Division by zero");
-
-        else if (c == 1.0L) {
+        if (c == 1.0L) {
             tac->operation.id = IR_MOVE;
             tac->src1 = v;
             tac->src2 = 0;

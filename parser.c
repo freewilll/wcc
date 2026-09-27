@@ -1378,7 +1378,7 @@ static void arithmetic_operation(int operation, Type *dst_type) {
 
     int src2_is_int = is_integer_type(src2->type);
 
-    if (operation == IR_DIV && src2->is_constant && (src2_is_int && src2->int_value == 0 || !src2_is_int && src2->fp_value == 0))
+    if (operation == IR_DIV && src2->is_constant && (src2_is_int && src2->int_value == 0))
         warning("Division by zero");
 
     if (operation == IR_MOD && src2->is_constant && src2->int_value == 0)
