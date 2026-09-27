@@ -18,7 +18,9 @@ struct hfald { long double ld1, ld2, ld3, ld4; };
 
 // Used for aarch64 testing of small (<= 16 byte) structs
 struct sl2 {long l1, l2; };
-struct ssi128 {__int128 i;};
+struct sl3 {long l1, l2, l3; };
+struct si128 {__int128 i;};
+struct si1282 {__int128 i1, i2;};
 
 int gi;
 
@@ -786,11 +788,11 @@ void test_va_aarch64_hfa_structs() {
     test_va_ld_alignment(1.1, 2.1L);
 }
 
-void test_small_struct(int c, ...) {
+void test_aarch64_small_struct(int c, ...) {
     va_list ap;
     va_start(ap, c);
 
-    assert_int(-1, c, "test_small_struct 0");
+    assert_int(-1, c, "test_aarch64_small_struct 0");
 
     struct sl2 s1 = va_arg(ap, struct sl2);
     struct sl2 s2 = va_arg(ap, struct sl2);
@@ -800,20 +802,20 @@ void test_small_struct(int c, ...) {
     struct sl2 s6 = va_arg(ap, struct sl2);
     struct sl2 s7 = va_arg(ap, struct sl2);
 
-    assert_int(1,  s1.l1, "test_small_struct 1");
-    assert_int(2,  s1.l2, "test_small_struct 2");
-    assert_int(3,  s2.l1, "test_small_struct 3");
-    assert_int(4,  s2.l2, "test_small_struct 4");
-    assert_int(5,  s3.l1, "test_small_struct 5");
-    assert_int(6,  s3.l2, "test_small_struct 6");
-    assert_int(7,  s4.l1, "test_small_struct 7");
-    assert_int(8,  s4.l2, "test_small_struct 8");
-    assert_int(9,  s5.l1, "test_small_struct 9");
-    assert_int(10, s5.l2, "test_small_struct 10");
-    assert_int(11, s6.l1, "test_small_struct 11");
-    assert_int(12, s6.l2, "test_small_struct 12");
-    assert_int(13, s7.l1, "test_small_struct 13");
-    assert_int(14, s7.l2, "test_small_struct 14");
+    assert_int(1,  s1.l1, "test_aarch64_small_struct 1");
+    assert_int(2,  s1.l2, "test_aarch64_small_struct 2");
+    assert_int(3,  s2.l1, "test_aarch64_small_struct 3");
+    assert_int(4,  s2.l2, "test_aarch64_small_struct 4");
+    assert_int(5,  s3.l1, "test_aarch64_small_struct 5");
+    assert_int(6,  s3.l2, "test_aarch64_small_struct 6");
+    assert_int(7,  s4.l1, "test_aarch64_small_struct 7");
+    assert_int(8,  s4.l2, "test_aarch64_small_struct 8");
+    assert_int(9,  s5.l1, "test_aarch64_small_struct 9");
+    assert_int(10, s5.l2, "test_aarch64_small_struct 10");
+    assert_int(11, s6.l1, "test_aarch64_small_struct 11");
+    assert_int(12, s6.l2, "test_aarch64_small_struct 12");
+    assert_int(13, s7.l1, "test_aarch64_small_struct 13");
+    assert_int(14, s7.l2, "test_aarch64_small_struct 14");
 }
 
 // On aarch64: c is in x0 and the __int128 is in x2 and x3
@@ -823,8 +825,8 @@ void test_16_byte_aligned_small_struct(int c, ...) {
 
     assert_int(-1, c, "test_16_byte_aligned_small_struct 0");
 
-    struct ssi128 ssi128 = va_arg(ap, struct ssi128);
-    ASSERT_INT128(1, 2, ssi128.i, "test_16_byte_aligned_small_struct 1");
+    struct si128 si128 = va_arg(ap, struct si128);
+    ASSERT_INT128(1, 2, si128.i, "test_16_byte_aligned_small_struct 1");
 }
 
 void test_va_aarch64_small_structs() {
@@ -836,10 +838,53 @@ void test_va_aarch64_small_structs() {
     struct sl2 s6 = {11, 12};
     struct sl2 s7 = {13, 14};
 
-    test_small_struct(-1, s1, s2 ,s3, s4, s5, s6, s7);
+    test_aarch64_small_struct(-1, s1, s2 ,s3, s4, s5, s6, s7);
 
-    struct ssi128 ssi128 = {MAKE_SINT128(1, 2)};
-    test_16_byte_aligned_small_struct(-1, ssi128);
+    struct si128 si128 = {MAKE_SINT128(1, 2)};
+    test_16_byte_aligned_small_struct(-1, si128);
+}
+
+void test_aarch64_big_struct(int c, ...) {
+    va_list ap;
+    va_start(ap, c);
+
+    assert_int(-1, c, "test_aarch64_big_struct 0");
+
+    struct sl3 s1 = va_arg(ap, struct sl3);
+    struct sl3 s2 = va_arg(ap, struct sl3);
+
+    assert_int(1,  s1.l1, "test_aarch64_big_struct 1");
+    assert_int(2,  s1.l2, "test_aarch64_big_struct 2");
+    assert_int(3,  s1.l3, "test_aarch64_big_struct 3");
+    assert_int(4,  s2.l1, "test_aarch64_big_struct 4");
+    assert_int(5,  s2.l2, "test_aarch64_big_struct 5");
+    assert_int(6,  s2.l3, "test_aarch64_big_struct 6");
+}
+
+// On aarch64: c is in x0 and the __int128 is in x2 and x3
+void test_16_byte_aligned_big_struct_with_i128(int c, ...) {
+    va_list ap;
+    va_start(ap, c);
+
+    assert_int(1, c, "test_16_byte_aligned_big_struct_with_i128 0");
+
+    for (int i = 0; i < 9; i++) {
+        assert_int(i + 2, va_arg(ap, int), "test_16_byte_aligned_big_struct_with_i128 1");
+    }
+
+    struct si1282 si1282 = va_arg(ap, struct si1282);
+    ASSERT_INT128(1, 2, si1282.i1, "test_16_byte_aligned_big_struct_with_i128 2");
+    ASSERT_INT128(3, 4, si1282.i2, "test_16_byte_aligned_big_struct_with_i128 3");
+}
+
+void test_va_aarch64_big_structs() {
+    struct sl3 s1 = {1, 2, 3};
+    struct sl3 s2 = {4, 5, 6};
+
+    test_aarch64_big_struct(-1, s1, s2);
+
+    struct si1282 si1282 = {MAKE_SINT128(1, 2), MAKE_SINT128(3, 4)};
+    test_16_byte_aligned_big_struct_with_i128(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, si1282);
 }
 
 int main(int argc, char **argv) {
@@ -865,6 +910,7 @@ int main(int argc, char **argv) {
     #endif
     test_va_aarch64_hfa_structs();
     test_va_aarch64_small_structs();
+    test_va_aarch64_big_structs();
 
     finalize();
 }

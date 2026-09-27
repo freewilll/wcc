@@ -394,15 +394,17 @@ static Tac *copy_va_memory(Function *function, Tac *ir, Value *src, Value *dst, 
 
 // Advance the stack pointer by increment and return a value with the pointer to the stack in stack
 static Tac *prepare_read_from_va_stack(Function *function, Tac *ir, Type *type, Value *va_list, Value *dst, Value *lfetch_from_stack, Value **stack) {
-    ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
-    ir->label = lfetch_from_stack->label;
+    if (lfetch_from_stack) {
+        ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
+        ir->label = lfetch_from_stack->label;
+    }
 
     // Read stack pointer from va_list
     Type *stack_type = make_pointer(dst->type);
     int stack_offset = VA_LIST_STACK_OFFSET;
     ir = read_from_va_list(function, ir, va_list, stack_type, stack_type, stack_offset, stack);
 
-    // Align the stack up to 16 bytes if the alignement needs this
+    // Align the stack up to 16 bytes if the alignment needs this
     if (get_type_alignment(type) == 16)
         ir = align_value_to_16_bytes(function, ir, *stack, stack);
 
@@ -527,7 +529,7 @@ static Tac *add_function_va_arg_hfa_struct_or_union_read(Function *function, Tac
     ir->label = ldone->label;
 }
 
-// Copy a small (<= 16 bytes struct from the register save area or stack.
+// Copy a small (<= 16 bytes) struct from the register save area or stack.
 static Tac *add_function_va_arg_small_struct_or_union_read(Function *function, Tac *ir, Value *va_list, Type *type, Value *dst) {
     int alignment = get_type_alignment(type);
 
@@ -576,6 +578,19 @@ static Tac *add_function_va_arg_small_struct_or_union_read(Function *function, T
     ir->label = ldone->label;
 }
 
+// Copy a big (> 16 bytes) struct from the register save area or stack.
+// A pointer to the struct is either in the register save area or stack in place of the argument.
+static Tac *add_function_va_arg_big_struct_or_union_read(Function *function, Tac *ir, Value *va_list, Type *type, Value *dst) {
+    // Read the pointer to the struct by treating it as a regular integer argument
+    Value *src = new_value();
+    src->type = make_pointer_to_void();
+    src->vreg = ++function->vreg_count;
+    ir = add_function_va_arg_scalar_read(function, ir, type, va_list, 1, src);
+
+    // Read from the pointer with a memory copy
+    ir = copy_va_memory(function, ir, src, dst, get_type_size(type));
+}
+
 // Load a integer or floating point vararg from the register save are or stack into dst
 static Tac *add_function_va_arg_struct_or_union_read(Function *function, Tac *ir, Type *type, Value *va_list, int is_int, Value *dst) {
     int size = get_type_size(type);
@@ -596,7 +611,7 @@ static Tac *add_function_va_arg_struct_or_union_read(Function *function, Tac *ir
         add_function_va_arg_small_struct_or_union_read(function, ir, va_list, type, dst);
     }
     else {
-        panic("TODO aarch64: VA big struct/unions\n");
+        add_function_va_arg_big_struct_or_union_read(function, ir, va_list, type, dst);
     }
 }
 
