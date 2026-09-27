@@ -359,6 +359,7 @@ Value *parse_constant_expression(int level) {
             break;
 
         case TOK_IDENTIFIER: {
+            if (!cur_scope) panic("Attempt to lookup a symbol %s without cur_scope existing", cur_identifier);
             Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
             if (!symbol) error("Unknown symbol \"%s\"", cur_identifier);
 
