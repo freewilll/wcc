@@ -493,7 +493,7 @@ static Tac *add_function_va_arg_stack_read(Function *function, Tac *ir, Type *ty
     Value *overflow_arg_area;
     ir = read_from_va_list(function, ir, va_list, make_pointer_to_void(), make_pointer(dst->type), 8, &overflow_arg_area);
 
-    if (type->type == TYPE_LONG_DOUBLE) {
+    if (get_type_alignment(type) == 16) {
         // Align overflow arg area to 16 byte boundary, by adding 15 then anding with ~15
 
         Value *long_overflow_arg_area = dup_value(overflow_arg_area);

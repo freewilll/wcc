@@ -726,13 +726,10 @@ void test_va_hfa_16_byte_stack_alignment(int c, ...) {
     assert_double(8.1, hfad3.d2, "test_va_hfa_16_byte_stack_alignment 8");
     assert_double(9.1, hfad3.d3, "test_va_hfa_16_byte_stack_alignment 9");
 
-    #ifdef __x86__64
-    // These aarch64 HFA struct tests are broken in x86_64
     assert_long_double(1.1,  hfald1.ld1, "test_va_hfa_16_byte_stack_alignment 10");
     assert_long_double(2.1,  hfald1.ld2, "test_va_hfa_16_byte_stack_alignment 11");
     assert_long_double(3.1,  hfald1.ld3, "test_va_hfa_16_byte_stack_alignment 12");
     assert_long_double(4.1,  hfald1.ld4, "test_va_hfa_16_byte_stack_alignment 13");
-    #endif
 
     // Read a trailing double, to ensure it ends up in the right place, i.e. the stack
     double d = va_arg(ap, double);
