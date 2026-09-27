@@ -568,6 +568,9 @@ static void add_stack_memory_into_register_rule(int dst, int src1, char *templat
     Rule *r = add_rule(dst, 0, src1, 0, 2);
     add_op(r, AARCH64_OP_LDR,  DST, SRC1, 0, template);
     fin_rule(r);
+
+    // Also add a for an IR_MOVE from the stack into a register so that that TAC is matched directly.
+    r = add_rule(dst, IR_MOVE, src1, 0, 2); add_op(r, AARCH64_OP_LDR, DST, SRC1, 0, template);
 }
 
 static void add_load_stack_address_rule(int dst, int src1) {

@@ -25,6 +25,8 @@ static void n() {
 static void assert_preg_op(char *expected) {
     char *got;
 
+    while (global_ir_start && global_ir_start->operation.id == IR_NOP) n();
+
     if (!global_ir_start && expected) {
         printf("Expected %s, got nothing\n", expected);
         failures++;
@@ -37,7 +39,6 @@ static void assert_preg_op(char *expected) {
         got = render_target_operation(global_ir_start, 0, 1);
         n();
     }
-
     if (!expected) {
         printf("Expected nothing, got %s\n", got);
         failures++;
@@ -338,39 +339,26 @@ void test_stack_loads(void) {
     assert_preg_op("add         x17, sp, x17");
     assert_preg_op("ldrsb       w14, [x17]");       // Load into spilled temp register
     assert_preg_op("strb        w14, [sp, 14]");    // Store into spilled temp register
-    assert_preg_op("ldrb        w14, [sp, 14]");    // Reload into spilled temp register
-    assert_preg_op("mov         w14, w14");         // Load/store join
-    assert_preg_op("strb        w14, [sp, 13]");    // Spill store
 
     // IR_MOVE s << v with no offset with a spilled value and a stack slot with a small offset.
     test_inflate_stack_size = 32;
     start_ir();
     i(0, IR_MOVE, vsz(2, TYPE_LONG), Ssz(-1, TYPE_LONG), 0);
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("ldr         x14, [sp, 56]");    // Load into spilled temp register
-    assert_preg_op("str         x14, [sp, 48]");    // Store into spilled temp register
-    assert_preg_op("ldr         x14, [sp, 48]");    // Reload into spilled temp register
-    assert_preg_op("mov         x14, x14");         // Load/store join
-    assert_preg_op("str         x14, [sp, 40]");    // Spill store
+    assert_preg_op("ldr         x14, [sp, 40]");    // Spill load
+    assert_preg_op("str         x14, [sp, 32]");    // Spill store
 
     // IR_MOVE s << v with no offset with a spilled value and a stack slot with a large offset.
     test_inflate_stack_size = 40000;
     start_ir();
     i(0, IR_MOVE, vsz(2, TYPE_LONG), Ssz(-1, TYPE_LONG), 0);
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("movz        x17, 40024");
+    assert_preg_op("movz        x17, 40008");
     assert_preg_op("add         x17, sp, x17");
     assert_preg_op("ldr         x14, [x17]");       // Load into spilled temp register
-    assert_preg_op("movz        x15, 40016");
+    assert_preg_op("movz        x15, 40000");
     assert_preg_op("add         x15, sp, x15");
     assert_preg_op("str         x14, [x15]");       // Store into spilled temp register
-    assert_preg_op("movz        x14, 40016");
-    assert_preg_op("add         x14, sp, x14");
-    assert_preg_op("ldr         x14, [x14]");       // Reload into spilled temp register
-    assert_preg_op("mov         x14, x14");         // Load/store join
-    assert_preg_op("movz        x15, 40008");
-    assert_preg_op("add         x15, sp, x15");
-    assert_preg_op("str         x14, [x15]");       // Spill store
 
     test_inflate_stack_size = 0; // Restore artificial stack size inflator
 
@@ -1057,7 +1045,6 @@ void test_saved_registers() {
     global_ir_start = function->ir;
     assert_preg_op("str         x0, [sp, #-16]!");
     assert_preg_op("movz        x0, 1");
-    assert_preg_op("mov         x0, x0");
     assert_preg_op("ldr         x0, [sp], #16");
     assert_preg_op("ret");
 
@@ -1071,7 +1058,6 @@ void test_saved_registers() {
     assert_preg_op("str         d0, [sp, #-16]!");
     assert_preg_op("sub         sp, sp, 16");
     assert_preg_op("ldr         d0, [sp, 8]");
-    assert_preg_op("fmov        d0, d0");
     assert_preg_op("add         sp, sp, 16");
     assert_preg_op("ldr         d0, [sp], #16");
     assert_preg_op("ret");
@@ -1087,11 +1073,9 @@ void test_saved_registers() {
     assert_preg_op("str         x0, [sp, #-16]!");
     assert_preg_op("str         d0, [sp, #-16]!");
     assert_preg_op("movz        x0, 1");
-    assert_preg_op("mov         x0, x0");
     assert_preg_op("adrp        x0, .LFP0");
     assert_preg_op("add         x0, x0, :lo12:.LFP0");
     assert_preg_op("ldr         d0, [x0]");
-    assert_preg_op("fmov        d0, d0");
     assert_preg_op("ldr         d0, [sp], #16");
     assert_preg_op("ldr         x0, [sp], #16");
     assert_preg_op("ret");
