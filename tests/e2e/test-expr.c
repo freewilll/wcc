@@ -624,6 +624,7 @@ void test_integer_sizes() {
     assert_int(1, sizeof(char),         "sizeof char");
     assert_int(2, sizeof(short),        "sizeof short");
     assert_int(2, sizeof(short int),    "sizeof short int");
+    assert_int(2, sizeof(int short),    "sizeof int short");
     assert_int(4, sizeof(int),          "sizeof int");
     assert_int(8, sizeof(long),         "sizeof long");
     assert_int(8, sizeof(long int),     "sizeof long int");

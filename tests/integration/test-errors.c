@@ -542,5 +542,25 @@ int main(int argc, char **argv) {
         "Expected ) after ...",
         "Expected ) after ...");
 
+    check_main_output(
+        "char char c;",
+        "Too many data type in type specifier",
+        "Too many data type in type specifier");
+
+    check_main_output(
+        "short short c;",
+        "Too many data type in type specifier",
+        "Too many data type in type specifier");
+
+    check_main_output(
+        "int int c;",
+        "Too many data type in type specifier",
+        "Too many data type in type specifier");
+
+    check_main_output(
+        "long long long c;",
+        "Too many longs in type specifier",
+        "Too many longs in type specifier");
+
     finalize();
 }

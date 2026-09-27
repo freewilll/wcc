@@ -559,10 +559,19 @@ static BaseType *parse_declaration_specifiers(void) {
         }
     }
 
+    if (seen_char > 1 || seen_short > 1 || seen_int > 1)
+        error("Too many data type in type specifier");
+
     if (seen_long == 2)
         seen_long = 1;
     else if (seen_long > 2)
         error("Too many longs in type specifier");
+
+    if (seen_short && seen_int) {
+        seen_int = 0;
+        type = new_type(TYPE_SHORT);
+    }
+
     if (seen_int && seen_long) {
         seen_int = 0;
         type = new_type(TYPE_LONG);
