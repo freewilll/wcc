@@ -349,7 +349,7 @@ static Tac *make_address_of_va_register_save_area(Function *function, Tac *ir, V
 // Create a new value from value which is aligned up 16 bytes.
 // This requires a conversion to int and then back to void *, since the IR_BAND
 // operation has to happen on an integral type.
-Tac *align_value_to_16_bytes(Function *function, Tac *ir, Value *src, Value **dst) {
+static Tac *align_value_to_16_bytes(Function *function, Tac *ir, Value *src, Value **dst) {
     // Convert the src to a long
     Value *tmp = dup_value(src);
     tmp->vreg = ++function->vreg_count;
@@ -374,8 +374,26 @@ Tac *align_value_to_16_bytes(Function *function, Tac *ir, Value *src, Value **ds
     return ir;
 }
 
+// Copy memory. src is a pointer to the stack. dst is a non-pointer where the memory has to be copied to.
+static Tac *copy_va_memory(Function *function, Tac *ir, Value *src, Value *dst, int size) {
+    // The memory copy function needs lvalues for dst and src
+    Value *memory_copy_src = dup_value(src);
+    memory_copy_src->is_lvalue = 1;
+
+    // Make a pointer for the destination
+    Value *memory_copy_dst = new_value();
+    memory_copy_dst->type = make_pointer_to_void();
+    memory_copy_dst->vreg = ++function->vreg_count;
+    memory_copy_dst->is_lvalue = 1;
+
+    ir = new_tac_after(ir, IR_ADDRESS_OF, memory_copy_dst, dst, NULL);
+    ir = add_memory_copy(function, ir, memory_copy_dst, memory_copy_src, size);
+
+    return ir;
+}
+
 // Advance the stack pointer by increment and return a value with the pointer to the stack in stack
-Tac *prepare_read_from_va_stack(Function *function, Tac *ir, Type *type, Value *va_list, Value *dst, Value *lfetch_from_stack, Value **stack) {
+static Tac *prepare_read_from_va_stack(Function *function, Tac *ir, Type *type, Value *va_list, Value *dst, Value *lfetch_from_stack, Value **stack) {
     ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
     ir->label = lfetch_from_stack->label;
 
@@ -448,14 +466,13 @@ static Tac *add_function_va_arg_scalar_read(Function *function, Tac *ir, Type *t
     ir->label = ldone->label;
 }
 
-// Read an HFA struct/union from the HFA area into dst. This is similar to
-// reading a scalar.
+// Read an HFA struct/union from the HFA area into dst.
 static Tac *add_function_va_arg_hfa_struct_or_union_read(Function *function, Tac *ir, Value *va_list, Type *type, int member_type_type, int count, Value *dst) {
     // Make jump labels
     Value *lfetch_from_stack = new_label_dst();
     Value *ldone = new_label_dst();
 
-    // Read gr_offs into offs register
+    // Read vr_offs into offs register
     Value *offs;
     ir = read_va_list_offs(function, ir, va_list, 0, &offs);
 
@@ -501,17 +518,58 @@ static Tac *add_function_va_arg_hfa_struct_or_union_read(Function *function, Tac
     ir = new_tac_after(ir, IR_JMP, 0, ldone, 0);
 
     // Read from stack with a memory copy
-    Value *memory_copy_src;
-    ir = prepare_read_from_va_stack(function, ir, type, va_list, dst, lfetch_from_stack, &memory_copy_src);
-    memory_copy_src = dup_value(memory_copy_src); // The memory copy function needs lvalues for dst and src
-    memory_copy_src->is_lvalue = 1;
+    Value *src;
+    ir = prepare_read_from_va_stack(function, ir, type, va_list, dst, lfetch_from_stack, &src);
+    ir = copy_va_memory(function, ir, src, dst, get_type_size(type));
 
-    Value *memory_copy_dst = new_value();
-    memory_copy_dst->type = make_pointer_to_void();
-    memory_copy_dst->vreg = ++function->vreg_count;
-    memory_copy_dst->is_lvalue = 1;
-    ir = new_tac_after(ir, IR_ADDRESS_OF, memory_copy_dst, dst, NULL);
-    ir = add_memory_copy(function, ir, memory_copy_dst, memory_copy_src, get_type_size(type));
+    // Add the done label
+    ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
+    ir->label = ldone->label;
+}
+
+// Copy a small (<= 16 bytes struct from the register save area or stack.
+static Tac *add_function_va_arg_small_struct_or_union_read(Function *function, Tac *ir, Value *va_list, Type *type, Value *dst) {
+    int alignment = get_type_alignment(type);
+
+    // Make jump labels
+    Value *lfetch_from_stack = new_label_dst();
+    Value *ldone = new_label_dst();
+
+    // Read vr_offs into offs register
+    Value *offs;
+    ir = read_va_list_offs(function, ir, va_list, 1, &offs);
+
+    // Check if offs >= 0, and if so jump to the stack fetching code
+    ir = check_va_offs_ge_zero(function, ir, offs, lfetch_from_stack);
+
+    int size = get_type_size(type);
+    int rounded_up_size = (size + 7) & ~7;
+
+    // The registers save area is also aligned to 16-byte boundaries for structs that have 16-byte alignment.
+    if (alignment == 16)
+        ir = align_value_to_16_bytes(function, ir, offs, &offs);
+
+    // Increase offs by rounded_up_size
+    Value *new_offs;
+    ir = add_to_va_offs(function, ir, offs, &new_offs, rounded_up_size);
+
+    // Write new_offs to va_list
+    ir = write_offs_to_va_list(function, ir, va_list, new_offs, 1);
+
+    // Check if offs > 0 and and jump to stack code if the arg isn't in the register save area
+    ir = check_va_offs_gt_zero(function, ir, new_offs, lfetch_from_stack);
+
+    // Read from register save area with a memory copy
+    Value *src;
+    ir = make_address_of_va_register_save_area(function, ir, va_list, offs, 1, make_pointer_to_void(), &src, ldone);
+    ir = copy_va_memory(function, ir, src, dst, size);
+
+    // All done, jump past the stack code
+    ir = new_tac_after(ir, IR_JMP, 0, ldone, 0);
+
+    // Read from stack with a memory copy
+    ir = prepare_read_from_va_stack(function, ir, type, va_list, dst, lfetch_from_stack, &src);
+    ir = copy_va_memory(function, ir, src, dst, size);
 
     // Add the done label
     ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
@@ -524,6 +582,7 @@ static Tac *add_function_va_arg_struct_or_union_read(Function *function, Tac *ir
 
     CallValueAllocation *cva = init_call_value_allocaton("vararg struct");
     add_type_to_cva(cva, type);
+    CallValueLocations *cvl = cva->locations->elements[0];
 
     // Determine if the struct is an HFA. The largest possible HFA struct has 4 long doubles,
     // so only check structs smaller than that size.
@@ -533,8 +592,11 @@ static Tac *add_function_va_arg_struct_or_union_read(Function *function, Tac *ir
     if (hfad.is_hfa) {
         add_function_va_arg_hfa_struct_or_union_read(function, ir, va_list, type, hfad.type, hfad.count, dst);
     }
+    else if (cvl->locations[0].indirect_stack_offset == -1) {
+        add_function_va_arg_small_struct_or_union_read(function, ir, va_list, type, dst);
+    }
     else {
-        panic("TODO aarch64: non-HFA VA struct/unions\n");
+        panic("TODO aarch64: VA big struct/unions\n");
     }
 }
 
