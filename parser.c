@@ -1687,7 +1687,7 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
             else if (src_is_int && dst_type->type == TYPE_INT128) {
                 // Convert integer -> int128
                 Value *src2 = dup_value(src);
-                src2->type = dup_type(dst_type);
+                src2->type->type = TYPE_INT128;
                 return src2;
             }
 
@@ -3016,9 +3016,10 @@ static void parse_expression(int level) {
                             dst->type = make_pointer_to_void();
                             push(dst);
                         }
-                        else
+                        else {
                             // Cast integer constant
                             push(cast_constant_value(v1, dst_type));
+                        }
                     }
                     else if (dst_type->type != TYPE_VOID && v1->type != dst_type) {
                         if (v1->type->type == TYPE_FUNCTION) v1 = load_function(v1, dst_type);

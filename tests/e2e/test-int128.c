@@ -9,14 +9,26 @@ int passes;
 int failures;
 
 static void test_assignment_from_constant(void) {
-    __int128 i;
+    __int128 si;
 
-    i = 1;                ASSERT_INT128(0,  1,   i, "int128 in vreg assignment from int");
-    i = 2U;               ASSERT_INT128(0,  2,   i, "int128 in vreg assignment from unsigned int");
-    i = 3L;               ASSERT_INT128(0,  3,   i, "int128 in vreg assignment from long");
-    i = 4UL;              ASSERT_INT128(0,  4,   i, "int128 in vreg assignment from unsigned long");
-    i = -42;              ASSERT_INT128(-1, -42, i, "int128 in vreg assignment from negative int");
-    i = (int) 0xffffffff; ASSERT_INT128(-1, -1,  i, "int128 in vreg assignment from casted unsigned int");
+    si = 1;                ASSERT_INT128(0,  1,   si, "signed int128 in vreg assignment from int");
+    si = 2U;               ASSERT_INT128(0,  2,   si, "signed int128 in vreg assignment from unsigned int");
+    si = 3L;               ASSERT_INT128(0,  3,   si, "signed int128 in vreg assignment from long");
+    si = 4UL;              ASSERT_INT128(0,  4,   si, "signed int128 in vreg assignment from unsigned long");
+    si = -42;              ASSERT_INT128(-1, -42, si, "signed int128 in vreg assignment from negative int");
+    si = (int) 0xffffffff; ASSERT_INT128(-1, -1,  si, "signed int128 in vreg assignment from casted unsigned int");
+
+    unsigned __int128 ui;
+    ui = 1;                ASSERT_INT128(0,  1,   ui, "unsigned int128 in vreg assignment from int");
+    ui = 2U;               ASSERT_INT128(0,  2,   ui, "unsigned int128 in vreg assignment from unsigned int");
+    ui = 3L;               ASSERT_INT128(0,  3,   ui, "unsigned int128 in vreg assignment from long");
+    ui = 4UL;              ASSERT_INT128(0,  4,   ui, "unsigned int128 in vreg assignment from unsigned long");
+    ui = -42;              ASSERT_INT128(-1, -42, ui, "unsigned int128 in vreg assignment from negative int");
+    ui = (int) 0xffffffff; ASSERT_INT128(-1, -1,  ui, "unsigned int128 in vreg assignment from casted unsigned int");
+
+    // This tests casting of signed int to an unsigned __int128
+    ui = (int) 0xffffffff;
+    ASSERT_INT128(-1, -1, ui, "unsigned int128 from (int) 0xffffffff");
 }
 
 static void test_stack_assignment_from_constant(void) {

@@ -161,6 +161,7 @@ static Tac *split_instruction(Function *function, Tac *tac) {
 // Convert an non-128 bit integer in a register to an int128 in a register
 static Tac *transform_convert_int_to_int128(Function *function, Tac *tac) {
     Tac *top_tac = tac;
+    int src_is_unsigned = top_tac->src1->type->is_unsigned;
 
     SplitValue split_dst = split_value(function, tac->dst);
 
@@ -168,7 +169,7 @@ static Tac *transform_convert_int_to_int128(Function *function, Tac *tac) {
     Value *long_value;
     if (tac->src1->type->type < TYPE_LONG) {
         long_value = new_long_vreg_from_value(function, tac->src1);
-        long_value->type->is_unsigned = tac->src1->type->is_unsigned;
+        long_value->type->is_unsigned = src_is_unsigned;
         tac = new_tac_after(tac, IR_MOVE, long_value, tac->src1, NULL);
     }
     else {
@@ -179,14 +180,20 @@ static Tac *transform_convert_int_to_int128(Function *function, Tac *tac) {
     tac = new_tac_after(tac, IR_MOVE, split_dst.low, long_value, NULL);
 
     // Set the high bits to all zeroes or all ones
-    if (top_tac->src1->type->is_unsigned) {
+    if (src_is_unsigned) {
         // Set the high bits to zero
         tac = new_tac_after(tac, IR_MOVE, split_dst.high, new_unsigned_integral_constant(TYPE_LONG, 0), NULL);
     } else {
         // Sign extend the high bits by copying the low bits over
         // and then doing an arithmetic shift right of 31 bits.
-        Value *sign_bits = new_long_vreg(function);
-        tac = new_tac_after(tac, IR_MOVE, sign_bits, long_value, NULL);
+
+        // Ensure the sign of the bitshifts are the same, since instruction selection
+        // is picky about that.
+        Value *matched_sign_long_value = dup_value(long_value);
+        matched_sign_long_value->type->is_unsigned = split_dst.high->type->is_unsigned;
+
+        Value *sign_bits = new_long_vreg_from_value(function, matched_sign_long_value);
+        tac = new_tac_after(tac, IR_MOVE, sign_bits, matched_sign_long_value, NULL);
         tac = new_tac_after(tac, IR_ASHR, split_dst.high, sign_bits, new_integral_constant(TYPE_INT, 63));
     }
 
