@@ -814,6 +814,16 @@ void test_int128_return() {
     ASSERT_INT128(1, 2, r2, "int128 returned conditionally 2");
 }
 
+void f128t(signed __int128 i128, int high, int low)  {
+    ASSERT_INT128(high, low, i128, "Passing a constant int as an int128 into a function");
+}
+
+// Ensure an int is upgraded to an int128 in a function call arg
+void test_int128_function_call_arg_promotion() {
+    f128t(42, 0, 42);
+    f128t(-42, -1, -42);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -841,6 +851,7 @@ int main(int argc, char **argv) {
     test_int128_in_registers();
     test_int128_in_stack();
     test_int128_return();
+    test_int128_function_call_arg_promotion();
 
     finalize();
 }

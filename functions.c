@@ -529,13 +529,38 @@ static CallValueLocation *lookup_location(int preg_class, int register_index, Ca
 
 // For a int128 in a vreg, lookup the split low/high vregs and add arg moves for its 8-byte parts.
 static Value *make_function_call_arg_value_for_int128(Function *function, CallValueLocations **pls, Value *arg, int index, int preg_class) {
+   CallValueLocation *location = lookup_location(preg_class, index, *pls);
+
+    if (arg->is_constant) {
+        // The constants are signed 64-bit
+
+        if (location->i128_part == 0) {
+            // The low 64 bits are passed through from the 64-bit constant
+            Value *value = new_integral_constant(TYPE_LONG, arg->int_value);
+            value->type->is_unsigned = arg->type->is_unsigned;
+
+            return value;
+        }
+        else {
+            Value *value;
+            if (arg->type->is_unsigned) {
+                value = new_integral_constant(TYPE_LONG, 0);
+            }
+            else {
+                long int_value = arg->int_value & (1L << 63) ? -1 : 0;
+                value = new_integral_constant(TYPE_LONG, int_value);
+            }
+            value->type->is_unsigned = arg->type->is_unsigned;
+
+            return value;
+        }
+    }
+
     int vreg = arg->vreg;
     if (!vreg) panic("Arg moves for int128 not implemented unless the int128 is in a vreg");
 
     SplitVreg *split_vreg = function->int128_register_mappings[vreg];
     if (!split_vreg) panic("NULL pointer when fetching split vreg for int128 for vreg %d", vreg);
-
-   CallValueLocation *location = lookup_location(preg_class, index, *pls);
 
    Type *long_type = dup_type(arg->type);
    long_type->type = TYPE_LONG;
@@ -557,7 +582,7 @@ typedef struct arg_details {
 } ArgDetails;
 
 // Add arg move instruction for a single register at ad->register_index
-void add_function_call_arg_move(Function *function, Tac *ir, FunctionType *called_function, ArgDetails *ad) {
+static void add_function_call_arg_move(Function *function, Tac *ir, FunctionType *called_function, ArgDetails *ad) {
     Type *type;
     int arg_index = ad->arg_index;
     if (arg_index >= 0 && arg_index < called_function->param_count) {

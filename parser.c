@@ -1684,6 +1684,12 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
             }
             else if (src_is_int && dst_is_fp)
                 return convert_int_constant_to_floating_point(src, dst_type);
+            else if (src_is_int && dst_type->type == TYPE_INT128) {
+                // Convert integer -> int128
+                Value *src2 = dup_value(src);
+                src2->type = dup_type(dst_type);
+                return src2;
+            }
 
             // No change
             return src;
