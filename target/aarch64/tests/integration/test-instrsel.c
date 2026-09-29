@@ -651,30 +651,30 @@ void test_instrsel_add_sub_constant(void) {
     remove_reserved_physical_registers = 1;
 
     // IR_ADD v1 + v1 + c
-    si(function, 0, IR_ADD, vsz(3, TYPE_CHAR),   vsz(1, TYPE_CHAR),   ci(1)); assert_target_op("add         r2w, r1w, 1");
-    si(function, 0, IR_ADD, vsz(3, TYPE_SHORT),  vsz(1, TYPE_SHORT),  ci(1)); assert_target_op("add         r2w, r1w, 1");
-    si(function, 0, IR_ADD, vsz(3, TYPE_INT),    vsz(1, TYPE_INT),    ci(1)); assert_target_op("add         r2w, r1w, 1");
-    si(function, 0, IR_ADD, vsz(3, TYPE_LONG),   vsz(1, TYPE_LONG),   ci(1)); assert_target_op("add         r2x, r1x, 1");
-    si(function, 0, IR_ADD, vusz(3, TYPE_CHAR),  vusz(1, TYPE_CHAR),  ci(1)); assert_target_op("add         r2w, r1w, 1");
-    si(function, 0, IR_ADD, vusz(3, TYPE_SHORT), vusz(1, TYPE_SHORT), ci(1)); assert_target_op("add         r2w, r1w, 1");
-    si(function, 0, IR_ADD, vusz(3, TYPE_INT),   vusz(1, TYPE_INT),   ci(1)); assert_target_op("add         r2w, r1w, 1");
-    si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(1)); assert_target_op("add         r2x, r1x, 1");
+    si(function, 0, IR_ADD, vsz(3, TYPE_CHAR),   vsz(1, TYPE_CHAR),   ci(1)); assert_target_op("adds        r2w, r1w, 1");
+    si(function, 0, IR_ADD, vsz(3, TYPE_SHORT),  vsz(1, TYPE_SHORT),  ci(1)); assert_target_op("adds        r2w, r1w, 1");
+    si(function, 0, IR_ADD, vsz(3, TYPE_INT),    vsz(1, TYPE_INT),    ci(1)); assert_target_op("adds        r2w, r1w, 1");
+    si(function, 0, IR_ADD, vsz(3, TYPE_LONG),   vsz(1, TYPE_LONG),   ci(1)); assert_target_op("adds        r2x, r1x, 1");
+    si(function, 0, IR_ADD, vusz(3, TYPE_CHAR),  vusz(1, TYPE_CHAR),  ci(1)); assert_target_op("adds        r2w, r1w, 1");
+    si(function, 0, IR_ADD, vusz(3, TYPE_SHORT), vusz(1, TYPE_SHORT), ci(1)); assert_target_op("adds        r2w, r1w, 1");
+    si(function, 0, IR_ADD, vusz(3, TYPE_INT),   vusz(1, TYPE_INT),   ci(1)); assert_target_op("adds        r2w, r1w, 1");
+    si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(1)); assert_target_op("adds        r2x, r1x, 1");
 
     // IR_SUB v1 + v1 + c
-    si(function, 0, IR_SUB, vsz(3, TYPE_CHAR),   vsz(1, TYPE_CHAR),   ci(1)); assert_target_op("sub         r2w, r1w, 1");
-    si(function, 0, IR_SUB, vsz(3, TYPE_SHORT),  vsz(1, TYPE_SHORT),  ci(1)); assert_target_op("sub         r2w, r1w, 1");
-    si(function, 0, IR_SUB, vsz(3, TYPE_INT),    vsz(1, TYPE_INT),    ci(1)); assert_target_op("sub         r2w, r1w, 1");
-    si(function, 0, IR_SUB, vsz(3, TYPE_LONG),   vsz(1, TYPE_LONG),   ci(1)); assert_target_op("sub         r2x, r1x, 1");
-    si(function, 0, IR_SUB, vusz(3, TYPE_CHAR),  vusz(1, TYPE_CHAR),  ci(1)); assert_target_op("sub         r2w, r1w, 1");
-    si(function, 0, IR_SUB, vusz(3, TYPE_SHORT), vusz(1, TYPE_SHORT), ci(1)); assert_target_op("sub         r2w, r1w, 1");
-    si(function, 0, IR_SUB, vusz(3, TYPE_INT),   vusz(1, TYPE_INT),   ci(1)); assert_target_op("sub         r2w, r1w, 1");
-    si(function, 0, IR_SUB, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(1)); assert_target_op("sub         r2x, r1x, 1");
+    si(function, 0, IR_SUB, vsz(3, TYPE_CHAR),   vsz(1, TYPE_CHAR),   ci(1)); assert_target_op("subs        r2w, r1w, 1");
+    si(function, 0, IR_SUB, vsz(3, TYPE_SHORT),  vsz(1, TYPE_SHORT),  ci(1)); assert_target_op("subs        r2w, r1w, 1");
+    si(function, 0, IR_SUB, vsz(3, TYPE_INT),    vsz(1, TYPE_INT),    ci(1)); assert_target_op("subs        r2w, r1w, 1");
+    si(function, 0, IR_SUB, vsz(3, TYPE_LONG),   vsz(1, TYPE_LONG),   ci(1)); assert_target_op("subs        r2x, r1x, 1");
+    si(function, 0, IR_SUB, vusz(3, TYPE_CHAR),  vusz(1, TYPE_CHAR),  ci(1)); assert_target_op("subs        r2w, r1w, 1");
+    si(function, 0, IR_SUB, vusz(3, TYPE_SHORT), vusz(1, TYPE_SHORT), ci(1)); assert_target_op("subs        r2w, r1w, 1");
+    si(function, 0, IR_SUB, vusz(3, TYPE_INT),   vusz(1, TYPE_INT),   ci(1)); assert_target_op("subs        r2w, r1w, 1");
+    si(function, 0, IR_SUB, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(1)); assert_target_op("subs        r2x, r1x, 1");
 
     // Check encodable constants
-    si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(4095));        assert_target_op("add         r2x, r1x, 4095");     // 0xfff
-    si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(4096));        assert_target_op("add         r2x, r1x, 4096");     // 0x001 << 12
-    si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(0x00800000));  assert_target_op("add         r2x, r1x, 8388608");  // 0x800 << 12
-    si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(0x00fff000));  assert_target_op("add         r2x, r1x, 16773120"); // 0xfff << 12
+    si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(4095));        assert_target_op("adds        r2x, r1x, 4095");     // 0xfff
+    si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(4096));        assert_target_op("adds        r2x, r1x, 4096");     // 0x001 << 12
+    si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(0x00800000));  assert_target_op("adds        r2x, r1x, 8388608");  // 0x800 << 12
+    si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  ci(0x00fff000));  assert_target_op("adds        r2x, r1x, 16773120"); // 0xfff << 12
 
     // Not encodable constant, it has to get loaded in a register
     si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  uc(0x00ffffff));

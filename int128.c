@@ -112,16 +112,16 @@ static SplitValue split_value(Function *function, Value *value) {
 
     else if (value->is_constant) {
         // Discard the upper bits, but sign extend if necessary
-        long high_value = value->type->is_unsigned
+        // Use the sign of the original constant, which may
+        // have been dropped during a cast to an int128.
+        long high_value = value->int128_constant_is_unsigned
             ? 0
             : value->int_value < 0 ? -1 : 0;
         split_value.low = new_integral_constant(TYPE_LONG, value->int_value);
         split_value.high = new_integral_constant(TYPE_LONG, high_value);
 
-        if (value->type->is_unsigned) {
-            split_value.low->type->is_unsigned = 1;
-            split_value.high->type->is_unsigned = 1;
-        }
+        split_value.low->type->is_unsigned = value->type->is_unsigned;
+        split_value.high->type->is_unsigned = value->type->is_unsigned;
     }
 
     else {

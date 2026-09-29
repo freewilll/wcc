@@ -193,6 +193,9 @@ Value *cast_constant_value(Value *src, Type *dst_type) {
     else if (dst_type->type == TYPE_INT   &&  dst_type->is_unsigned) dst->int_value = (unsigned int  ) src->int_value;
     else                                                             dst->int_value =                  src->int_value;
 
+    // This is necessary so that the int128 lowering code knows if the constant was originally signed.
+    if (dst_type->type == TYPE_INT128) dst->int128_constant_is_unsigned = src->type->is_unsigned;
+
     return dst;
 }
 

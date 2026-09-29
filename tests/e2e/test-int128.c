@@ -535,6 +535,35 @@ static void test_pointers() {
     ASSERT_INT128(5, 6, s.k, "int128 in struct lookup 2");
 }
 
+static void test_constant_promotions() {
+    __int128 si;
+
+    // Some sanity tests
+    si = 5;
+    ASSERT_INT128(0, 5, si, "constant -> int128 promotion 1");
+    si += 2;
+    ASSERT_INT128(0, 7, si, "constant -> int128 promotion 2");
+
+    // Test assignment from an unsigned integer constant
+    si = 0xffffffffffffffffL;
+    ASSERT_INT128(0, -1, si, "constant -> int128 promotion 5");
+
+    // Test assignment through a cast from an unsigned integer constant
+    si = (__int128) 0xffffffffffffffffL;
+    ASSERT_INT128(0, -1, si, "constant -> int128 promotion 6");
+
+    // Test addition through a cast from an unsigned integer constant
+    si = 7;
+    si += (__int128) 0xffffffffffffffffL;
+    ASSERT_INT128(1, 6, si, "constant -> int128 promotion 3");
+
+    // Test addition with an unsigned integer constant
+    si = 7;
+    si += 0xffffffffffffffffL;
+    ASSERT_INT128(1, 6, si, "constant -> int128 promotion 4");
+
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -556,6 +585,7 @@ int main(int argc, char **argv) {
     test_multiplication();
     test_comparisons();
     test_pointers();
+    test_constant_promotions();
 
     finalize();
 }

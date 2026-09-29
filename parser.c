@@ -1247,11 +1247,14 @@ static Value *integer_type_change(Value *src, Type *type) {
     Value *dst;
 
     if (src->is_constant) {
-        // The target type is always a long and the constant is already represented
-        // as a long in cur_long, so nothing needs doing other than changing the
-        // type.
         dst = dup_value(src);
         dst->type = dup_type(type);
+
+        // This is necessary so that the int128 lowering code
+        // knows if the constant was originally signed.
+        if (dst->type->type == TYPE_INT128)
+            dst->int128_constant_is_unsigned = src->type->is_unsigned;
+
         return dst;
     }
 
@@ -1384,7 +1387,7 @@ static void arithmetic_operation(int operation, Type *dst_type) {
     if (operation == IR_MOD && src2->is_constant && src2->int_value == 0)
         warning("Modulus by zero");
 
-    // In an equality compariosn, swap operands so that the constant is second.
+    // In an equality comparison, swap operands so that the constant is second.
     // Instruction selection doesn't have rules that deal with a constant first operand.
     if (operation == IR_EQ || operation == IR_NE) {
         if (src1->is_constant && !src2->is_constant) {
@@ -1685,9 +1688,13 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
             else if (src_is_int && dst_is_fp)
                 return convert_int_constant_to_floating_point(src, dst_type);
             else if (src_is_int && dst_type->type == TYPE_INT128) {
-                // Convert integer -> int128
+                // Convert integer -> int128.
+
+                // This is necessary so that the int128 lowering code
+                // knows if the constant was originally signed.
                 Value *src2 = dup_value(src);
-                src2->type->type = TYPE_INT128;
+                src2->type = dup_type(dst_type);
+                src2->int128_constant_is_unsigned = src->type->is_unsigned;
                 return src2;
             }
 
@@ -3017,7 +3024,6 @@ static void parse_expression(int level) {
                             push(dst);
                         }
                         else {
-                            // Cast integer constant
                             push(cast_constant_value(v1, dst_type));
                         }
                     }

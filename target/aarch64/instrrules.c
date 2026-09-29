@@ -951,18 +951,19 @@ void define_rules(void) {
     add_pointer_rules();
 
     // Operations
-    // r + r and r - r
     // Use adds and subs to set the carry flag for _int128 operations
+
+    // r + r and r - r
     add_two_operand_rules("adds",  RI1, RI1, RI1, IR_ADD, AARCH64_OP_ADD, 10);
     add_two_operand_rules("adds",  RU1, RU1, RU1, IR_ADD, AARCH64_OP_ADD, 10);
     add_two_operand_rules("subs",  RI1, RI1, RI1, IR_SUB, AARCH64_OP_SUB, 10);
     add_two_operand_rules("subs",  RU1, RU1, RU1, IR_SUB, AARCH64_OP_SUB, 10);
 
     // r + c and r - c where c can be encoded in the instruction
-    add_two_operand_rules("add",  RI1, RI1, CADDSUB, IR_ADD, AARCH64_OP_ADD, 10);
-    add_two_operand_rules("add",  RU1, RU1, CADDSUB, IR_ADD, AARCH64_OP_ADD, 10);
-    add_two_operand_rules("sub",  RI1, RI1, CADDSUB, IR_SUB, AARCH64_OP_SUB, 10);
-    add_two_operand_rules("sub",  RU1, RU1, CADDSUB, IR_SUB, AARCH64_OP_SUB, 10);
+    add_two_operand_rules("adds", RI1, RI1, CADDSUB, IR_ADD, AARCH64_OP_ADD, 10);
+    add_two_operand_rules("adds", RU1, RU1, CADDSUB, IR_ADD, AARCH64_OP_ADD, 10);
+    add_two_operand_rules("subs", RI1, RI1, CADDSUB, IR_SUB, AARCH64_OP_SUB, 10);
+    add_two_operand_rules("subs", RU1, RU1, CADDSUB, IR_SUB, AARCH64_OP_SUB, 10);
 
     add_two_operand_rules("mul",  RI1, RI1, RI1, IR_MUL,  AARCH64_OP_MUL, 30);
     add_two_operand_rules("mul",  RU1, RU1, RU1, IR_MUL,  AARCH64_OP_MUL, 30);
