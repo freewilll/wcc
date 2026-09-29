@@ -13,8 +13,15 @@ endif
 $(BUILD_DIR)/softfloat/%.o: %.c softfloat.h testlib.h
 	${CC} -c $< -o $@ $(CC_OPTS)
 
+# Use gcc to build the tests
+$(BUILD_DIR)/softfloat/testlib.o: testlib.c softfloat.h testlib.h
+	gcc -c $< -o $@ $(CC_OPTS)
+
+$(BUILD_DIR)/softfloat/test_softfloat.o: test_softfloat.c softfloat.h testlib.h
+	gcc -c $< -o $@ $(CC_OPTS)
+
 test_softfloat: $(BUILD_DIR)/softfloat/test_softfloat.o $(OBJECTS_ABS_PATH)
-	${CC} $^ -o $(BUILD_DIR)/softfloat/test_softfloat
+	gcc $^ -o $(BUILD_DIR)/softfloat/test_softfloat
 
 .PHONY: debug
 debug: debug.o $(OBJECTS_ABS_PATH)
