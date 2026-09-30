@@ -398,6 +398,7 @@ static void add_int_bitshift_rules(void) {
     // IR_BSHR, binary left right, for unsigned integers
     add_two_operand_rules("lsr", RI1, RI1, XC, IR_BSHR, AARCH64_OP_LSR, 3); // unsigned r >> c Used by __int128 generated code
     add_two_operand_rules("lsr", RU1, RU1, XC, IR_BSHR, AARCH64_OP_LSR, 3); // unsigned r >> c
+    add_two_operand_rules("lsr", RI1, RI1, XR, IR_BSHR, AARCH64_OP_LSR, 3); // unsigned r >> r Used by __int128 generated code
     add_two_operand_rules("lsr", RU1, RU1, XR, IR_BSHR, AARCH64_OP_LSR, 3); // unsigned r >> r
 }
 

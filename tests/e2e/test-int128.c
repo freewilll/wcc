@@ -153,7 +153,7 @@ static void test_truncations(void) {
     assert_int(-1, c2, "conversion of -1 int128 to char in stack");
 }
 
-static void test_bit_shifts(void) {
+static void test_bit_shifts_with_constant(void) {
     __int128 i;
 
     // Right with constant
@@ -218,6 +218,75 @@ static void test_bit_shifts(void) {
     i = (__int128) 1;
     __int128 r = 1;
     ASSERT_INT128(0, 1L << 63, r << 63, "1 in register << 63");
+}
+
+static void test_bit_shifts_with_register(void) {
+    __int128 i;
+    int c;
+
+    // Right with register
+    i = (__int128) 1 << 96;
+    c =  0; ASSERT_INT128(1L << 32, 0,  i >> c, "1 << 96 >> 0  in register");
+    c =  1; ASSERT_INT128(1L << 31, 0,  i >> c, "1 << 96 >> 1  in register");
+    c = 32; ASSERT_INT128(1L << 0,  0,  i >> c, "1 << 96 >> 32 in register");
+    c = 33; ASSERT_INT128(0, 1L <<  63, i >> c, "1 << 96 >> 33 in register");
+    c = 63; ASSERT_INT128(0, 1L <<  33, i >> c, "1 << 96 >> 63 in register");
+    c = 64; ASSERT_INT128(0, 1L <<  32, i >> c, "1 << 96 >> 64 in register");
+    c = 65; ASSERT_INT128(0, 1L <<  31, i >> c, "1 << 96 >> 65 in register");
+    c = 66; ASSERT_INT128(0, 1L <<  30, i >> c, "1 << 96 >> 66 in register");
+    c = 70; ASSERT_INT128(0, 1L <<  26, i >> c, "1 << 96 >> 70 in register");
+    c = 74; ASSERT_INT128(0, 1L <<  22, i >> c, "1 << 96 >> 74 in register");
+    c = 84; ASSERT_INT128(0, 1L <<  12, i >> c, "1 << 96 >> 84 in register");
+    c = 94; ASSERT_INT128(0, 1L <<  2,  i >> c, "1 << 96 >> 94 in register");
+    c = 95; ASSERT_INT128(0, 1L <<  1,  i >> c, "1 << 96 >> 96 in register");
+    c = 96; ASSERT_INT128(0, 1L <<  0,  i >> c, "1 << 96 >> 96 in register");
+
+    i = -16;
+    c = 0; ASSERT_INT128(-1, -16, i >> c, "-16 >> 0 in register");
+    c = 1; ASSERT_INT128(-1, -8,  i >> c, "-16 >> 1 in register");
+    c = 2; ASSERT_INT128(-1, -4,  i >> c, "-16 >> 2 in register");
+
+    i = ((__int128) (-2) << 64);
+    c = 0; ASSERT_INT128(-2, 0,         i >> c, "-big >> 0 In register"); // 11...110 - 00000...00
+    c = 1; ASSERT_INT128(-1, 0,         i >> c, "-big >> 1 In register"); // 11...111 - 00000...00
+    c = 2; ASSERT_INT128(-1, 1L << 63,  i >> c, "-big >> 2 In register"); // 11...111 - 10000...00
+    c = 3; ASSERT_INT128(-1, 3L << 62,  i >> c, "-big >> 3 In register"); // 11...111 - 11000...00
+    c = 4; ASSERT_INT128(-1, 7L << 61,  i >> c, "-big >> 4 In register"); // 11...111 - 11100...00
+
+    // Unsigned right with register
+    unsigned __int128 ui = ((__int128) 3 << 126);
+    c =  0; ASSERT_INT128(3L << 62, 0,  ui >> c, "unsigned big >> 0  in register");  // 11000...00 - 0000..00
+    c =  1; ASSERT_INT128(3L << 61, 0,  ui >> c, "unsigned big >> 1  in register");  // 01100...00 - 0000..00
+    c = 62; ASSERT_INT128(3,        0,  ui >> c, "unsigned big >> 62 in register"); // 0000..0011 - 0000..00
+    c = 63; ASSERT_INT128(1, 1L <<  63, ui >> c, "unsigned big >> 63 in register"); // 0000..0001 - 1000..00
+    c = 64; ASSERT_INT128(0, 3L <<  62, ui >> c, "unsigned big >> 64 in register"); // 0000..0000 - 1100..00
+    c = 65; ASSERT_INT128(0, 3L <<  61, ui >> c, "unsigned big >> 65 in register"); // 0000..0000 - 0110..00
+
+    // Left with register
+    i  = (__int128) 1;
+    c =  0; ASSERT_INT128(0, 1L <<  0,  i << c, "1 << 0  in register");
+    c =  1; ASSERT_INT128(0, 1L <<  1,  i << c, "1 << 1  in register");
+    c = 31; ASSERT_INT128(0, 1L <<  31, i << c, "1 << 31 in register");
+    c = 32; ASSERT_INT128(0, 1L <<  32, i << c, "1 << 32 in register");
+    c = 63; ASSERT_INT128(0, 1L <<  63, i << c, "1 << 63 in register");
+    c = 64; ASSERT_INT128(1L << 0,  0,  i << c, "1 << 64 in register");
+    c = 65; ASSERT_INT128(1L << 1,  0,  i << c, "1 << 65 in register");
+    c = 66; ASSERT_INT128(1L << 2,  0,  i << c, "1 << 66 in register");
+    c = 70; ASSERT_INT128(1L << 6,  0,  i << c, "1 << 70 in register");
+    c = 74; ASSERT_INT128(1L << 10, 0,  i << c, "1 << 74 in register");
+    c = 84; ASSERT_INT128(1L << 20, 0,  i << c, "1 << 84 in register");
+    c = 94; ASSERT_INT128(1L << 30, 0,  i << c, "1 << 94 in register");
+    c = 95; ASSERT_INT128(1L << 31, 0,  i << c, "1 << 96 in register");
+    c = 96; ASSERT_INT128(1L << 32, 0,  i << c, "1 << 96 in register");
+
+    i = 0xf1f2f3f4;
+    c = 48; ASSERT_INT128(0x000000000000f1f2L, 0xf3f4000000000000L, i << c, "0xf1f2f3f4 << 48 in register");
+
+    // Left with register. One case is enough since the implementation is the same as the constant case
+    i = (__int128) 1;
+    __int128 r = 1;
+    c = 63;
+    ASSERT_INT128(0, 1L << 63, r << c, "1 in register << 63 in register");
 }
 
 static void test_binary_or(void) {
@@ -576,7 +645,8 @@ int main(int argc, char **argv) {
     test_stack_assignment_from_variable();
     test_stack_allocation();
     test_truncations();
-    test_bit_shifts();
+    test_bit_shifts_with_constant();
+    test_bit_shifts_with_register();
     test_binary_or();
     test_binary_and();
     test_binary_xor();

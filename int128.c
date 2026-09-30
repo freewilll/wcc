@@ -25,6 +25,14 @@ static int new_vreg(Function *function) {
     return function->vreg_count;
 }
 
+// Allocate a new vreg of type int
+static Value *new_int_vreg(Function *function) {
+    Value *value = new_value();
+    value->type = new_type(TYPE_INT);
+    value->vreg = new_vreg(function);
+    return value;
+}
+
 // Allocate a new vreg of type long
 static Value *new_long_vreg(Function *function) {
     Value *value = new_value();
@@ -301,11 +309,9 @@ static Tac *transform_indirect(Function *function, Tac *tac) {
     return tac;
 }
 
-// Generic function to make an IR with left or right bitshifts, arithmetic and binary.
-static Tac *transform_bitshift(Function *function, Tac *tac, int operation) {
-    int is_left = operation == IR_BSHL;
-
+static int make_opposite_shift_direction(int operation) {
     int opposite_operation;
+
     switch (operation) {
         case IR_BSHL:
             opposite_operation = IR_BSHR;
@@ -320,84 +326,238 @@ static Tac *transform_bitshift(Function *function, Tac *tac, int operation) {
             panic("Unhandled bitshift operation");
     }
 
-    // Handle a bit shift from a constant or register by a constant amount
-    if (VALUE_IS_INT128_VREG(tac->dst) && (tac->src1->is_constant || VALUE_IS_INT128_VREG(tac->src1)) && tac->src2->is_constant) {
-        SplitValue split_dst = split_value(function, tac->dst);
-        SplitValue split_src1 = split_value(function, tac->src1);
+    return opposite_operation;
+}
 
-        Value *start_dst_value  = is_left ? split_dst.low   : split_dst.high;
-        Value *end_dst_value    = is_left ? split_dst.high  : split_dst.low;
-        Value *start_src1_value = is_left ? split_src1.low  : split_src1.high;
-        Value *end_src1_value   = is_left ? split_src1.high : split_src1.low;
+// Generic function to make an IR with constant left or right bitshifts, arithmetic and binary.
+static Tac *transform_constant_bitshift(Function *function, Tac *tac, int operation) {
+    int is_left = operation == IR_BSHL;
 
-        if (tac->src2->int_value == 0) {
-            // A zero shift is equivalent to a straight copy
-            make_instruction_a_nop(tac);
+    int opposite_operation = make_opposite_shift_direction(operation);
 
-            tac = new_tac_after(tac, IR_MOVE, split_dst.low, split_src1.low, NULL);
-            tac = new_tac_after(tac, IR_MOVE, split_dst.high, split_src1.high, NULL);
+    SplitValue split_dst = split_value(function, tac->dst);
+    SplitValue split_src1 = split_value(function, tac->src1);
 
-            return tac;
-        }
+    Value *start_dst_value  = is_left ? split_dst.low   : split_dst.high;
+    Value *end_dst_value    = is_left ? split_dst.high  : split_dst.low;
+    Value *start_src1_value = is_left ? split_src1.low  : split_src1.high;
+    Value *end_src1_value   = is_left ? split_src1.high : split_src1.low;
 
-        if (tac->src2->int_value < 64) {
-            // Shift by less than 64 bits. This needs doing in a couple of steps,
-            // since there are some bits that travel from low to/from high.
+    if (tac->src2->int_value == 0) {
+        // A zero shift is equivalent to a straight copy
+        make_instruction_a_nop(tac);
 
-            Tac *top_tac = tac;
+        tac = new_tac_after(tac, IR_MOVE, split_dst.low, split_src1.low, NULL);
+        tac = new_tac_after(tac, IR_MOVE, split_dst.high, split_src1.high, NULL);
 
-            int count = top_tac->src2->int_value;
-
-            Value *temp = new_long_vreg_from_value(function, top_tac->src1);
-            Value *transition_bits = new_long_vreg_from_value(function, top_tac->src1);
-            Value *shifted = new_long_vreg_from_value(function, top_tac->src1);
-
-            make_instruction_a_nop(top_tac);
-
-            // Make a copy of the low bits
-            tac = new_tac_after(tac, IR_MOVE, temp, start_src1_value, NULL);
-
-            // Shift the transitional bits to the left, so they are ready to be orred onto the vacated high bits
-            tac = new_tac_after(tac, opposite_operation, transition_bits, temp, new_integral_constant(TYPE_INT, 64 - count));
-
-            // Shift the low bits to the left
-            tac = new_tac_after(tac, operation, start_dst_value, start_src1_value, new_integral_constant(TYPE_INT, count));
-
-            // Shift the high bits to the left into a temporary high vreg
-            tac = new_tac_after(tac, operation, shifted, end_src1_value, new_integral_constant(TYPE_INT, count));
-
-            // Or the transitional bits onto the temporary high vreg into the dst
-            tac = new_tac_after(tac, IR_BOR, end_dst_value, shifted, transition_bits);
-
-            return tac;
-        }
-
-        if (tac->src2->int_value == 64) {
-            // Move the start byte over to end byte
-
-            tac->operation.id = IR_MOVE;
-            tac->dst = end_dst_value;
-            tac->src1 = start_src1_value;
-            tac->src2 = NULL;
-
-            return new_tac_after(tac, IR_MOVE, start_dst_value, new_integral_constant(TYPE_LONG, 0), NULL);
-        }
-
-        if (tac->src2->int_value >= 64) {
-            // Shift left by more than 64 bits. The entire low byte is obliterated.
-            // Shift the low bytes by 64 bits less.
-
-            tac->dst = end_dst_value;
-            tac->src1 = start_src1_value;
-            tac->src2->int_value -= 64;
-
-            return new_tac_after(tac, IR_MOVE, start_dst_value, new_integral_constant(TYPE_LONG, 0), NULL);
-        }
+        return tac;
     }
 
-    bail_on_unimplemented_instruction(tac, "int128 bit shift not implemented for:");
+    if (tac->src2->int_value < 64) {
+        // Shift by less than 64 bits. This needs doing in a couple of steps,
+        // since there are some bits that travel from low to/from high.
+
+        Tac *top_tac = tac;
+
+        int count = top_tac->src2->int_value;
+
+        Value *temp = new_long_vreg_from_value(function, top_tac->src1);
+        Value *transition_bits = new_long_vreg_from_value(function, top_tac->src1);
+        Value *shifted = new_long_vreg_from_value(function, top_tac->src1);
+
+        make_instruction_a_nop(top_tac);
+
+        // Make a copy of the low bits
+        tac = new_tac_after(tac, IR_MOVE, temp, start_src1_value, NULL);
+
+        // Shift the transitional bits to the left, so they are ready to be orred onto the vacated high bits
+        tac = new_tac_after(tac, opposite_operation, transition_bits, temp, new_integral_constant(TYPE_INT, 64 - count));
+
+        // Shift the low bits to the left
+        tac = new_tac_after(tac, operation, start_dst_value, start_src1_value, new_integral_constant(TYPE_INT, count));
+
+        // Shift the high bits to the left into a temporary high vreg
+        tac = new_tac_after(tac, operation, shifted, end_src1_value, new_integral_constant(TYPE_INT, count));
+
+        // Or the transitional bits onto the temporary high vreg into the dst
+        tac = new_tac_after(tac, IR_BOR, end_dst_value, shifted, transition_bits);
+
+        return tac;
+    }
+
+    if (tac->src2->int_value == 64) {
+        // Move the start byte over to end byte
+
+        tac->operation.id = IR_MOVE;
+        tac->dst = end_dst_value;
+        tac->src1 = start_src1_value;
+        tac->src2 = NULL;
+
+        return new_tac_after(tac, IR_MOVE, start_dst_value, new_integral_constant(TYPE_LONG, 0), NULL);
+    }
+
+    if (tac->src2->int_value >= 64) {
+        // Shift left by more than 64 bits. The entire low byte is obliterated.
+        // Shift the low bytes by 64 bits less.
+
+        tac->dst = end_dst_value;
+        tac->src1 = start_src1_value;
+        tac->src2->int_value -= 64;
+
+        return new_tac_after(tac, IR_MOVE, start_dst_value, new_integral_constant(TYPE_LONG, 0), NULL);
+    }
 
     return tac;
+}
+
+// Generic function to make an IR with left or right bitshifts in a register, arithmetic and binary.
+// Shift amounts < 0 or >= 64 are are undefined behavior and not handled here.
+// This function implements the same algorithm as transform_constant_bitshift, except
+// it's all done in runtime.
+static Tac *transform_variable_bitshift(Function *function, Tac *tac, int operation) {
+    Tac *top_tac = tac;
+
+    int is_left = operation == IR_BSHL;
+
+    int opposite_operation = make_opposite_shift_direction(operation);
+
+    SplitValue split_dst = split_value(function, tac->dst);
+    SplitValue split_src1 = split_value(function, tac->src1);
+
+    Value *start_dst_value  = is_left ? split_dst.low   : split_dst.high;
+    Value *end_dst_value    = is_left ? split_dst.high  : split_dst.low;
+    Value *start_src1_value = is_left ? split_src1.low  : split_src1.high;
+    Value *end_src1_value   = is_left ? split_src1.high : split_src1.low;
+
+    Value *label_not_zero = new_label_dst();
+    Value *label_ge_64 = new_label_dst();
+    Value *label_gt_64 = new_label_dst();
+    Value *label_done = new_label_dst();
+
+    Value *shift_value = dup_value(tac->src2);
+    shift_value->type->type = TYPE_INT;
+
+    // See if shift amount == 0
+    Value *cmp_to_zero_value = new_int_vreg(function);
+
+    tac = new_tac_after(tac, IR_EQ, cmp_to_zero_value, shift_value, new_integral_constant(TYPE_INT, 0));
+    tac = new_tac_after(tac, IR_JZ, NULL, cmp_to_zero_value, label_not_zero);
+
+    // Shift amount == 0
+    // ----------------------------------------------------------------
+
+    // A zero shift is equivalent to a straight copy
+    tac = new_tac_after(tac, IR_MOVE, split_dst.low, split_src1.low, NULL);
+    tac = new_tac_after(tac, IR_MOVE, split_dst.high, split_src1.high, NULL);
+    tac = new_tac_after(tac, IR_JMP, NULL, label_done, NULL);
+
+    // Shift amount > 0
+    tac = new_tac_after(tac, IR_NOP, 0, 0, 0);
+    tac->label = label_not_zero->label;
+
+    Value *cmp_lt_64_value = new_int_vreg(function);
+    tac = new_tac_after(tac, IR_LT, cmp_lt_64_value, shift_value, new_integral_constant(TYPE_INT, 64));
+    tac = new_tac_after(tac, IR_JZ, NULL, cmp_lt_64_value, label_ge_64);
+
+    // Shift amount < 64
+    // ----------------------------------------------------------------
+
+    // Shift by less than 64 bits. This needs doing in a couple of steps,
+    // since there are some bits that travel from low to/from high.
+
+    Value *temp = new_long_vreg_from_value(function, top_tac->src1);
+    Value *transition_bits = new_long_vreg_from_value(function, top_tac->src1);
+    Value *shifted = new_long_vreg_from_value(function, top_tac->src1);
+
+    // Make a copy of the low bits
+    tac = new_tac_after(tac, IR_MOVE, temp, start_src1_value, NULL);
+
+    // Make 64-shift_value
+    Value *flipped_shift_value = dup_value(shift_value);
+    flipped_shift_value->vreg = ++function->vreg_count;
+
+    Value *v64_value = new_value();
+    v64_value->type = new_type(TYPE_INT);
+    v64_value->vreg = ++function->vreg_count;
+    tac = new_tac_after(tac, IR_MOVE, v64_value, new_integral_constant(TYPE_INT, 64), NULL);
+    tac = new_tac_after(tac, IR_SUB, flipped_shift_value, v64_value, shift_value);
+
+    // Shift the transitional bits to the left, so they are ready to be orred onto the vacated high bits
+    tac = new_tac_after(tac, opposite_operation, transition_bits, temp, flipped_shift_value);
+
+    // Shift the low bits to the left
+    tac = new_tac_after(tac, operation, start_dst_value, start_src1_value, shift_value);
+
+    // Shift the high bits to the left into a temporary high vreg
+    tac = new_tac_after(tac, operation, shifted, end_src1_value, shift_value);
+
+    // Or the transitional bits onto the temporary high vreg into the dst
+    tac = new_tac_after(tac, IR_BOR, end_dst_value, shifted, transition_bits);
+
+    // Done with handling shift amount < 64
+    tac = new_tac_after(tac, IR_JMP, NULL, label_done, NULL);
+
+    // Shift amount >= 64
+    // ----------------------------------------------------------------
+
+    tac = new_tac_after(tac, IR_NOP, 0, 0, 0);
+    tac->label = label_ge_64->label;
+
+    Value *cmp_gt_64_value = new_int_vreg(function);
+    tac = new_tac_after(tac, IR_GT, cmp_gt_64_value, shift_value, new_integral_constant(TYPE_INT, 64));
+    tac = new_tac_after(tac, IR_JNZ, NULL, cmp_gt_64_value, label_gt_64);
+
+    // Shift amount == 64
+    // ----------------------------------------------------------------
+
+    // Move the start byte over to end byte
+
+    tac = new_tac_after(tac, IR_MOVE, end_dst_value, start_src1_value, NULL);
+    tac = new_tac_after(tac, IR_MOVE, start_dst_value, new_integral_constant(TYPE_LONG, 0), NULL);
+    tac = new_tac_after(tac, IR_JMP, NULL, label_done, NULL);
+
+    // Shift amount > 64
+    // ----------------------------------------------------------------
+
+    // Shift left by more than 64 bits. The entire low byte is obliterated.
+    // Shift the low bytes by 64 bits less.
+
+    tac = new_tac_after(tac, IR_NOP, 0, 0, 0);
+    tac->label = label_gt_64->label;
+
+    Value *shift_value_minus_64 = new_value();
+    shift_value_minus_64->type = new_type(TYPE_INT);
+    shift_value_minus_64->vreg = ++function->vreg_count;
+    tac = new_tac_after(tac, IR_SUB, shift_value_minus_64, shift_value, new_integral_constant(TYPE_INT, 64));
+    tac = new_tac_after(tac, operation, end_dst_value, start_src1_value, shift_value_minus_64);
+    tac = new_tac_after(tac, IR_MOVE, start_dst_value, new_integral_constant(TYPE_LONG, 0), NULL);
+
+    // Done
+    // ----------------------------------------------------------------
+
+    tac = new_tac_after(tac, IR_NOP, 0, 0, 0);
+    tac->label = label_done->label;
+
+    make_instruction_a_nop(top_tac);
+
+    return tac;
+
+}
+
+// Generic function to make an IR with left or right bitshifts, arithmetic and binary.
+static Tac *transform_bitshift(Function *function, Tac *tac, int operation) {
+    if (!VALUE_IS_INT128_VREG(tac->dst))
+        bail_on_unimplemented_instruction(tac, "int128 bit shift not implemented for non-vreg dsts:");
+
+    // Handle a bit shift from a constant or register by a constant amount
+    if ((tac->src1->is_constant || VALUE_IS_INT128_VREG(tac->src1)) && tac->src2->is_constant) {
+        return transform_constant_bitshift(function, tac, operation);
+    }
+
+    if (tac->dst->vreg && tac->src1->vreg && tac->src2->vreg)
+        return transform_variable_bitshift(function, tac, operation);
+
+    bail_on_unimplemented_instruction(tac, "int128 bit shift not implemented for:");
 }
 
 // Transform and, or and xor
