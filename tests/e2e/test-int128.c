@@ -602,6 +602,15 @@ static void test_pointers() {
     ASSERT_INT128(1, 2, s.i, "int128 in struct lookup 0");
     ASSERT_INT128(3, 4, s.j, "int128 in struct lookup 1");
     ASSERT_INT128(5, 6, s.k, "int128 in struct lookup 2");
+
+    // Writes to a pointer
+    *pi = (__int128) 1;            ASSERT_INT128(0,        1,        i, "Write to pointer in register 1 << 0");
+    *pi = (__int128) 1 << 32;      ASSERT_INT128(0,        1L << 32, i, "Write to pointer in register 1 << 32");
+    *pi = (__int128) 1 << 63;      ASSERT_INT128(0,        1L << 63, i, "Write to pointer in register 1 << 63");
+    *pi = (__int128) 1 << 64;      ASSERT_INT128(1,        0,        i, "Write to pointer in register 1 << 64");
+    *pi = (__int128) 1 << 96;      ASSERT_INT128(1L << 32, 0,        i, "Write to pointer in register 1 << 96");
+    *pi = (__int128) 1 << 127;     ASSERT_INT128(1L << 63, 0,        i, "Write to pointer in register 1 << 127");
+    *pi = (__int128) 1 << 127 | 1; ASSERT_INT128(1L << 63, 1,        i, "Write to pointer in register 1 << 127 | 1");
 }
 
 static void test_constant_promotions() {

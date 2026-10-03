@@ -309,6 +309,23 @@ static Tac *transform_indirect(Function *function, Tac *tac) {
     return tac;
 }
 
+static Tac *transform_move_to_ptr(Function *function, Tac *tac) {
+    Value *src1 = tac->src1;
+    SplitValue split_src2 = split_value(function, tac->src2);
+
+    // Nuke the current TAC for convenience
+    make_instruction_a_nop(tac);
+
+    Value *src1_low = src1;
+    Value *src1_high = dup_value(src1);
+    src1_high->offset = 8;
+
+    tac = new_tac_after(tac, IR_MOVE_TO_PTR, NULL, src1_low, split_src2.low);
+    tac = new_tac_after(tac, IR_MOVE_TO_PTR, NULL, src1_high, split_src2.high);
+
+    return tac;
+}
+
 static int make_opposite_shift_direction(int operation) {
     int opposite_operation;
 
@@ -748,6 +765,9 @@ void transform_int128_instructions(Function *function) {
                 break;
             case IR_INDIRECT:
                 tac = transform_indirect(function, tac);
+                break;
+            case IR_MOVE_TO_PTR:
+                tac = transform_move_to_ptr(function, tac);
                 break;
             case IR_ARG:
             case IR_CALL:
