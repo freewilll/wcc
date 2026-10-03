@@ -9,6 +9,7 @@ typedef struct split_value {
 
 #define VALUE_IS_INT128(value) (value && value->type && value->type->type == TYPE_INT128)
 #define VALUE_IS_INT128_VREG(value) (value && value->vreg && value->type && value->type->type  == TYPE_INT128)
+#define VALUE_IS_INT128_CONSTANT(value) (value && value->is_constant && value->type && value->type->type  == TYPE_INT128)
 #define TAC_IS_INT128(tac) (VALUE_IS_INT128(tac->dst) || VALUE_IS_INT128(tac->src1) || VALUE_IS_INT128(tac->src2))
 
 // Lots of things have not been implemented. Print the failing instruction and fail hard.
@@ -61,33 +62,42 @@ static SplitVreg* new_split_vreg(Function *function) {
 }
 
 // Split one 128-bit vreg into two, if not already done and add to the map
-static int map_one_vreg(Function *function, int vreg) {
-    if (function->int128_register_mappings[vreg]) return 0;
+static void map_one_vreg(Function *function, int vreg) {
+    if (function->int128_register_mappings[vreg]) return;
 
     SplitVreg *split_vreg = new_split_vreg(function);
     function->int128_register_mappings[vreg] = split_vreg;
     if (debug_int128)
         printf("  int128 vreg %3d -> %3d / %3d\n", vreg, split_vreg->low, split_vreg->high);
-
-    return 1;
 }
 
 // For each 128-bit regsiter of type INT_128, allocate two registers and add to the map
-static int map_int128_registers(Function *function) {
+static void map_int128_registers(Function *function) {
     if (debug_int128) printf("Mapping vregs....\n");
 
     function->int128_register_mappings_count = function->vreg_count;
     // Allocate enough space in the worst case of all existing vregs needing a split.
     function->int128_register_mappings = wcalloc(function->int128_register_mappings_count + 1, sizeof(SplitVreg *));
 
-    int count = 0;
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (VALUE_IS_INT128_VREG(tac->dst )) count += map_one_vreg(function, tac->dst->vreg);
-        if (VALUE_IS_INT128_VREG(tac->src1)) count += map_one_vreg(function, tac->src1->vreg);
-        if (VALUE_IS_INT128_VREG(tac->src2)) count += map_one_vreg(function, tac->src2->vreg);
+        if (VALUE_IS_INT128_VREG(tac->dst )) map_one_vreg(function, tac->dst->vreg);
+        if (VALUE_IS_INT128_VREG(tac->src1)) map_one_vreg(function, tac->src1->vreg);
+        if (VALUE_IS_INT128_VREG(tac->src2)) map_one_vreg(function, tac->src2->vreg);
     }
+}
 
-    return count;
+// Allocate a vreg and make a split mapping.
+// This is a bit clunky since it reallocs memory, which is inefficient.
+static int allocate_and_map_a_new_int128_vreg(Function *function) {
+    int vreg = ++function->vreg_count;
+    int old_int128_register_mappings_count = function->int128_register_mappings_count;
+    function->int128_register_mappings_count = function->vreg_count;
+    function->int128_register_mappings = wrealloc(function->int128_register_mappings, (function->int128_register_mappings_count + 1) * sizeof(SplitVreg *));
+    for (int i = old_int128_register_mappings_count + 1; i <= function->int128_register_mappings_count; i++ )
+        function->int128_register_mappings[i] = 0;
+    map_one_vreg(function, vreg);
+
+    return vreg;
 }
 
 // Split a 128-bit value into two 64-bit long values
@@ -571,6 +581,18 @@ static Tac *transform_bitshift(Function *function, Tac *tac, int operation) {
         return transform_constant_bitshift(function, tac, operation);
     }
 
+    if (VALUE_IS_INT128_CONSTANT(tac->src1)) {
+        // Move the constant into a register and fall through
+        Value *src1_in_register = dup_value(tac->src1);
+        src1_in_register->is_constant = 0;
+        src1_in_register->vreg = allocate_and_map_a_new_int128_vreg(function);
+        tac = new_tac_before(tac, IR_MOVE, src1_in_register, tac->src1, NULL, 1);
+        tac->next->src1 = src1_in_register;
+        tac = split_instruction(function, tac);
+        tac = tac->next;
+    }
+
+    // Handle a bit shift from a register by an amout in a register
     if (tac->dst->vreg && tac->src1->vreg && tac->src2->vreg)
         return transform_variable_bitshift(function, tac, operation);
 

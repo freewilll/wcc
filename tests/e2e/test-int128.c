@@ -153,7 +153,7 @@ static void test_truncations(void) {
     assert_int(-1, c2, "conversion of -1 int128 to char in stack");
 }
 
-static void test_bit_shifts_with_constant(void) {
+static void test_bit_shifts_with_register_and_constant(void_and_register) {
     __int128 i;
 
     // Right with constant
@@ -220,7 +220,7 @@ static void test_bit_shifts_with_constant(void) {
     ASSERT_INT128(0, 1L << 63, r << 63, "1 in register << 63");
 }
 
-static void test_bit_shifts_with_register(void) {
+static void test_bit_shifts_with_register_and_register(void_and_register) {
     __int128 i;
     int c;
 
@@ -287,6 +287,15 @@ static void test_bit_shifts_with_register(void) {
     __int128 r = 1;
     c = 63;
     ASSERT_INT128(0, 1L << 63, r << c, "1 in register << 63 in register");
+}
+
+// This test isn't exhaustive, since the most of it is already handled by the above tests.
+static void test_bit_shifts_with_constant_and_register(void_and_register) {
+    __uint128_t ui;
+    int c;
+
+    c = 1;  ui = ((__uint128_t) 1) << c; ASSERT_INT128(0,2, ui, "Constant (int128) 1 << 1  in register");
+    c = 65; ui = ((__uint128_t) 1) << c; ASSERT_INT128(2,0, ui, "Constant (int128) 1 << 65 in register");
 }
 
 static void test_binary_or(void) {
@@ -654,8 +663,9 @@ int main(int argc, char **argv) {
     test_stack_assignment_from_variable();
     test_stack_allocation();
     test_truncations();
-    test_bit_shifts_with_constant();
-    test_bit_shifts_with_register();
+    test_bit_shifts_with_register_and_constant();
+    test_bit_shifts_with_register_and_register();
+    test_bit_shifts_with_constant_and_register();
     test_binary_or();
     test_binary_and();
     test_binary_xor();
