@@ -9,6 +9,8 @@ static int cur_function_stack_space_for_x29_x30;        // Amount of stack space
 static int function_call_args_stack_size;               // The size of the argument stack for the current function
 static int cur_function_can_have_function_param_in_stack;    // Does the current function have any params in the stack
 
+char *data_keywords[] = {NULL, "byte ", "hword", "word ", "xword"};
+
 static void append_register_name(char *buffer, int preg, int size) {
     if (preg >= REG_R00 && preg <= REG_R30) {
         *buffer++ = size_to_aarch64_integer_register_size(size);
@@ -579,11 +581,6 @@ static void output_function_body_code(Symbol *symbol) {
             output_aarch64_operation(tac, function_pc);
         }
     }
-}
-
-// Output data for a defined object symbol
-void output_defined_object_symbol(Symbol *symbol) {
-    panic("TODO aarch64 output_defined_object_symbol for %s\n", symbol->identifier);
 }
 
 static void output_floating_point_literals(void) {

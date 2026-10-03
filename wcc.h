@@ -1532,6 +1532,7 @@ void remove_nops(Function *function);
 int function_is_main(Function *function);
 int open_output_file(char *input_filename, char *output_filename);
 void output_object_symbols(void);
+void output_defined_object_symbol(Symbol *symbol);
 SizedSavedRegisters *make_saved_registers(Function *function, int preg_class);
 void free_sized_saved_registers(SizedSavedRegisters *ssr);
 void check_floating_point_literal_max(void);
@@ -1629,6 +1630,8 @@ extern int physical_fp_register_count;
 extern int total_function_stack_size_alignment; // The amount to align the total allocated stack for a function
 
 extern int long_doubles_are_in_the_stack;
+
+extern char *data_keywords[]; // Output keywords for global symbol definitions with data
 
 char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);

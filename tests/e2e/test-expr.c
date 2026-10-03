@@ -12,7 +12,6 @@ int verbose;
 int passes;
 int failures;
 
-
 int gcvi, gcvj;
 unsigned int gcvui, gcvuj;
 

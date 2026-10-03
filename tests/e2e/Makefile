@@ -55,6 +55,7 @@ WCC_TESTS=\
 	switch \
 	character-and-string-literals \
 	varargs \
+	initializers \
 	int128
 endif
 

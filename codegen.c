@@ -187,6 +187,72 @@ void output_object_symbols(void) {
     }
 }
 
+// Output data for a defined object symbol
+void output_defined_object_symbol(Symbol *symbol) {
+    if (!symbol->initializers) panic("Expected initializers for a symbol with definition status defined");
+
+    int size = get_type_size(symbol->type);
+    if (symbol->linkage == LINKAGE_EXTERNAL)
+        fprintf(output_file, "    .globl   %s\n", symbol->global_identifier);
+
+    if (elf_section != SEC_DATA) { fprintf(output_file, "    .data\n"); elf_section = SEC_DATA; }
+
+    fprintf(output_file, "    .align   %d\n", get_type_alignment(symbol->type));
+    fprintf(output_file, "    .type    %s, @object\n", symbol->global_identifier);
+    fprintf(output_file, "    .size    %s, %d\n", symbol->global_identifier, size);
+    fprintf(output_file, "%s:\n", symbol->global_identifier);
+
+    for (int i = 0; i < symbol->initializers->length; i++) {
+        Initializer *in = (Initializer *) symbol->initializers->elements[i];
+
+        if (in->is_address_of || in->symbol) {
+            if (in->address_of_offset)
+                fprintf(output_file,"    .%s   %s + %d\n", data_keywords[4], in->symbol->global_identifier, in->address_of_offset);
+            else
+                fprintf(output_file,"    .%s   %s\n", data_keywords[4], in->symbol->global_identifier);
+            size -= 8;
+        }
+        else if (in->is_string_literal) {
+            if (in->address_of_offset)
+                fprintf(output_file,"    .%s   .LS%d + %d\n", data_keywords[4], in->string_literal_index, in->address_of_offset);
+            else
+                fprintf(output_file,"    .%s   .LS%d\n", data_keywords[4], in->string_literal_index);
+            size -= 8;
+        }
+        else {
+            if (!in->data) {
+                if (in->size < 0)
+                    panic("Got negative .zero %d for the intializer for %s", in->size, symbol->identifier);
+                fprintf(output_file,"    .zero    %d\n", in->size);
+            }
+            else if (in->size == 1) fprintf(output_file, "    .%s   %d\n",  data_keywords[1], *((char *)  in->data));
+            else if (in->size == 2) fprintf(output_file, "    .%s   %d\n",  data_keywords[2], *((short *) in->data));
+            else if (in->size == 4) fprintf(output_file, "    .%s   %d\n",  data_keywords[3], *((int *)   in->data));
+            else if (in->size == 8) fprintf(output_file, "    .%s   %ld\n", data_keywords[4], *((long *)  in->data));
+            else if (in->is_int128) {
+                // int128
+                fprintf(output_file, "    .%s   %ld\n", data_keywords[4], ((long *) in->data)[0]);
+                fprintf(output_file, "    .%s   %ld\n", data_keywords[4], ((long *) in->data)[1]);
+            }
+            else if (in->size == 16) {
+                // Long double
+                fprintf(output_file, "    .%s  %d\n", data_keywords[3], (((int *) in->data))[0]);
+                fprintf(output_file, "    .%s  %d\n", data_keywords[3], (((int *) in->data))[1]);
+                fprintf(output_file, "    .%s  %d\n", data_keywords[3], (((int *) in->data))[2] & 0xffff);
+                fprintf(output_file, "    .%s  0\n",  data_keywords[3]);
+            }
+            else panic("Unknown initializer size=%d data=%p\n", in->size, in->data);
+            size -= in->size;
+        }
+    }
+
+    // Add padding for structs that have padding at the end
+    if (size < 0)
+        panic("Got negative .zero padding %d for final padding", size);
+
+    if (size) fprintf(output_file,"    .zero    %d\n", size);
+}
+
 #define ADD_SAVED_REGISTER(v) \
     if (v && v->preg != -1 && v->preg_class == preg_class && callee_saved_registers[v->preg]) { \
         if (saved_registers[v->preg] < v->target_size) saved_registers[v->preg] = v->target_size; \

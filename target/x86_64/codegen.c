@@ -33,6 +33,8 @@ static int need_ld_to_ru4_symbol;
 
 static int cur_stack_push_count; // Used in codegen to keep track of stack position
 
+char *data_keywords[] = {NULL, "byte ", "word ", "long ", "quad "};
+
 static void check_preg(int preg, int preg_class) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
     if (preg < 0 || preg >= 32) panic("Illegal preg %d", preg);
@@ -572,72 +574,6 @@ static void output_function_body_code(Symbol *symbol) {
             output_x86_operation(tac, function_pc);
         }
     }
-}
-
-// Output data for a defined object symbol
-void output_defined_object_symbol(Symbol *symbol) {
-    if (!symbol->initializers) panic("Expected initializers for a symbol with definition status defined");
-
-    int size = get_type_size(symbol->type);
-    if (symbol->linkage == LINKAGE_EXTERNAL)
-        fprintf(output_file, "    .globl   %s\n", symbol->global_identifier);
-
-    if (elf_section != SEC_DATA) { fprintf(output_file, "    .data\n"); elf_section = SEC_DATA; }
-
-    fprintf(output_file, "    .align   %d\n", get_type_alignment(symbol->type));
-    fprintf(output_file, "    .type    %s, @object\n", symbol->global_identifier);
-    fprintf(output_file, "    .size    %s, %d\n", symbol->global_identifier, size);
-    fprintf(output_file, "%s:\n", symbol->global_identifier);
-
-    for (int i = 0; i < symbol->initializers->length; i++) {
-        Initializer *in = (Initializer *) symbol->initializers->elements[i];
-
-        if (in->is_address_of || in->symbol) {
-            if (in->address_of_offset)
-                fprintf(output_file,"    .quad    %s + %d\n", in->symbol->global_identifier, in->address_of_offset);
-            else
-                fprintf(output_file,"    .quad    %s\n", in->symbol->global_identifier);
-            size -= 8;
-        }
-        else if (in->is_string_literal) {
-            if (in->address_of_offset)
-                fprintf(output_file,"    .quad    .LS%d + %d\n", in->string_literal_index, in->address_of_offset);
-            else
-                fprintf(output_file,"    .quad    .LS%d\n", in->string_literal_index);
-            size -= 8;
-        }
-        else {
-            if (!in->data) {
-                if (in->size < 0)
-                    panic("Got negative .zero %d for the intializer for %s", in->size, symbol->identifier);
-                fprintf(output_file,"    .zero    %d\n", in->size);
-            }
-            else if (in->size == 1) fprintf(output_file, "    .byte    %d\n",  *((char *)  in->data));
-            else if (in->size == 2) fprintf(output_file, "    .word    %d\n",  *((short *) in->data));
-            else if (in->size == 4) fprintf(output_file, "    .long    %d\n",  *((int *)   in->data));
-            else if (in->size == 8) fprintf(output_file, "    .quad    %ld\n", *((long *)  in->data));
-            else if (in->is_int128) {
-                // int128
-                fprintf(output_file, "    .quad    %ld\n", ((long *) in->data)[0]);
-                fprintf(output_file, "    .quad    %ld\n", ((long *) in->data)[1]);
-            }
-            else if (in->size == 16) {
-                // Long double
-                fprintf(output_file, "    .long   %d\n", (((int *) in->data))[0]);
-                fprintf(output_file, "    .long   %d\n", (((int *) in->data))[1]);
-                fprintf(output_file, "    .long   %d\n", (((int *) in->data))[2] & 0xffff);
-                fprintf(output_file, "    .long   0\n");
-            }
-            else panic("Unknown initializer size=%d data=%p\n", in->size, in->data);
-            size -= in->size;
-        }
-    }
-
-    // Add padding for structs that have padding at the end
-    if (size < 0)
-        panic("Got negative .zero padding %d for final padding", size);
-
-    if (size) fprintf(output_file,"    .zero    %d\n", size);
 }
 
 // Output a debug_info section with only a DW_TAG_compile_unit with a corresponding

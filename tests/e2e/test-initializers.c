@@ -1332,7 +1332,9 @@ void test_global_initialization() {
 
     assert_float(1.1, gf, "Global float initialization");
     assert_float(1.2, gd, "Global double initialization");
+    #ifdef __x86_64__
     assert_float(1.3, gld, "Global long double initialization");
+    #endif
 
     assert_int(0,  gpv1,   "Global pointer to void 1a");
     assert_int(0,  gpv2,   "Global pointer to void 1b");
@@ -1464,6 +1466,7 @@ void test_global_initialization() {
     assert_int(8,  (int) &s4.ll - (int) &s4, "Static struct alignment cllc ll offset");
     assert_int(16, (int) &s4.c2 - (int) &s4, "Static struct alignment cllc c2 offset");
 
+    #ifdef __x86_64__
     assert_int(64, sizeof(s5),               "Static struct alignment floating point types size");
     assert_int(0,  (int) &s5.c1 - (int) &s5, "Static struct alignment floating point types c1 offset");
     assert_int(4,  (int) &s5.f  - (int) &s5, "Static struct alignment floating point types f offset");
@@ -1483,6 +1486,7 @@ void test_global_initialization() {
     assert_int(1, global_func_ptr2 == plus,  "global_func_ptr2 = &plus 1");
     assert_int(1, global_func_ptr2 == &plus, "global_func_ptr2 = &plus 2");
 
+    #endif
     // Structs, pointers, sizeof and offsetof
     assert_int(8, sizeof(ac1v), ". and -> ac1v");
     assert_int(8, sizeof(ac1c), ". and -> ac1c");
