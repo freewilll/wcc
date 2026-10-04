@@ -142,8 +142,16 @@ static SplitValue split_value(Function *function, Value *value) {
         split_value.high->type->is_unsigned = value->type->is_unsigned;
     }
 
+    else if (value->global_symbol) {
+        split_value.low = dup_value(value);
+        split_value.high = dup_value(value);
+        split_value.high->offset += 8;
+        split_value.low->type->type = TYPE_LONG;
+        split_value.high->type->type = TYPE_LONG;
+    }
+
     else {
-        fprintf(stderr, "split_value for non-vreg value:");
+        fprintf(stderr, "split_value not implemented for value:");
         print_value(stderr, value, 0);
         fprintf(stderr, "\n");
         panic("bailing");
@@ -246,16 +254,19 @@ static Tac *transform_convert_int128_to_int(Function *function, Tac *tac) {
 }
 
 static Tac *transform_move(Function *function, Tac *tac) {
+    // vreg = constant
     if (tac->dst->vreg && tac->src1->is_constant) {
         // Assign an int or long constant to an int128 in a register
         return split_instruction(function, tac);
     }
 
+    // stack = constant
     else if (tac->dst->stack.index && tac->src1->is_constant) {
         // Assign an int or long constant to an int128 in the stack
         return split_instruction(function, tac);
     }
 
+    // vreg = int-vreg
     else if (VALUE_IS_INT128_VREG(tac->dst) && tac->src1->vreg && is_non_128_bit_integer_type(tac->src1->type)) {
         // Convert an non-128 bit integer in a register to an int128 in a register
         return transform_convert_int_to_int128(function, tac);
@@ -296,6 +307,12 @@ static Tac *transform_move(Function *function, Tac *tac) {
             bail_on_unimplemented_instruction(tac, "int128 type conversion not implemented for:");
 
         // Move a 128-bit value in a vreg to a 128-bit value in the stack
+        return split_instruction(function, tac);
+    }
+
+    // vreg = global
+    if (tac->dst->vreg && tac->src1->global_symbol) {
+        // Assign a global to an int128 in a register
         return split_instruction(function, tac);
     }
 

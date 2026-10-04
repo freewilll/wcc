@@ -47,6 +47,22 @@ void assert_int_const_expr(char *str, long expected) {
     }
 }
 
+void assert_int128_const_expr(char *str, long expected_high, long expected_low) {
+    Value *value = parse_constant_expression_str(str);
+
+    if (!check_value_is_constant(value, str))
+        return;
+    else if ((long) (value->int128_value >> 64) != expected_high || (long) value->int128_value != expected_low) {
+        failures++;
+        printf("%-32s failed, expected %016lx %016lx, got %016lx %016lx\n",
+            str, expected_high, expected_low, (long) (value->int128_value >> 64), (long) value->int128_value);
+    }
+    else {
+        passes++;
+        if (verbose) printf("%-32s ok\n", str);
+    }
+}
+
 void assert_fp_const_expr(char *str, long double expected) {
     Value *value = parse_constant_expression_str(str);
 
@@ -173,7 +189,7 @@ Type *test_type_parser(char *type_str, char *expected_english) {
 
 int test_type_parsing() {
     // Basic types
-    test_type_parser("char x",                    "char");
+    test_type_parser("signed char x",             "char");
     test_type_parser("short x",                   "short");
     test_type_parser("int x",                     "int");
     test_type_parser("long x",                    "long");
@@ -374,6 +390,52 @@ void test_constant_expressions() {
     assert_int_const_expr("-1",            -1);
     assert_int_const_expr("~-0",           -1);
     assert_int_const_expr("~-1",           0);
+
+    // int128
+    assert_int128_const_expr("1",                        0,  1);  // Plain old int/long
+    assert_int128_const_expr("-1",                       0, -1);  // An int -1 is not sign extended without a cast
+    assert_int128_const_expr("-1L",                      0, -1);  // A long -1 is not sign extended without a cast
+    assert_int128_const_expr("(__int128) -1",           -1, -1);  // Is sign extended
+    assert_int128_const_expr("(__int128) -1L",          -1, -1);  // Is sign extended
+    assert_int128_const_expr("(signed   __int128) -1",  -1, -1);  // Is sign extended
+    assert_int128_const_expr("(unsigned __int128) -1",  -1, -1);  // Is sign extended
+    assert_int128_const_expr("+ (__int128) 1",           0,  1);  // Unary +
+    assert_int128_const_expr("- (__int128) 1",          -1, -1);  // Unary -
+    assert_int128_const_expr("(__int128) 1 + 2",         0,  3);  // +
+    assert_int128_const_expr("(__int128) 1 - 3",        -1, -2);  // -
+    assert_int128_const_expr("(__int128) 2 | 4",         0,  6);  // |
+    assert_int128_const_expr("(__int128) 15 & 10",       0,  10); // &
+    assert_int128_const_expr("(__int128) 15 ^ 10",       0,  5);  // ^
+    assert_int128_const_expr("(__int128) 1 == 0",        0,  0);  // ==
+    assert_int128_const_expr("(__int128) 1 == 1",        0,  1);  // ==
+    assert_int128_const_expr("(__int128) 1 != 0",        0,  1);  // !=
+    assert_int128_const_expr("(__int128) 1 != 1",        0,  0);  // !=
+    assert_int128_const_expr("(__int128) 1 > 2",         0,  0);  // >
+    assert_int128_const_expr("(__int128) 2 > 1",         0,  1);  // >
+    assert_int128_const_expr("(__int128) 2 > 2",         0,  0);  // >
+    assert_int128_const_expr("(__int128) 1 >= 2",        0,  0);  // >=
+    assert_int128_const_expr("(__int128) 2 >= 1",        0,  1);  // >=
+    assert_int128_const_expr("(__int128) 2 >= 2",        0,  1);  // >=
+    assert_int128_const_expr("(__int128) 1 < 2",         0,  1);  // <
+    assert_int128_const_expr("(__int128) 2 < 1",         0,  0);  // <
+    assert_int128_const_expr("(__int128) 2 < 2",         0,  0);  // <
+    assert_int128_const_expr("(__int128) 1 <= 2",        0,  1);  // <=
+    assert_int128_const_expr("(__int128) 2 <= 1",        0,  0);  // <=
+    assert_int128_const_expr("(__int128) 2 <= 2",        0,  1);  // >=
+
+    assert_int128_const_expr("(__int128) 1 << 4",   0,  16);                      // <<
+    assert_int128_const_expr("(__int128) 1 << 64",  1,  0);                       // <<
+    assert_int128_const_expr("(__int128) 1 << 127", 1L<<63,   0);                 // <<
+    assert_int128_const_expr("(__int128) 64 >> 5",  0, 2);                        // >>
+    assert_int128_const_expr("(signed __int128) -64 >> 5",   -1, -2);             // signed >>
+    assert_int128_const_expr("(unsigned __int128) -1 >> 5",  (1L << 59) - 1, -1); // unsigned >>: 07ffffffffffffff ffffffffffffffff
+    assert_int128_const_expr("(((         __int128) 1) << 127) >> 125", -1, -4);  // signed >> and <<
+    assert_int128_const_expr("(((unsigned __int128) 1) << 127) >> 125",  0, 4);   // unsigned >> and <<
+
+    assert_int128_const_expr("(__int128) 1 << 96 | 4",       1L <<32, 4);
+    assert_int128_const_expr("(__int128) 2 + 3 * 4",         0,  14);
+    assert_int128_const_expr("(__int128) (2 + 3 * 4) << 64", 14, 0);
+    assert_int128_const_expr("(__int128) ((unsigned char) -1) << 60", 0xf, 0xfL << 60); // 000000000000000f f000000000000000
 
     // Floating points
     assert_fp_const_expr("1.1 + 1.1",         2.2);

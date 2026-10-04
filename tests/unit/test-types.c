@@ -47,7 +47,7 @@ int test_compatible_types() {
     assert_int(0, types_are_compatible(new_type(TYPE_CHAR), new_type(TYPE_INT)), "char int");
     assert_int(1, types_are_compatible(new_type(TYPE_INT), new_type(TYPE_INT)), "int int");
 
-    type1 = lex_type("char i");
+    type1 = lex_type("signed char i");
     type2 = lex_type("unsigned char i");
     assert_int(0, types_are_compatible(type1, type2), "unsigned char and signed char");
 

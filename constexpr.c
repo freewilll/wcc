@@ -4,7 +4,11 @@
 
 #include "wcc.h"
 
-static int integers_are_longs;
+static int global_override_integer_type;
+
+void set_global_override_integer_type(int type) {
+    global_override_integer_type = type;
+}
 
 static Value *indirect(Value *value) {
     if (!is_pointer_type(value->type)) error("Cannot dereference a non-pointer");
@@ -14,7 +18,30 @@ static Value *indirect(Value *value) {
     return value;
 }
 
+static Value *evaluate_const_unary_int128_operation(int operation, Value *value) {
+    __int128 r;
+
+    if (operation == IR_LNOT || operation == IR_BNOT)
+        panic("int128 operation not implemented in evaluate_const_unary_int128_operation()");
+
+         if (operation == IR_ADD) r = +value->int128_value;
+    else if (operation == IR_SUB) r = -value->int128_value;
+    else return 0;
+
+    // Perform integer promotions everywhere except for logical not,
+    Value *v = new_value();
+    v->type = new_type(TYPE_INT128);
+    v->type->is_unsigned = value->type->is_unsigned;
+    v->is_constant = 1;
+    v->int128_value = r;
+
+    return v;
+}
+
 static Value *evaluate_const_unary_int_operation(int operation, Value *value) {
+    if (value->type->type == TYPE_INT128)
+        return evaluate_const_unary_int128_operation(operation, value);
+
     long r;
 
          if (operation == IR_BNOT) r = ~value->int_value;
@@ -52,51 +79,88 @@ Value *evaluate_const_unary_fp_operation(int operation, Value *value) {
     return v;
 }
 
+// Cast src1 and src2 operands and evaluate a int128 operation
+// Not all int128 operations are implemented, so this list isn't complete.
+#define EVAL_INT128_BINOP_WITH_CAST(src, dst, cast) \
+         if (operation == IR_ADD ) { r = (cast) src +  (cast) dst; } \
+    else if (operation == IR_SUB ) { r = (cast) src -  (cast) dst; } \
+    else if (operation == IR_MUL ) { r = (cast) src *  (cast) dst; } \
+    else if (operation == IR_BAND) { r = (cast) src &  (cast) dst; } \
+    else if (operation == IR_BOR ) { r = (cast) src |  (cast) dst; } \
+    else if (operation == IR_XOR ) { r = (cast) src ^  (cast) dst; } \
+    else if (operation == IR_BSHL) { r = (cast) src <<        dst; } \
+    else if (operation == IR_BSHR) { r = (cast) src >>        dst; } \
+    else if (operation == IR_ASHR) { r = (cast) src >>        dst; } \
+    else if (operation == IR_EQ  ) { r = (cast) src == (cast) dst; } \
+    else if (operation == IR_NE  ) { r = (cast) src != (cast) dst; } \
+    else if (operation == IR_LT  ) { r = (cast) src <  (cast) dst; } \
+    else if (operation == IR_GT  ) { r = (cast) src >  (cast) dst; } \
+    else if (operation == IR_LE  ) { r = (cast) src <= (cast) dst; } \
+    else if (operation == IR_GE  ) { r = (cast) src >= (cast) dst; } \
+    else return 0
+
+Value *evaluate_const_binary_int128_operation(int operation, Value *src1, Value *src2) {
+    if (operation == IR_DIV || operation == IR_MOD || operation == IR_LAND || operation == IR_LOR || operation == IR_LAND)
+        panic("int128 operation not implemented in evaluate_const_binary_int128_operation()");
+
+    if (operation == IR_DIV && src1->int128_value == 0) error("Division by zero");
+    if (operation == IR_MOD && src1->int128_value == 0) error("Modulus by zero");
+
+    int is_unsigned = src1->type->is_unsigned;
+
+    unsigned __int128 r = 0;
+
+         if ( is_unsigned) EVAL_INT128_BINOP_WITH_CAST(src1->int128_value, src2->int128_value, unsigned __int128);
+    else if (!is_unsigned) EVAL_INT128_BINOP_WITH_CAST(src1->int128_value, src2->int128_value, signed __int128);
+
+    Value *v = new_value();
+    v->type = operation_type(src1, src2, 0);
+    v->type->is_unsigned = is_unsigned;
+    v->is_constant = 1;
+    v->int128_value = r;
+
+    return v;
+}
+
+// Cast src1 and src2 operands and evaluate a non-int128 operation
+#define EVAL_INT_BINOP_WITH_CAST(src, dst, cast) \
+         if (operation == IR_ADD ) { r = (cast) src +  (cast) dst; } \
+    else if (operation == IR_SUB ) { r = (cast) src -  (cast) dst; } \
+    else if (operation == IR_MUL ) { r = (cast) src *  (cast) dst; } \
+    else if (operation == IR_DIV ) { r = (cast) src /  (cast) dst; } \
+    else if (operation == IR_MOD ) { r = (cast) src %  (cast) dst; } \
+    else if (operation == IR_LAND) { r = (cast) src &  (cast) dst; } \
+    else if (operation == IR_LOR ) { r = (cast) src |  (cast) dst; } \
+    else if (operation == IR_BAND) { r = (cast) src &  (cast) dst; } \
+    else if (operation == IR_BOR ) { r = (cast) src |  (cast) dst; } \
+    else if (operation == IR_XOR ) { r = (cast) src ^  (cast) dst; } \
+    else if (operation == IR_BSHL) { r = (cast) src <<        dst; } \
+    else if (operation == IR_BSHR) { r = (cast) src >>        dst; } \
+    else if (operation == IR_ASHR) { r = (cast) src >>        dst; } \
+    else if (operation == IR_EQ  ) { r = (cast) src == (cast) dst; } \
+    else if (operation == IR_NE  ) { r = (cast) src != (cast) dst; } \
+    else if (operation == IR_LT  ) { r = (cast) src <  (cast) dst; } \
+    else if (operation == IR_GT  ) { r = (cast) src >  (cast) dst; } \
+    else if (operation == IR_LE  ) { r = (cast) src <= (cast) dst; } \
+    else if (operation == IR_GE  ) { r = (cast) src >= (cast) dst; } \
+    else return 0
+
 Value *evaluate_const_binary_int_operation(int operation, Value *src1, Value *src2) {
+    if (src1->type->type == TYPE_INT128 || src2->type->type == TYPE_INT128)
+        return evaluate_const_binary_int128_operation(operation, src1, src2);
+
+    if (operation == IR_DIV && src1->int_value == 0) error("Division by zero");
+    if (operation == IR_MOD && src1->int_value == 0) error("Modulus by zero");
+
     int is_unsigned = src1->type->is_unsigned;
     int is_long = src1->type->type == TYPE_LONG || src2->type->type == TYPE_LONG;
 
-    int ui =  is_unsigned && !is_long;
-    int ul =  is_unsigned &&  is_long;
-    int si = !is_unsigned && !is_long;
-    int sl = !is_unsigned &&  is_long;
-
-    unsigned int  s1ui = (unsigned int)  src1->int_value;
-    unsigned long s1ul = (unsigned long) src1->int_value;
-    int           s1si = (int)           src1->int_value;
-    long          s1sl = (long)          src1->int_value;
-
-    unsigned int  s2ui = (unsigned int)  src2->int_value;
-    unsigned long s2ul = (unsigned long) src2->int_value;
-    int           s2si = (int)           src2->int_value;
-    long          s2sl = (long)          src2->int_value;
-
     unsigned long r = 0;
 
-    int divisor = ui ? s2ui : ul ? s2ul : si ? s2si : s2sl;
-    if (operation == IR_DIV && divisor == 0) error("Division by zero");
-    if (operation == IR_MOD && divisor == 0) error("Modulus by zero");
-
-         if (operation == IR_ADD ) { if (ui) r = s1ui +  s2ui; else if (ul) r = s1ul +  s2ul; else if (si) r = s1si +  s2si; else if (sl) r = s1sl +  s2sl; }
-    else if (operation == IR_SUB ) { if (ui) r = s1ui -  s2ui; else if (ul) r = s1ul -  s2ul; else if (si) r = s1si -  s2si; else if (sl) r = s1sl -  s2sl; }
-    else if (operation == IR_MUL ) { if (ui) r = s1ui *  s2ui; else if (ul) r = s1ul *  s2ul; else if (si) r = s1si *  s2si; else if (sl) r = s1sl *  s2sl; }
-    else if (operation == IR_DIV ) { if (ui) r = s1ui /  s2ui; else if (ul) r = s1ul /  s2ul; else if (si) r = s1si /  s2si; else if (sl) r = s1sl /  s2sl; }
-    else if (operation == IR_MOD ) { if (ui) r = s1ui %  s2ui; else if (ul) r = s1ul %  s2ul; else if (si) r = s1si %  s2si; else if (sl) r = s1sl %  s2sl; }
-    else if (operation == IR_LAND) { if (ui) r = s1ui &  s2ui; else if (ul) r = s1ul && s2ul; else if (si) r = s1si &  s2si; else if (sl) r = s1sl && s2sl; }
-    else if (operation == IR_LOR ) { if (ui) r = s1ui |  s2ui; else if (ul) r = s1ul || s2ul; else if (si) r = s1si |  s2si; else if (sl) r = s1sl || s2sl; }
-    else if (operation == IR_BAND) { if (ui) r = s1ui &  s2ui; else if (ul) r = s1ul &  s2ul; else if (si) r = s1si &  s2si; else if (sl) r = s1sl &  s2sl; }
-    else if (operation == IR_BOR ) { if (ui) r = s1ui |  s2ui; else if (ul) r = s1ul |  s2ul; else if (si) r = s1si |  s2si; else if (sl) r = s1sl |  s2sl; }
-    else if (operation == IR_XOR ) { if (ui) r = s1ui ^  s2ui; else if (ul) r = s1ul ^  s2ul; else if (si) r = s1si ^  s2si; else if (sl) r = s1sl ^  s2sl; }
-    else if (operation == IR_BSHL) { if (ui) r = s1ui << s2ui; else if (ul) r = s1ul << s2ul; else if (si) r = s1si << s2si; else if (sl) r = s1sl << s2sl; }
-    else if (operation == IR_BSHR) { if (ui) r = s1ui >> s2ui; else if (ul) r = s1ul >> s2ul; else if (si) r = s1si >> s2si; else if (sl) r = s1sl >> s2sl; }
-    else if (operation == IR_ASHR) { if (ui) r = s1ui >> s2ui; else if (ul) r = s1ul >> s2ul; else if (si) r = s1si >> s2si; else if (sl) r = s1sl >> s2sl; }
-    else if (operation == IR_EQ  ) { if (ui) r = s1ui == s2ui; else if (ul) r = s1ul == s2ul; else if (si) r = s1si == s2si; else if (sl) r = s1sl == s2sl; }
-    else if (operation == IR_NE  ) { if (ui) r = s1ui != s2ui; else if (ul) r = s1ul != s2ul; else if (si) r = s1si != s2si; else if (sl) r = s1sl != s2sl; }
-    else if (operation == IR_LT  ) { if (ui) r = s1ui <  s2ui; else if (ul) r = s1ul <  s2ul; else if (si) r = s1si <  s2si; else if (sl) r = s1sl <  s2sl; }
-    else if (operation == IR_GT  ) { if (ui) r = s1ui >  s2ui; else if (ul) r = s1ul >  s2ul; else if (si) r = s1si >  s2si; else if (sl) r = s1sl >  s2sl; }
-    else if (operation == IR_LE  ) { if (ui) r = s1ui <= s2ui; else if (ul) r = s1ul <= s2ul; else if (si) r = s1si <= s2si; else if (sl) r = s1sl <= s2sl; }
-    else if (operation == IR_GE  ) { if (ui) r = s1ui >= s2ui; else if (ul) r = s1ul >= s2ul; else if (si) r = s1si >= s2si; else if (sl) r = s1sl >= s2sl; }
-    else return 0;
+         if ( is_unsigned && !is_long) EVAL_INT_BINOP_WITH_CAST(src1->int_value, src2->int_value, unsigned int);
+    else if ( is_unsigned &&  is_long) EVAL_INT_BINOP_WITH_CAST(src1->int_value, src2->int_value, unsigned long);
+    else if (!is_unsigned && !is_long) EVAL_INT_BINOP_WITH_CAST(src1->int_value, src2->int_value, signed int);
+    else if (!is_unsigned &&  is_long) EVAL_INT_BINOP_WITH_CAST(src1->int_value, src2->int_value, signed long);
 
     Value *v = new_value();
     v->type = operation_type(src1, src2, 0);
@@ -181,17 +245,25 @@ Value *cast_constant_value(Value *src, Type *dst_type) {
         else dst->fp_value = src->int_value;
     }
 
-    // Implicit else: integer -> integer
-    // int_value is already sign extended to a long, so this doesn't have to be done again.
-    // The only thing that needs doing is truncation to the target type, if it's smaller
-    // than a long.
-         if (dst_type->type == TYPE_CHAR  && !dst_type->is_unsigned) dst->int_value = (         char ) src->int_value;
-    else if (dst_type->type == TYPE_CHAR  &&  dst_type->is_unsigned) dst->int_value = (unsigned char ) src->int_value;
-    else if (dst_type->type == TYPE_SHORT && !dst_type->is_unsigned) dst->int_value = (         short) src->int_value;
-    else if (dst_type->type == TYPE_SHORT &&  dst_type->is_unsigned) dst->int_value = (unsigned short) src->int_value;
-    else if (dst_type->type == TYPE_INT   && !dst_type->is_unsigned) dst->int_value = (         int  ) src->int_value;
-    else if (dst_type->type == TYPE_INT   &&  dst_type->is_unsigned) dst->int_value = (unsigned int  ) src->int_value;
-    else                                                             dst->int_value =                  src->int_value;
+    // Implicit else: integer -> integer, including int128.
+    // If a signed int, the int_value is already sign extended
+    // If a signed int128, the int128_value is already sign extended
+    // For non-int128, take care of extending a smaller type to the full long int_value
+    // For int128, take care of extending a smaller type to the full intt128 int128_value
+         if (dst_type->type == TYPE_CHAR   && !dst_type->is_unsigned) dst->int_value    = (signed   char ) src->int_value; // Sign extends
+    else if (dst_type->type == TYPE_CHAR   &&  dst_type->is_unsigned) dst->int_value    = (unsigned char ) src->int_value; // Truncates
+    else if (dst_type->type == TYPE_SHORT  && !dst_type->is_unsigned) dst->int_value    = (         short) src->int_value; // Sign extends
+    else if (dst_type->type == TYPE_SHORT  &&  dst_type->is_unsigned) dst->int_value    = (unsigned short) src->int_value; // Truncates
+    else if (dst_type->type == TYPE_INT    && !dst_type->is_unsigned) dst->int_value    = (         int  ) src->int_value; // Sign extends
+    else if (dst_type->type == TYPE_INT    &&  dst_type->is_unsigned) dst->int_value    = (unsigned int  ) src->int_value; // Truncates
+
+    // Check for a cast upwards from a non-128 to an int128
+    if (dst_type->type == TYPE_INT128 && src_type->type != TYPE_INT128) {
+        if (!src_type->is_unsigned)
+            dst->int128_value = src->int_value; // Sign extends
+        else
+            dst->int128_value = (unsigned long) src->int_value; // Truncates
+    }
 
     // This is necessary so that the int128 lowering code knows if the constant was originally signed.
     if (dst_type->type == TYPE_INT128) dst->int128_constant_is_unsigned = src->type->is_unsigned;
@@ -347,7 +419,13 @@ Value *parse_constant_expression(int level) {
             break;
 
         case TOK_INTEGER:
-            value = new_integral_constant(integers_are_longs ? TYPE_LONG : cur_lexer_type->type, cur_long);
+            value = new_integral_constant(global_override_integer_type ? global_override_integer_type : cur_lexer_type->type, cur_long);
+
+            if (global_override_integer_type == TYPE_INT128) {
+                value->type->type = TYPE_INT128;
+                value->int128_value = cur_long; // Set the upper 8 bytes to zero
+            }
+
             next();
             break;
 
@@ -475,8 +553,8 @@ Value *parse_constant_expression(int level) {
     return value;
 }
 
-Value *parse_constant_integer_expression(int all_longs) {
-    integers_are_longs = all_longs;
+Value *parse_constant_integer_expression(int override_integer_type) {
+    set_global_override_integer_type(override_integer_type);
 
     Value *value = parse_constant_expression(TOK_EQ);
     if (!value->is_constant) error("Expected a constant expression");

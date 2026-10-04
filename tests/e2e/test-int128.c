@@ -653,7 +653,6 @@ static void test_pointers() {
     struct s *ps = &s;
     ps->j  = MAKE_UINT128(1, 0);
     ASSERT_INT128(1, 0, ps->j, "Write to pointer with an offset");
-
 }
 
 static void test_constant_promotions() {

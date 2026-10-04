@@ -73,14 +73,16 @@ char *aapc[3][3] = {
 };
 
 // Test casting + pointer addition
-static void *gpvc1  = ((char *)      0) + 1;
-static void *gpvs1  = ((short *)     0) + 1;
-static void *gpvi1  = ((int *)       0) + 1;
-static void *gpvll1 = ((long *) 0) + 1;
-static void *gpvc2  = ((char *)      0) - 1;
-static void *gpvs2  = ((short *)     0) - 1;
-static void *gpvi2  = ((int *)       0) - 1;
-static void *gpvll2 = ((long *) 0) - 1;
+static void *gpvc1      = ((char *)      0) + 1;
+static void *gpvs1      = ((short *)     0) + 1;
+static void *gpvi1      = ((int *)       0) + 1;
+static void *gpvll1     = ((long *)      0) + 1;
+static void *gpvint1281 = ((__int128 *)  0) + 1;
+static void *gpvc2      = ((char *)      0) - 1;
+static void *gpvs2      = ((short *)     0) - 1;
+static void *gpvi2      = ((int *)       0) - 1;
+static void *gpvll2     = ((long *)      0) - 1;
+static void *gpvint1282 = ((__int128 *)  0) - 1;
 
 char ca[10];
 short sa[10];
@@ -100,15 +102,27 @@ static void *gpvsa2 = &sa[1] + 1;
 static void *gpvia2 = &ia[1] + 1;
 static void *gpvla2 = &la[1] + 1;
 
-static int csize  = sizeof(char);
-static int ssize  = sizeof(short);
-static int isize  = sizeof(int);
-static int llsize = sizeof(long);
+static int csize      = sizeof(char);
+static int ssize      = sizeof(short);
+static int isize      = sizeof(int);
+static int llsize     = sizeof(long);
+static int int128size = sizeof(__int128);
 
-static char      ccast  = (char)      1;
-static short     scast  = (short)     1;
-static int       icast  = (int)       1;
-static long llcast = (long) 1;
+static char      ccast      = (char)     1;
+static short     scast      = (short)    1;
+static int       icast      = (int)      1;
+static long      llcast     = (long)     1;
+static __int128  int128cast = (__int128) 1;
+
+// Casting trunctations
+static long       sccast      = (signed   char)  -1;
+static long       uccast      = (unsigned char)  -1;
+static long       sscast      = (signed   short) -1;
+static long       uscast      = (unsigned short) -1;
+static long       sicast      = (signed   int)   -1;
+static long       uicast      = (unsigned int)   -1;
+static __int128   slcast      = (signed   long)  -1;
+static __int128   ulcast      = (unsigned long)  -1;
 
 int ia25[2][5];
 static void *gpvia25_00  = &ia25[0][0];
@@ -1286,10 +1300,11 @@ static void test_zeroing() {
 }
 
 static void test_global_sizeof_types() {
-    assert_int(1, csize,  "Global initialization with sizeof 1");
-    assert_int(2, ssize,  "Global initialization with sizeof 2");
-    assert_int(4, isize,  "Global initialization with sizeof 3");
-    assert_int(8, llsize, "Global initialization with sizeof 4");
+    assert_int(1,  csize,      "Global initialization with sizeof 1");
+    assert_int(2,  ssize,      "Global initialization with sizeof 2");
+    assert_int(4,  isize,      "Global initialization with sizeof 3");
+    assert_int(8,  llsize,     "Global initialization with sizeof 4");
+    assert_int(16, int128size, "Global initialization with sizeof 5");
 }
 
 void test_global_initialization() {
@@ -1336,16 +1351,18 @@ void test_global_initialization() {
     assert_float(1.3, gld, "Global long double initialization");
     #endif
 
-    assert_int(0,  gpv1,   "Global pointer to void 1a");
-    assert_int(0,  gpv2,   "Global pointer to void 1b");
-    assert_int(1,  gpvc1,  "Global pointer to void 1c");
-    assert_int(2,  gpvs1,  "Global pointer to void 1d");
-    assert_int(4,  gpvi1,  "Global pointer to void 1e");
-    assert_int(8,  gpvll1, "Global pointer to void 1f");
-    assert_int(-1, gpvc2,  "Global pointer to void 1g");
-    assert_int(-2, gpvs2,  "Global pointer to void 1h");
-    assert_int(-4, gpvi2,  "Global pointer to void 1i");
-    assert_int(-8, gpvll2, "Global pointer to void 1j");
+    assert_int(0,   gpv1,       "Global pointer to void 1a");
+    assert_int(0,   gpv2,       "Global pointer to void 1b");
+    assert_int(1,   gpvc1,      "Global pointer to void 1c");
+    assert_int(2,   gpvs1,      "Global pointer to void 1d");
+    assert_int(4,   gpvi1,      "Global pointer to void 1e");
+    assert_int(8,   gpvll1,     "Global pointer to void 1f");
+    assert_int(16,  gpvint1281, "Global pointer to void 1g");
+    assert_int(-1,  gpvc2,      "Global pointer to void 1h");
+    assert_int(-2,  gpvs2,      "Global pointer to void 1i");
+    assert_int(-4,  gpvi2,      "Global pointer to void 1j");
+    assert_int(-8,  gpvll2,     "Global pointer to void 1k");
+    assert_int(-16, gpvint1282, "Global pointer to void 1l");
 
     assert_int(gpvca,  ((int) &ca) + 10, "Global pointer to void 2a");
     assert_int(gpvsa,  ((int) &sa) + 20, "Global pointer to void 2b");
@@ -1410,10 +1427,28 @@ void test_global_initialization() {
     assert_string("abcdefgh",       aapc[2][1], "Array of array of pointer to chars 21");
     assert_string("abcdefghi",      aapc[2][2], "Array of array of pointer to chars 22");
 
-    assert_int(1, ccast,  "Global cast from integer 1");
-    assert_int(1, scast,  "Global cast from integer 2");
-    assert_int(1, icast,  "Global cast from integer 3");
-    assert_int(1, llcast, "Global cast from integer 4");
+    assert_int(1, ccast,      "Global cast from integer 1");
+    assert_int(1, scast,      "Global cast from integer 2");
+    assert_int(1, icast,      "Global cast from integer 3");
+    assert_int(1, llcast,     "Global cast from integer 4");
+    assert_int(1, int128cast, "Global cast from integer 5");
+
+    assert_long(-1,         sccast, "Casting trunctation of (signed char)       -1");
+    assert_long(0xff,       uccast, "Casting trunctation of (unsigned char)     -1");
+    assert_long(-1,         sscast, "Casting trunctation of (signed short)      -1");
+    assert_long(0xffff,     uscast, "Casting trunctation of (unsigned short)    -1");
+    assert_long(-1,         sicast, "Casting trunctation of (signed int)        -1");
+    assert_long(0xffffffff, uicast, "Casting trunctation of (unsigned int)      -1");
+    ASSERT_INT128(-1, -1,   slcast, "Casting trunctation of (signed __int128)   -1");
+    ASSERT_INT128(0, -1,    ulcast, "Casting trunctation of (unsigned __int128) -1");
+
+    // Casting a non-int128 to an int128
+    { static __int128_t  i = (__int128_t)                   1; ASSERT_INT128( 0,  1, i, "Constant __int128 expression 1"); }
+    { static __uint128_t i = (__uint128_t)                  1; ASSERT_INT128( 0,  1, i, "Constant __uint128 expression 1"); }
+    { static __int128_t  i = (__int128_t)                  -1; ASSERT_INT128(-1, -1, i, "Constant __int128 expression -1"); }
+    { static __uint128_t i = (__uint128_t)                 -1; ASSERT_INT128(-1, -1, i, "Constant __uint128 expression -1"); }
+    { static __uint128_t f = (__uint128_t) (long)          -1; ASSERT_INT128(-1, -1, f, "(__uint128_t) (long) -1"); }
+    { static __uint128_t f = (__uint128_t) (unsigned long) -1; ASSERT_INT128( 0, -1, f, "(__uint128_t) (unsigned long) -1;"); }
 
     assert_int(100, enum_const1, "Enum constant usage in constant expression 1");
     assert_int(101, enum_const2, "Enum constant usage in constant expression 2");

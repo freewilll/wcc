@@ -1680,7 +1680,7 @@ static long parse_conditional_expression() {
     char *data = rendered->data;
     free_string_buffer(rendered, 0);
     init_lexer_from_string(data);
-    Value *value = parse_constant_integer_expression(1);
+    Value *value = parse_constant_integer_expression(TYPE_LONG);
     wfree(data);
     free_lexer();
 

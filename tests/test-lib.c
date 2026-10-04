@@ -10,6 +10,8 @@ extern int verbose;
 extern int passes;
 extern int failures;
 
+#define PRINT_INT128(i) printf("%016lx %016lx ", (long) ((i) >> 64), (long) (i));
+
 void assert_uchar(unsigned char expected, unsigned char actual, char *message) {
     if (expected != actual) {
         failures++;

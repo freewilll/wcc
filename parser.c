@@ -1883,7 +1883,7 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
         else if (scalar->type->type == TYPE_INT128) {
             in->data = wcalloc(1, 128);
             in->is_int128 = 1;
-            *((long *) in->data) = scalar->int_value; // Only copy over the low 64 bits from the constant
+            *((__int128 *) in->data) = scalar->int128_value;
         }
         else {
             in->data = wmalloc(sizeof(long));
@@ -2110,6 +2110,8 @@ static int parse_struct_and_union_initializer(Value *root_value, Type *type, int
 // If a {} is seen, recurse into the LHS's type and then throw away an excess unused elements until the closing }
 // If there is no {}, recurse into specific handlers
 static int parse_initializer(Value *root_value, Type *type, int offset, int bit_field_offset, Value *rhs) {
+    set_global_override_integer_type(0);
+
     parse_expression_function_type *parse_expr = root_value->global_symbol
         ? parse_constant_expression : parse_expression_and_pop;
 

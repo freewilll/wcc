@@ -366,7 +366,10 @@ typedef struct value {
     int local_index;                                     // Used by parser for local variable, temporaries and function arguments
     StackLocation stack;                                 // If the value is in the stack, details of where
     int string_literal_index;                            // Index in the string_literals array in the case of a string literal
-    long int_value;                                      // Value in the case of an integer constant
+    union {
+        long int_value;                                  // Value in the case of an integer constant, size long and smaller
+        unsigned __int128 int128_value;                  // Value in the case of an int128 constant
+    };
     long double fp_value;                                // Value in the case of a floating point constant
     int offset;                                          // For composite objects, offset from the start of the object's memory
     int bit_field_offset;                                // Offset in bits for bit fields
@@ -1099,11 +1102,12 @@ void init_parser(void);
 void free_parser(void);
 
 // constexpr.c
+void set_global_override_integer_type(int type);
 Value* evaluate_const_binary_int_operation(int operation, Value *src1, Value *src2);
 Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src2, Type *type);
 Value *cast_constant_value(Value *src, Type *type);
 Value *parse_constant_expression(int level);
-Value *parse_constant_integer_expression(int all_longs);
+Value *parse_constant_integer_expression(int override_integer_type);
 
 // scopes.c
 extern Scope *global_scope;
