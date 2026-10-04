@@ -677,6 +677,18 @@ static Tac *transform_mul(Function *function, Tac *tac) {
     return tac;
 }
 
+// Or the high and low parts and jz on that
+static Tac *transform_jz(Function *function, Tac *tac) {
+    Tac *top_tac = tac;
+    SplitValue split_src1 = split_value(function, tac->src1);
+    Value *tmp_combination = new_long_vreg_from_value(function, split_src1.low);
+
+    tac = new_tac_before(tac, IR_BOR, tmp_combination, split_src1.low, split_src1.high, 1);
+    top_tac->src1 = tmp_combination;
+
+    return tac;
+}
+
 // Transform a IR_EQ or IR_NE into a sequence of xor, xor, or, then a comparison with zero
 static Tac *transform_eq_ne(Function *function, Tac *tac, int operation) {
     SplitValue split_src1 = split_value(function, tac->src1);
@@ -824,7 +836,9 @@ void transform_int128_instructions(Function *function) {
             case IR_NE:
                 tac = transform_eq_ne(function, tac, IR_NE);
                 break;
-            case IR_LT: tac = transform_lt_gt_le_ge(function, tac, IR_LT); break;
+            case IR_JZ:
+                tac = transform_jz(function, tac);
+                break;            case IR_LT: tac = transform_lt_gt_le_ge(function, tac, IR_LT); break;
             case IR_GT: tac = transform_lt_gt_le_ge(function, tac, IR_GT); break;
             case IR_LE: tac = transform_lt_gt_le_ge(function, tac, IR_LE); break;
             case IR_GE: tac = transform_lt_gt_le_ge(function, tac, IR_GE); break;

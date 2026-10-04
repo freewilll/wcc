@@ -594,6 +594,22 @@ static void test_comparisons(void) {
     ui = MAKE_UINT128(vff, vff); uj = MAKE_UINT128(vff, vff); assert_int(1, ui <= uj, "unsigned ffff <= ffff");
 }
 
+static void test_conditional_jmp_cmp_to_zero(void) {
+    __int128 si;
+    unsigned __int128 ui;
+    int r;
+
+    si = MAKE_SINT128(0, 0); r = 0; if (si) r = 1;  assert_int(0, r, "signed int128 if(0)");
+    si = MAKE_SINT128(1, 1); r = 0; if (si) r = 1;  assert_int(1, r, "signed int128 if(1)");
+    si = MAKE_SINT128(1, 0); r = 0; if (si) r = 1;  assert_int(1, r, "signed int128 if(1 << 64)");
+    si = MAKE_SINT128(1, 1); r = 0; if (si) r = 1;  assert_int(1, r, "signed int128 if(1 << 64 | 1)");
+
+    ui = MAKE_UINT128(0, 0); r = 0; if (ui) r = 1;  assert_int(0, r, "unsigned int128 if(0)");
+    ui = MAKE_UINT128(1, 1); r = 0; if (ui) r = 1;  assert_int(1, r, "unsigned int128 if(1)");
+    ui = MAKE_UINT128(1, 0); r = 0; if (ui) r = 1;  assert_int(1, r, "unsigned int128 if(1 << 64)");
+    ui = MAKE_UINT128(1, 1); r = 0; if (ui) r = 1;  assert_int(1, r, "unsigned int128 if(1 << 64 | 1)");
+}
+
 static void test_pointers() {
     // A pointer to an int128 in the stack
     __int128 i = MAKE_UINT128(1, 2);
@@ -673,6 +689,7 @@ int main(int argc, char **argv) {
     test_subtraction();
     test_multiplication();
     test_comparisons();
+    test_conditional_jmp_cmp_to_zero();
     test_pointers();
     test_constant_promotions();
 
