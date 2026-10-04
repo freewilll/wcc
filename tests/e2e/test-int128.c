@@ -628,7 +628,7 @@ static void test_pointers() {
     ASSERT_INT128(1, 2, array[0], "int128 array lookup 0");
     ASSERT_INT128(3, 4, array[1], "int128 array lookup 1");
 
-    struct {
+    struct s {
         __int128 i, j, k;
     } s = {MAKE_UINT128(1, 2), MAKE_UINT128(3, 4), MAKE_UINT128(5, 6)};
     ASSERT_INT128(1, 2, s.i, "int128 in struct lookup 0");
@@ -643,6 +643,12 @@ static void test_pointers() {
     *pi = (__int128) 1 << 96;      ASSERT_INT128(1L << 32, 0,        i, "Write to pointer in register 1 << 96");
     *pi = (__int128) 1 << 127;     ASSERT_INT128(1L << 63, 0,        i, "Write to pointer in register 1 << 127");
     *pi = (__int128) 1 << 127 | 1; ASSERT_INT128(1L << 63, 1,        i, "Write to pointer in register 1 << 127 | 1");
+
+    // Writes to a pointer with an offset
+    struct s *ps = &s;
+    ps->j  = MAKE_UINT128(1, 0);
+    ASSERT_INT128(1, 0, ps->j, "Write to pointer with an offset");
+
 }
 
 static void test_constant_promotions() {
@@ -671,7 +677,6 @@ static void test_constant_promotions() {
     si = 7;
     si += 0xffffffffffffffffL;
     ASSERT_INT128(1, 6, si, "constant -> int128 promotion 4");
-
 }
 
 int main(int argc, char **argv) {

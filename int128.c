@@ -338,7 +338,7 @@ static Tac *transform_move_to_ptr(Function *function, Tac *tac) {
 
     Value *src1_low = src1;
     Value *src1_high = dup_value(src1);
-    src1_high->offset = 8;
+    src1_high->offset += 8;
 
     tac = new_tac_after(tac, IR_MOVE_TO_PTR, NULL, src1_low, split_src2.low);
     tac = new_tac_after(tac, IR_MOVE_TO_PTR, NULL, src1_high, split_src2.high);
