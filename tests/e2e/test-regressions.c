@@ -365,6 +365,25 @@ void test_function_without_regs() {
     test_function_without_regs_function(1, 3.14);
 }
 
+struct two_longs {
+    long i1, i2;
+};
+
+struct two_longs test(int i, int j) {
+    struct two_longs tl = {1,2};
+    return tl;
+}
+
+// This tests an obscure bug where an IR_DECL_LOCAL_COMP_OBJ got lost inside
+// reverse_function_call_args_order(). The loss would lead the stack
+// allocator to conclude the RV stack entry size was 8 bytes instead
+// of the actual struct size.
+void test_overlapping_structs_in_function_return_value() {
+    struct two_longs tl = test(1,2);
+    assert_long(1, tl.i1, "Overlapping structs in function return value 1");
+    assert_long(2, tl.i2, "Overlapping structs in function return value 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -395,6 +414,7 @@ int main(int argc, char **argv) {
     test_shift_c_register_clobber();
     #endif
     test_function_without_regs();
+    test_overlapping_structs_in_function_return_value();
 
     finalize();
 }

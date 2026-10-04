@@ -2468,26 +2468,10 @@ static void parse_function_call(void) {
     }
     consume(TOK_RPAREN, ")");
 
-    // Make IR_START_CALL, IR_ARG, [IR_ARG, ..] ... IR_END_CALL instructions
-
-    add_parser_instruction(IR_START_CALL, 0, function_call_value, 0);
-
-    for (int i = 0; i < arg_count; i++)
-        add_parser_instruction(IR_ARG, 0, dup_value(function_call_value), args->elements[i]);
-
-    free_list(args);
-
-    Value *function_value = new_value();
-    function_value->int_value = function_call;
-    function_value->function_call.function_symbol = symbol;
-    function_value->global_symbol = symbol;
-    function_value->type = function_type;
-    function_value->local_index = popped_function->local_index;
-    function_value->vreg = popped_function->vreg;
-    function_value->return_value_live_ranges = allocate_return_value_live_ranges();
-
-    append_to_list(allocated_sets, function_value->return_value_live_ranges);
-
+    // Prepare the return value and declare any structs.
+    // Structs need to be declared first, since the functions code
+    // is picky about having any other instrcutions between
+    // IR_START_CALL and IR_END_CALL.
     Type *return_type = function_type->target;
     Value *return_value = 0;
     if (return_type->type == TYPE_STRUCT_OR_UNION) {
@@ -2510,6 +2494,26 @@ static void parse_function_call(void) {
         v->type = new_type(TYPE_VOID);
         push(v);
     }
+
+    // Make IR_START_CALL, IR_ARG, [IR_ARG, ..] ... IR_END_CALL instructions
+
+    add_parser_instruction(IR_START_CALL, 0, function_call_value, 0);
+
+    for (int i = 0; i < arg_count; i++)
+        add_parser_instruction(IR_ARG, 0, dup_value(function_call_value), args->elements[i]);
+
+    free_list(args);
+
+    Value *function_value = new_value();
+    function_value->int_value = function_call;
+    function_value->function_call.function_symbol = symbol;
+    function_value->global_symbol = symbol;
+    function_value->type = function_type;
+    function_value->local_index = popped_function->local_index;
+    function_value->vreg = popped_function->vreg;
+    function_value->return_value_live_ranges = allocate_return_value_live_ranges();
+
+    append_to_list(allocated_sets, function_value->return_value_live_ranges);
 
     add_parser_instruction(IR_CALL, return_value, function_value, 0);
     add_parser_instruction(IR_END_CALL, 0, function_call_value, 0);
