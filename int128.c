@@ -176,6 +176,16 @@ static Tac *split_instruction(Function *function, Tac *tac) {
     return tac2;
 }
 
+// Move a constant in src1 into a new register. pdst contains the unsplit vreg.
+static Tac *move_constant_into_new_vreg(Function *function, Tac *tac, Value *src, Value **pdst) {
+    *pdst = dup_value(src);
+    (*pdst)->is_constant = 0;
+    (*pdst)->vreg = allocate_and_map_a_new_int128_vreg(function);
+    tac = new_tac_before(tac, IR_MOVE, *pdst, src, NULL, 1);
+    tac = split_instruction(function, tac);
+    tac = tac->next;
+}
+
 // Convert an non-128 bit integer in a register to an int128 in a register
 static Tac *transform_convert_int_to_int128(Function *function, Tac *tac) {
     Tac *top_tac = tac;
@@ -583,13 +593,10 @@ static Tac *transform_bitshift(Function *function, Tac *tac, int operation) {
 
     if (VALUE_IS_INT128_CONSTANT(tac->src1)) {
         // Move the constant into a register and fall through
-        Value *src1_in_register = dup_value(tac->src1);
-        src1_in_register->is_constant = 0;
-        src1_in_register->vreg = allocate_and_map_a_new_int128_vreg(function);
-        tac = new_tac_before(tac, IR_MOVE, src1_in_register, tac->src1, NULL, 1);
-        tac->next->src1 = src1_in_register;
-        tac = split_instruction(function, tac);
-        tac = tac->next;
+
+        Value *src1_in_register;
+        tac = move_constant_into_new_vreg(function, tac, tac->src1, &src1_in_register);
+        tac->src1 = src1_in_register;
     }
 
     // Handle a bit shift from a register by an amout in a register
@@ -629,6 +636,14 @@ static Tac *transform_add_and_sub(Function *function, Tac *tac, int first_op, in
 
 // Transform multiplication
 static Tac *transform_mul(Function *function, Tac *tac) {
+    if (VALUE_IS_INT128_CONSTANT(tac->src2)) {
+        // Move the constant into a register and fall through
+
+        Value *src2_in_register;
+        tac = move_constant_into_new_vreg(function, tac, tac->src2, &src2_in_register);
+        tac->src2 = src2_in_register;
+    }
+
     if (VALUE_IS_INT128_VREG(tac->dst) && VALUE_IS_INT128_VREG(tac->src1) && VALUE_IS_INT128_VREG(tac->src2)) {
         // Multiply src1 with src2
         // Notation: src1_hi:src1_lo src2_hi:src2_lo

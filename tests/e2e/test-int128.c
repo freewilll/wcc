@@ -403,6 +403,13 @@ static void test_multiplication(void) {
     ASSERT_INT128(0x200000000L, 0x300000001L,  ui * uj, "unsigned int128 big numbers multiply");
 }
 
+// This tests an odd parser edge case where, since negation isn't implemented,
+// a multiple by -1 instruction is added by the parser.
+static void test_negation() {
+    signed   __int128 si = 2; si = - si; ASSERT_INT128(-1, -2, si, "Negation of signed __int128");
+    unsigned __int128 ui = 2; ui = - ui; ASSERT_INT128(-1, -2, ui, "Negation of unsigned __int128");
+}
+
 static void test_comparisons(void) {
     signed __int128 si, sj;
     unsigned __int128 ui, uj;
@@ -688,6 +695,7 @@ int main(int argc, char **argv) {
     test_addition();
     test_subtraction();
     test_multiplication();
+    test_negation();
     test_comparisons();
     test_conditional_jmp_cmp_to_zero();
     test_pointers();
