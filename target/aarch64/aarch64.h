@@ -175,7 +175,9 @@ enum aarch64_instruction_op {
     AARCH64_OP_DEALLOCATE_STACK,
     AARCH64_OP_ADRP,                    // The AARCH64_OP_ADD_LO12 operation always follows it.
     AARCH64_OP_ADD_LO12,
-    AARCH64_OP_ADDRESS_OF               // Pseudo operation
+    AARCH64_OP_ADDRESS_OF,              // Pseudo operation
+    AARCH64_OP_CLZ,
+    AARCH64_OP_RBIT,
 };
 
 enum target_rule_non_terminals {

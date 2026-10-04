@@ -855,6 +855,28 @@ static void add_int128_multiply_rule(int type) {
     add_op(r, AARCH64_OP_MUL128B, DST, SRC1, SRC2, "umulh %vdx, %v1x, %v2x");
 }
 
+static void add_bit_scan_rules(void) {
+    Rule *r;
+
+    // Bit scan forward
+    r = add_rule(RI3, IR_BIT_SCAN_FWD, RU3,  0, 2);
+    add_op(r, AARCH64_OP_CLZ, DST, SRC1, 0, "clz %vdw, %v1w");
+
+    r = add_rule(RI3, IR_BIT_SCAN_FWD, RU4,  0, 2);
+    add_op(r, AARCH64_OP_CLZ, DST, SRC1, 0, "clz %vdx, %v1x");
+
+    // Bit scan reverse
+    r = add_rule(RI3, IR_BIT_SCAN_REV, RU3,  0, 2);
+    add_allocate_register_in_slot(r, 1, TYPE_LONG);
+    add_op(r, AARCH64_OP_RBIT, SV1, SRC1, 0, "rbit %vdx, %v1x");
+    add_op(r, AARCH64_OP_CLZ, DST, SV1, 0, "clz %vdw, %v1w");
+
+    r = add_rule(RI3, IR_BIT_SCAN_REV, RU4,  0, 2);
+    add_allocate_register_in_slot(r, 1, TYPE_LONG);
+    add_op(r, AARCH64_OP_RBIT, SV1, SRC1, 0, "rbit %vdx, %v1x");
+    add_op(r, AARCH64_OP_CLZ, DST, SV1, 0, "clz %vdx, %v1x");
+}
+
 static void add_int128_rules(void) {
     add_int128_addc_rules(RI4);
     add_int128_addc_rules(RU4);
@@ -1011,6 +1033,7 @@ void define_rules(void) {
     add_conditional_zero_jump_rule(IR_JZ,  XR, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "beq %v1");
     add_conditional_zero_jump_rule(IR_JNZ, XR, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "bne %v1");
 
+    add_bit_scan_rules();
     add_int128_rules();
 
     if (ntc >= AUTO_NON_TERMINAL_END)

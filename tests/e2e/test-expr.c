@@ -1915,8 +1915,6 @@ void test___signed__keyword() {
     assert_int(1, c, "__signed__ char c");
 }
 
-#ifdef __x86_64__
-
 void test_bit_scans() {
     // Long
     assert_int(0,  __builtin_clzl(1L << 63),  "clzl 1 << 63");
@@ -1944,8 +1942,6 @@ void test_bit_scans() {
     assert_int(2,  __builtin_ctzll(4),         "ctzll 4");
     assert_int(0,  __builtin_ctzll(3),         "ctzll 3");
 }
-
-#endif // __x86_64__
 
 int main(int argc, char **argv) {
     passes = 0;
@@ -2028,9 +2024,7 @@ int main(int argc, char **argv) {
     test_expression_statement();
     test___func__statements();
     test___signed__keyword();
-#ifdef __x86_64__
     test_bit_scans();
-#endif // __x86_64__
 
     finalize();
 }

@@ -1727,33 +1727,18 @@ void test_bitscans() {
     remove_reserved_physical_registers = 1;
 
     // Bit scan forward int
-    si(function, 0, IR_BIT_SCAN_FWD, vsz(2, TYPE_INT), vsz(1, TYPE_INT), 0);
-    assert_target_op("bsrl        r1l, r2l");
-    assert_target_op("xorl        $0x1f, r2l");
-
     si(function, 0, IR_BIT_SCAN_FWD, vsz(2, TYPE_INT), vusz(1, TYPE_INT), 0);
     assert_target_op("bsrl        r1l, r2l");
     assert_target_op("xorl        $0x1f, r2l");
 
     // Bit scan reverse int
-    si(function, 0, IR_BIT_SCAN_REV, vsz(2, TYPE_INT), vsz(1, TYPE_INT), 0);
-    assert_target_op("tzcntl      r1l, r2l");
-
     si(function, 0, IR_BIT_SCAN_REV, vsz(2, TYPE_INT), vusz(1, TYPE_INT), 0);
     assert_target_op("tzcntl      r1l, r2l");
 
     // Bit scan forward long
-    si(function, 0, IR_BIT_SCAN_FWD, vsz(2, TYPE_INT), vsz(1, TYPE_LONG), 0);
-    assert_target_op("bsrq        r1q, r2q");
-    assert_target_op("xorq        $0x3f, r2q");
-
     si(function, 0, IR_BIT_SCAN_FWD, vsz(2, TYPE_INT), vusz(1, TYPE_LONG), 0);
     assert_target_op("bsrq        r1q, r2q");
     assert_target_op("xorq        $0x3f, r2q");
-
-    // Bit scan reverse long
-    si(function, 0, IR_BIT_SCAN_REV, vsz(2, TYPE_INT), vsz(1, TYPE_LONG), 0);
-    assert_target_op("tzcntq      r1q, r2q");
 
     si(function, 0, IR_BIT_SCAN_REV, vsz(2, TYPE_INT), vusz(1, TYPE_LONG), 0);
     assert_target_op("tzcntq      r1q, r2q");

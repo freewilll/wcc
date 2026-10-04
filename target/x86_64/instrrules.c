@@ -1449,34 +1449,21 @@ static void add_bit_scan_rules(void) {
     Rule *r;
 
     // Bit scan forward
-    r = add_rule(RI3, IR_BIT_SCAN_FWD, RI3,  0, 2);
-    add_op(r, X86_OP_BSR,  DST, SRC1, 0, "bsrl %v1l, %vdl");
-    add_op(r, X86_OP_BSR,  DST, SRC1, 0, "xorl $0x1f, %vdl");
-
     r = add_rule(RI3, IR_BIT_SCAN_FWD, RU3,  0, 2);
-    add_op(r, X86_OP_BSR,  DST, SRC1, 0, "bsrl %v1l, %vdl");
-    add_op(r, X86_OP_BSR,  DST, SRC1, 0, "xorl $0x1f, %vdl");
+    add_op(r, X86_OP_BSR, DST, SRC1, 0, "bsrl %v1l, %vdl");
+    add_op(r, X86_OP_BSR, DST, SRC1, 0, "xorl $0x1f, %vdl");
 
-    r = add_rule(RI3, IR_BIT_SCAN_FWD, RI4,  0, 2);
-    add_op(r, X86_OP_BSR,  DST, SRC1, 0, "bsrq %v1q, %vdq");
-    add_op(r, X86_OP_BSR,  DST, SRC1, 0, "xorq $0x3f, %vdq");
-
+    // r = add_rule(RI3, IR_BIT_SCAN_FWD, RI4,  0, 2);
     r = add_rule(RI3, IR_BIT_SCAN_FWD, RU4,  0, 2);
-    add_op(r, X86_OP_BSR,  DST, SRC1, 0, "bsrq %v1q, %vdq");
-    add_op(r, X86_OP_BSR,  DST, SRC1, 0, "xorq $0x3f, %vdq");
+    add_op(r, X86_OP_BSR, DST, SRC1, 0, "bsrq %v1q, %vdq");
+    add_op(r, X86_OP_BSR, DST, SRC1, 0, "xorq $0x3f, %vdq");
 
     // Bit scan reverse
-    r = add_rule(RI3, IR_BIT_SCAN_REV, RI3,  0, 2);
-    add_op(r, X86_OP_TZCNT,  DST, SRC1, 0, "tzcntl %v1l, %vdl");
-
     r = add_rule(RI3, IR_BIT_SCAN_REV, RU3,  0, 2);
-    add_op(r, X86_OP_TZCNT,  DST, SRC1, 0, "tzcntl %v1l, %vdl");
-
-    r = add_rule(RI3, IR_BIT_SCAN_REV, RI4,  0, 2);
-    add_op(r, X86_OP_TZCNT,  DST, SRC1, 0, "tzcntq %v1q, %vdq");
+    add_op(r, X86_OP_TZCNT, DST, SRC1, 0, "tzcntl %v1l, %vdl");
 
     r = add_rule(RI3, IR_BIT_SCAN_REV, RU4,  0, 2);
-    add_op(r, X86_OP_TZCNT,  DST, SRC1, 0, "tzcntq %v1q, %vdq");
+    add_op(r, X86_OP_TZCNT, DST, SRC1, 0, "tzcntq %v1q, %vdq");
 }
 
 static void add_int128_addc_rules(int type) {
