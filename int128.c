@@ -184,6 +184,8 @@ static Tac *move_constant_into_new_vreg(Function *function, Tac *tac, Value *src
     tac = new_tac_before(tac, IR_MOVE, *pdst, src, NULL, 1);
     tac = split_instruction(function, tac);
     tac = tac->next;
+
+    return tac;
 }
 
 // Convert an non-128 bit integer in a register to an int128 in a register
