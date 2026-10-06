@@ -476,10 +476,16 @@ static Tac *transform_variable_bitshift(Function *function, Tac *tac, int operat
     Value *shift_value = dup_value(tac->src2);
     shift_value->type->type = TYPE_INT;
 
+    // Make some constants
+    Value *v0 = new_integral_constant(TYPE_INT, 0);
+    v0->type->is_unsigned = shift_value->type->is_unsigned;
+    Value *v64 = new_integral_constant(TYPE_INT, 64);
+    v64->type->is_unsigned = shift_value->type->is_unsigned;
+
     // See if shift amount == 0
     Value *cmp_to_zero_value = new_int_vreg(function);
 
-    tac = new_tac_after(tac, IR_EQ, cmp_to_zero_value, shift_value, new_integral_constant(TYPE_INT, 0));
+    tac = new_tac_after(tac, IR_EQ, cmp_to_zero_value, shift_value, v0);
     tac = new_tac_after(tac, IR_JZ, NULL, cmp_to_zero_value, label_not_zero);
 
     // Shift amount == 0
@@ -495,7 +501,7 @@ static Tac *transform_variable_bitshift(Function *function, Tac *tac, int operat
     tac->label = label_not_zero->label;
 
     Value *cmp_lt_64_value = new_int_vreg(function);
-    tac = new_tac_after(tac, IR_LT, cmp_lt_64_value, shift_value, new_integral_constant(TYPE_INT, 64));
+    tac = new_tac_after(tac, IR_LT, cmp_lt_64_value, shift_value, v64);
     tac = new_tac_after(tac, IR_JZ, NULL, cmp_lt_64_value, label_ge_64);
 
     // Shift amount < 64
@@ -514,11 +520,13 @@ static Tac *transform_variable_bitshift(Function *function, Tac *tac, int operat
     // Make 64-shift_value
     Value *flipped_shift_value = dup_value(shift_value);
     flipped_shift_value->vreg = ++function->vreg_count;
+    flipped_shift_value->type->is_unsigned = shift_value->type->is_unsigned;
 
     Value *v64_value = new_value();
     v64_value->type = new_type(TYPE_INT);
+    v64_value->type->is_unsigned = shift_value->type->is_unsigned;
     v64_value->vreg = ++function->vreg_count;
-    tac = new_tac_after(tac, IR_MOVE, v64_value, new_integral_constant(TYPE_INT, 64), NULL);
+    tac = new_tac_after(tac, IR_MOVE, v64_value, v64, NULL);
     tac = new_tac_after(tac, IR_SUB, flipped_shift_value, v64_value, shift_value);
 
     // Shift the transitional bits to the left, so they are ready to be orred onto the vacated high bits
@@ -543,7 +551,7 @@ static Tac *transform_variable_bitshift(Function *function, Tac *tac, int operat
     tac->label = label_ge_64->label;
 
     Value *cmp_gt_64_value = new_int_vreg(function);
-    tac = new_tac_after(tac, IR_GT, cmp_gt_64_value, shift_value, new_integral_constant(TYPE_INT, 64));
+    tac = new_tac_after(tac, IR_GT, cmp_gt_64_value, shift_value, v64);
     tac = new_tac_after(tac, IR_JNZ, NULL, cmp_gt_64_value, label_gt_64);
 
     // Shift amount == 64
@@ -566,8 +574,9 @@ static Tac *transform_variable_bitshift(Function *function, Tac *tac, int operat
 
     Value *shift_value_minus_64 = new_value();
     shift_value_minus_64->type = new_type(TYPE_INT);
+    shift_value_minus_64->type->is_unsigned = shift_value->type->is_unsigned;
     shift_value_minus_64->vreg = ++function->vreg_count;
-    tac = new_tac_after(tac, IR_SUB, shift_value_minus_64, shift_value, new_integral_constant(TYPE_INT, 64));
+    tac = new_tac_after(tac, IR_SUB, shift_value_minus_64, shift_value, v64);
     tac = new_tac_after(tac, operation, end_dst_value, start_src1_value, shift_value_minus_64);
     tac = new_tac_after(tac, IR_MOVE, start_dst_value, new_integral_constant(TYPE_LONG, 0), NULL);
 

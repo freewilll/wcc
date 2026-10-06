@@ -287,6 +287,11 @@ static void test_bit_shifts_with_register_and_register(void_and_register) {
     __int128 r = 1;
     c = 63;
     ASSERT_INT128(0, 1L << 63, r << c, "1 in register << 63 in register");
+
+    // Right with unsigned register
+    unsigned int uc;
+    ui = (unsigned __int128) 1 << 96;
+    uc =  0; ASSERT_INT128(1L << 32, 0,  ui >> uc, "unsigned 1 << 96 >> 0 in unsigned register");
 }
 
 // This test isn't exhaustive, since the most of it is already handled by the above tests.
