@@ -9,7 +9,7 @@
 
 // Determine the amount of leading zeros by looking at the
 // two 64-bit halves of a  128-bit significand.
-int count_leading_zeros(__uint128_t v) {
+int __wcc_sf_count_leading_zeros(__uint128_t v) {
     int leading_zeros;
 
     uint64_t high = v >> 64;
@@ -26,7 +26,7 @@ int count_leading_zeros(__uint128_t v) {
 }
 
 // Update guard and sticky bits as if the value were to be shifted right by shift_amount
-void update_guard_and_sticky_bits(__uint128_t *value, int shift_amount, int *guard, int *sticky) {
+void __wcc_sf_update_guard_and_sticky_bits(__uint128_t *value, int shift_amount, int *guard, int *sticky) {
     if (!shift_amount) return;
 
     *sticky |= *guard;
@@ -42,13 +42,13 @@ void update_guard_and_sticky_bits(__uint128_t *value, int shift_amount, int *gua
 }
 
 // Shift right and update guard and sticky bits
-void shift_right(__uint128_t *value, int shift_amount, int *guard, int *sticky) {
-    update_guard_and_sticky_bits(value, shift_amount, guard, sticky);
+void __wcc_sf_shift_right(__uint128_t *value, int shift_amount, int *guard, int *sticky) {
+    __wcc_sf_update_guard_and_sticky_bits(value, shift_amount, guard, sticky);
     if (shift_amount) *value >>= shift_amount;
 }
 
 // Update guard, round and sticky bits as if the value were to be shifted right by shift_amount
-void update_GRS_bits(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky) {
+void __wcc_sf_update_GRS_bits(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky) {
     if (!shift_amount) return;
 
     if (shift_amount >= 128) {
@@ -77,8 +77,8 @@ void update_GRS_bits(__uint128_t *value, int shift_amount, int *guard, int *roun
 }
 
 // Shift right and update guard, round and sticky bits
-void shift_right_with_GRS(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky) {
-    update_GRS_bits(value, shift_amount, guard, round, sticky);
+void __wcc_sf_shift_right_with_GRS(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky) {
+    __wcc_sf_update_GRS_bits(value, shift_amount, guard, round, sticky);
     if (shift_amount) *value >>= shift_amount;
 }
 
@@ -95,7 +95,7 @@ void shift_right_with_GRS(__uint128_t *value, int shift_amount, int *guard, int 
 // 1|0|1 => 0   // Inexact, below half, round down
 // 1|1|0 => 1   // Exact, T is odd, round up to nearest even
 // 1|1|1 => 1   // Above half, round up
-void round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guard, int sticky) {
+void __wcc_sf_round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guard, int sticky) {
     #ifdef DEBUG_ROUNDING
     printf("Before round: b=%-3d g=%d s=%d ", bits, guard, sticky);
     print_fpv(fpv);
@@ -142,9 +142,9 @@ void round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guar
 }
 
 // Using a significand of bits size, look a the bits beyond and round.
-void round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits) {
+void __wcc_sf_round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits) {
     int guard = 0;
     int sticky = 0;
-    update_guard_and_sticky_bits(&fpv->significand, SIGNIFICAND_BITS - bits, &guard, &sticky);
-    round_to_nearest_even(encoding, fpv, bits, guard, sticky);
+    __wcc_sf_update_guard_and_sticky_bits(&fpv->significand, SIGNIFICAND_BITS - bits, &guard, &sticky);
+    __wcc_sf_round_to_nearest_even(encoding, fpv, bits, guard, sticky);
 }

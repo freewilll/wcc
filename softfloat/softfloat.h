@@ -57,59 +57,59 @@ typedef struct fp_value {
     FpValueType type;
 } FpValue;
 
-extern FpEncoding binary32_encoding;
-extern FpEncoding binary64_encoding;
-extern FpEncoding binary128_encoding;
+extern const FpEncoding _wcc_sf_binary32_encoding;
+extern const FpEncoding _wcc_sf_binary64_encoding;
+extern const FpEncoding _wcc_sf_binary128_encoding;
 
-FpValue load_float(float f);
-FpValue load_double(double d);
-FpValue load_ld(long double ld);
-float store_float(FpValue *fpv);
-double store_double(FpValue *fpv);
-long double store_ld(FpValue *fpv);
+FpValue     __wcc_sf_load_float(float f);
+FpValue     __wcc_sf_load_double(double d);
+FpValue     __wcc_sf_load_ld(long double ld);
+float       __wcc_sf_store_float(FpValue *fpv);
+double      __wcc_sf_store_double(FpValue *fpv);
+long double __wcc_sf_store_ld(FpValue *fpv);
 
 // conversions.c
-double      convert_float_to_double (float f);
-long double convert_float_to_ld     (float f);
-float       convert_double_to_float (double d);
-long double convert_double_to_ld    (double d);
-float       convert_ld_to_float     (long double ld);
-double      convert_ld_to_double    (long double ld);
-int64_t     convert_ld_to_int64     (long double ld);
-uint64_t    convert_ld_to_uint64    (long double ld);
-long double convert_int64_to_ld     (int64_t  i);
-long double convert_uint64_to_ld    (uint64_t i);
+double      __wcc_sf_convert_float_to_double (float f);
+long double __wcc_sf_convert_float_to_ld     (float f);
+float       __wcc_sf_convert_double_to_float (double d);
+long double __wcc_sf_convert_double_to_ld    (double d);
+float       __wcc_sf_convert_ld_to_float     (long double ld);
+double      __wcc_sf_convert_ld_to_double    (long double ld);
+int64_t     __wcc_sf_convert_ld_to_int64     (long double ld);
+uint64_t    __wcc_sf_convert_ld_to_uint64    (long double ld);
+long double __wcc_sf_convert_int64_to_ld     (int64_t  i);
+long double __wcc_sf_convert_uint64_to_ld    (uint64_t i);
 
 // rounding.c
-int count_leading_zeros(__uint128_t v);
-void update_guard_and_sticky_bits(__uint128_t *value, int shift_amount, int *guard, int *sticky);
-void shift_right(__uint128_t *value, int shift_amount, int *guard, int *sticky);
-void update_GRS_bits(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky);
-void shift_right_with_GRS(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky);
-void round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guard, int sticky);
-void round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits);
+int __wcc_sf_count_leading_zeros(__uint128_t v);
+void __wcc_sf_update_guard_and_sticky_bits(__uint128_t *value, int shift_amount, int *guard, int *sticky);
+void __wcc_sf_shift_right(__uint128_t *value, int shift_amount, int *guard, int *sticky);
+void __wcc_sf_update_GRS_bits(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky);
+void __wcc_sf_shift_right_with_GRS(__uint128_t *value, int shift_amount, int *guard, int *round, int *sticky);
+void __wcc_sf_round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits, int guard, int sticky);
+void __wcc_sf_round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits);
 
 // integers.c
-int64_t convert_fpv_to_int64(FpValue *fpv);
-uint64_t convert_fpv_to_uint64(FpValue *fpv);
-FpValue convert_int64_to_fpv(int64_t i);
-FpValue convert_uint64_to_fpv(uint64_t i);
+int64_t  __wcc_sf_convert_fpv_to_int64(FpValue *fpv);
+uint64_t __wcc_sf_convert_fpv_to_uint64(FpValue *fpv);
+FpValue  __wcc_sf_convert_int64_to_fpv(int64_t i);
+FpValue  __wcc_sf_convert_uint64_to_fpv(uint64_t i);
 
 // arithmetic.c
-uint256_t multiply_256_bit(__uint128_t a, __uint128_t b);
-long double negate_ld(long double ld);
-long double add_ld(long double a, long double b);
-long double subtract_ld(long double a, long double b);
-long double multiply_ld(long double a, long double b);
-long double divide_ld(long double a, long double b);
+uint256_t __wcc_sf_multiply_256_bit(__uint128_t a, __uint128_t b);
+long double __wcc_sf_negate_ld(long double ld);
+long double __wcc_sf_add_ld(long double a, long double b);
+long double __wcc_sf_subtract_ld(long double a, long double b);
+long double __wcc_sf_multiply_ld(long double a, long double b);
+long double __wcc_sf_divide_ld(long double a, long double b);
 
 // comparisons.c
-int ld_eq(long double a, long double b);
-int ld_ne(long double a, long double b);
-int ld_lt(long double a, long double b);
-int ld_gt(long double a, long double b);
-int ld_le(long double a, long double b);
-int ld_ge(long double a, long double b);
+int __wcc_sf_ld_eq(long double a, long double b);
+int __wcc_sf_ld_ne(long double a, long double b);
+int __wcc_sf_ld_lt(long double a, long double b);
+int __wcc_sf_ld_gt(long double a, long double b);
+int __wcc_sf_ld_le(long double a, long double b);
+int __wcc_sf_ld_ge(long double a, long double b);
 
 #endif
 

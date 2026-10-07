@@ -7,7 +7,7 @@
 #include "testlib.h"
 #endif
 
-int64_t convert_fpv_to_int64(FpValue *fpv) {
+int64_t __wcc_sf_convert_fpv_to_int64(FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Converting to int64         ");
     print_fpv(fpv);
@@ -40,7 +40,7 @@ int64_t convert_fpv_to_int64(FpValue *fpv) {
     return result;
 }
 
-uint64_t convert_fpv_to_uint64(FpValue *fpv) {
+uint64_t __wcc_sf_convert_fpv_to_uint64(FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Converting to uint64        ");
     print_fpv(fpv);
@@ -74,7 +74,7 @@ uint64_t convert_fpv_to_uint64(FpValue *fpv) {
 }
 
 // Convert a signed or unsigned 64 bit integer into a floating point value.
-static FpValue convert_common_int64_to_fpv(uint64_t i, int is_signed) {
+static FpValue __wcc_sf_convert_common_int64_to_fpv(uint64_t i, int is_signed) {
     #ifdef DEBUG_LOAD
     printf("%ld\n", (int64_t) i);
     #endif
@@ -108,10 +108,10 @@ static FpValue convert_common_int64_to_fpv(uint64_t i, int is_signed) {
     return fpv;
 }
 
-FpValue convert_int64_to_fpv(int64_t i) {
-    return convert_common_int64_to_fpv(i, 1);
+FpValue __wcc_sf_convert_int64_to_fpv(int64_t i) {
+    return __wcc_sf_convert_common_int64_to_fpv(i, 1);
 }
 
-FpValue convert_uint64_to_fpv(uint64_t i) {
-    return convert_common_int64_to_fpv(i, 0);
+FpValue __wcc_sf_convert_uint64_to_fpv(uint64_t i) {
+    return __wcc_sf_convert_common_int64_to_fpv(i, 0);
 }

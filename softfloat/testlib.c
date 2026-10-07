@@ -88,9 +88,9 @@ void print_significand(__uint128_t s)  {
         printf("%d", v);
 
         // Print '|' on 32-bit, 64-bit and 128-bit boundaries
-        if (sb1 - i + 1 == binary32_encoding.significand_bits) printf(" ");
-        if (sb1 - i + 1 == binary64_encoding.significand_bits) printf(" ");
-        if (sb1 - i + 1 == binary128_encoding.significand_bits) printf(" ");
+        if (sb1 - i + 1 == _wcc_sf_binary32_encoding.significand_bits) printf(" ");
+        if (sb1 - i + 1 == _wcc_sf_binary64_encoding.significand_bits) printf(" ");
+        if (sb1 - i + 1 == _wcc_sf_binary128_encoding.significand_bits) printf(" ");
         mask = mask >> 1;
     }
 }

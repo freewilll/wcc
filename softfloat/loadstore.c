@@ -8,15 +8,15 @@
 #include "testlib.h"
 #endif
 
-FpEncoding binary32_encoding = { 8, 23 };
-FpEncoding binary64_encoding = { 11, 52 };
-FpEncoding binary128_encoding = { 15, 112 };
+const FpEncoding _wcc_sf_binary32_encoding = { 8, 23 };
+const FpEncoding _wcc_sf_binary64_encoding = { 11, 52 };
+const FpEncoding _wcc_sf_binary128_encoding = { 15, 112 };
 
 // Convert from a subnormal to normal encoding into normal when loading.
 // Once loaded, values are never subnormal, since there the exponent
 // is stored as an int. The only times subnormals need to be
 // dealt with are during loading and storing.
-static void convert_from_subnormal(FpEncoding encoding, FpValue *fpv) {
+static void __wcc_sf_convert_from_subnormal(FpEncoding encoding, FpValue *fpv) {
     if (fpv->type != TYPE_SUBNORMAL) return;
 
     #ifdef DEBUG_LOAD
@@ -28,7 +28,7 @@ static void convert_from_subnormal(FpEncoding encoding, FpValue *fpv) {
 
     // Determine the amount of leading zeros by looking at the
     // two 64-bit halves of the 128-bit significand.
-    int leading_zeroes = count_leading_zeros(fpv->significand);
+    int leading_zeroes = __wcc_sf_count_leading_zeros(fpv->significand);
 
     // The upper bits are unused.
     leading_zeroes -= EMPTY_HIGH_BITS;
@@ -51,7 +51,7 @@ static void convert_from_subnormal(FpEncoding encoding, FpValue *fpv) {
 
 // When storing, convert a normal value to a subnormal, when possible.
 // This could lead to a +0.0 or -0.0 in case all non-zero bits vanish.
-static void convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv) {
+static void __wcc_sf_convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv) {
     if (fpv->type != TYPE_NORMAL) return;
 
     int exponent_midway = GET_ENCODING_EXPONENT_MIDWAY(encoding);
@@ -92,7 +92,7 @@ static void convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv) {
     fpv->significand |= ((__uint128_t) 1) << SIGNIFICAND_BITS;
 
     // Set the guard and sticky bits based on a total shift of shift_amount + 1
-    update_guard_and_sticky_bits(&fpv->significand, SIGNIFICAND_BITS - encoding.significand_bits + shift_amount + 1, &guard, &sticky);
+    __wcc_sf_update_guard_and_sticky_bits(&fpv->significand, SIGNIFICAND_BITS - encoding.significand_bits + shift_amount + 1, &guard, &sticky);
 
     #ifdef DEBUG_STORE
     printf("                            Converting to subnormal since %d - %d < 1: shift by 1 + %d\n", -fpv->exponent, exponent_midway, shift_amount);
@@ -116,10 +116,10 @@ static void convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv) {
 
     // Finally, round using the guard and sticky bits.
     // This may lead to the value becoming normal again.
-    round_to_nearest_even(encoding, fpv, encoding.significand_bits, guard, sticky);
+    __wcc_sf_round_to_nearest_even(encoding, fpv, encoding.significand_bits, guard, sticky);
 }
 
-static void convert_to_inf_if_needed(FpEncoding encoding, FpValue *fpv) {
+static void __wcc_sf_convert_to_inf_if_needed(FpEncoding encoding, FpValue *fpv) {
     if (fpv->type != TYPE_NORMAL) return;
 
     int exponent_max = GET_ENCODING_EXPONENT_MAX(encoding);
@@ -136,7 +136,7 @@ static void convert_to_inf_if_needed(FpEncoding encoding, FpValue *fpv) {
     }
 }
 
-static FpValue load(FpEncoding encoding, __uint128_t raw) {
+static FpValue __wcc_sf_load(FpEncoding encoding, __uint128_t raw) {
     // Load sign
     int non_sign_bits = (encoding.exponent_bits + encoding.significand_bits);
     unsigned int sign = (raw >> non_sign_bits) & 1;
@@ -164,7 +164,7 @@ static FpValue load(FpEncoding encoding, __uint128_t raw) {
 
     FpValue fpv = {sign, exponent, significand, type};
 
-    if (type == TYPE_SUBNORMAL) convert_from_subnormal(encoding, &fpv);
+    if (type == TYPE_SUBNORMAL) __wcc_sf_convert_from_subnormal(encoding, &fpv);
 
     #ifdef DEBUG_LOAD
     printf("Loaded                      ");
@@ -174,7 +174,7 @@ static FpValue load(FpEncoding encoding, __uint128_t raw) {
     return fpv;
 }
 
-static __uint128_t store(FpEncoding encoding, FpValue *fpv) {
+static __uint128_t __wcc_sf_store(FpEncoding encoding, FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Storing                     ");
     print_fpv(fpv);
@@ -204,49 +204,49 @@ static __uint128_t store(FpEncoding encoding, FpValue *fpv) {
     return raw;
 }
 
-FpValue load_float(float f) {
+FpValue __wcc_sf_load_float(float f) {
     #ifdef DEBUG_LOAD
     printf("Loading %15g\n", f);
     #endif
 
     __uint128_t raw = 0;
     raw = *((uint32_t *) &f);
-    return load(binary32_encoding, raw);
+    return __wcc_sf_load(_wcc_sf_binary32_encoding, raw);
 }
 
-FpValue load_double(double d) {
+FpValue __wcc_sf_load_double(double d) {
     #ifdef DEBUG_LOAD
     printf("Loading %15g\n", d);
     #endif
 
     __uint128_t raw = 0;
     raw = *((uint64_t *) &d);
-    return load(binary64_encoding, raw);
+    return __wcc_sf_load(_wcc_sf_binary64_encoding, raw);
 }
 
-FpValue load_ld(long double ld) {
+FpValue __wcc_sf_load_ld(long double ld) {
     #ifdef DEBUG_LOAD
     printf("Loading %15Lg\n", ld);
     #endif
 
     __uint128_t raw = *((__uint128_t *) &ld);
-    return load(binary128_encoding, raw);
+    return __wcc_sf_load(_wcc_sf_binary128_encoding, raw);
 }
 
-float store_float(FpValue *fpv) {
+float __wcc_sf_store_float(FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Storing                     ");
     print_fpv(fpv);
     #endif
 
-    convert_to_inf_if_needed(binary32_encoding, fpv);
-    convert_to_subnormal_if_needed(binary32_encoding, fpv);
+    __wcc_sf_convert_to_inf_if_needed(_wcc_sf_binary32_encoding, fpv);
+    __wcc_sf_convert_to_subnormal_if_needed(_wcc_sf_binary32_encoding, fpv);
 
     // Subnormals have already been rounded and don't need rounding done again.
     if (fpv->type != TYPE_SUBNORMAL)
-        round_to_nearest_even_at_bits(binary32_encoding, fpv, binary32_encoding.significand_bits);
+        __wcc_sf_round_to_nearest_even_at_bits(_wcc_sf_binary32_encoding, fpv, _wcc_sf_binary32_encoding.significand_bits);
 
-    __uint128_t raw = store(binary32_encoding, fpv);
+    __uint128_t raw = __wcc_sf_store(_wcc_sf_binary32_encoding, fpv);
 
     float f = *((float *) &raw);
 
@@ -257,20 +257,20 @@ float store_float(FpValue *fpv) {
     return f;
 }
 
-double store_double(FpValue *fpv) {
+double __wcc_sf_store_double(FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Storing                     ");
     print_fpv(fpv);
     #endif
 
-    convert_to_inf_if_needed(binary64_encoding, fpv);
-    convert_to_subnormal_if_needed(binary64_encoding, fpv);
+    __wcc_sf_convert_to_inf_if_needed(_wcc_sf_binary64_encoding, fpv);
+    __wcc_sf_convert_to_subnormal_if_needed(_wcc_sf_binary64_encoding, fpv);
 
     // Subnormals have already been rounded and don't need rounding done again.
     if (fpv->type != TYPE_SUBNORMAL)
-        round_to_nearest_even_at_bits(binary64_encoding, fpv, binary64_encoding.significand_bits);
+        __wcc_sf_round_to_nearest_even_at_bits(_wcc_sf_binary64_encoding, fpv, _wcc_sf_binary64_encoding.significand_bits);
 
-    __uint128_t raw = store(binary64_encoding, fpv);
+    __uint128_t raw = __wcc_sf_store(_wcc_sf_binary64_encoding, fpv);
 
     double d = *((double *) &raw);
 
@@ -281,16 +281,16 @@ double store_double(FpValue *fpv) {
     return d;
 }
 
-long double store_ld(FpValue *fpv) {
+long double __wcc_sf_store_ld(FpValue *fpv) {
     #ifdef DEBUG_STORE
     printf("Storing                     ");
     print_fpv(fpv);
     #endif
 
-    convert_to_inf_if_needed(binary128_encoding, fpv);
-    convert_to_subnormal_if_needed(binary128_encoding, fpv);
+    __wcc_sf_convert_to_inf_if_needed(_wcc_sf_binary128_encoding, fpv);
+    __wcc_sf_convert_to_subnormal_if_needed(_wcc_sf_binary128_encoding, fpv);
 
-    __uint128_t raw = store(binary128_encoding, fpv);
+    __uint128_t raw = __wcc_sf_store(_wcc_sf_binary128_encoding, fpv);
     long double ld = *((long double *) &raw);
 
     #ifdef DEBUG_STORE

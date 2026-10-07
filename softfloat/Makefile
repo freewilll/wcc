@@ -1,4 +1,8 @@
-all: test_softfloat
+ifeq ($(TARGET),aarch64)
+test: test-softfloat
+else
+test:
+endif
 
 CC ?= gcc
 SOURCES = testlib.o loadstore.o conversions.o rounding.o integers.o arithmetic.o comparisons.o
@@ -33,7 +37,8 @@ debug: debug.o $(OBJECTS_ABS_PATH)
 	${CC} $^ -o debug
 	$(BUILD_DIR)/softfloat/debug
 
-test: test_softfloat
+PHONY: test-softfloat
+test-softfloat: test_softfloat
 	$(BUILD_DIR)/softfloat/test_softfloat
 
 clean:

@@ -10,13 +10,13 @@ static FpValue nan_fpv = {0, 0, (__uint128_t) 1 << (SIGNIFICAND_BITS - 1), TYPE_
 static FpValue inf_fpv = {0, 0, (__uint128_t) 1 << (SIGNIFICAND_BITS - 1), TYPE_INF};
 
 // Negate a value. It is modified in place.
-static void negate(FpValue *fpv) {
+static void __wcc_sf_negate(FpValue *fpv) {
     fpv->sign = !fpv->sign;
 }
 
 // Add two FpValues. The contents of b gets potentially destroyed.
 // If the signs differ then a subtraction is done.
-static FpValue add(FpValue *a, FpValue *b) {
+static FpValue __wcc_sf_add(FpValue *a, FpValue *b) {
     #ifdef DEBUG_ARITHMETIC
     printf("Adding:\n");
     printf("a:                          ");
@@ -83,9 +83,9 @@ static FpValue add(FpValue *a, FpValue *b) {
     else if (shift_amount > 0) {
         // Shift the bits to the right so that the exponents match
         if (is_addition)
-            shift_right(&b->significand, shift_amount, &guard, &sticky);
+            __wcc_sf_shift_right(&b->significand, shift_amount, &guard, &sticky);
         else
-            shift_right_with_GRS(&b->significand, shift_amount, &guard, &round, &sticky);
+            __wcc_sf_shift_right_with_GRS(&b->significand, shift_amount, &guard, &round, &sticky);
 
         #ifdef DEBUG_ARITHMETIC
         // Modify b so that debugging output is correct.
@@ -107,7 +107,7 @@ static FpValue add(FpValue *a, FpValue *b) {
 
         // Normalize
         if (result.significand & ((__uint128_t) 1) << (SIGNIFICAND_BITS + 1)) {
-            shift_right(&result.significand, 1, &guard, &sticky);
+            __wcc_sf_shift_right(&result.significand, 1, &guard, &sticky);
             result.exponent += 1;
         }
     }
@@ -139,7 +139,7 @@ static FpValue add(FpValue *a, FpValue *b) {
 
         // Normalize
         if (!(result.significand & ((__uint128_t) 1) << (SIGNIFICAND_BITS))) {
-            int leading_zeros = count_leading_zeros(result.significand) - (128 - SIGNIFICAND_BITS);
+            int leading_zeros = __wcc_sf_count_leading_zeros(result.significand) - (128 - SIGNIFICAND_BITS);
             leading_zeros += 1; // One extra for the implicit 1 before the decimal point
 
             // Shift the G and R bits in
@@ -163,7 +163,7 @@ static FpValue add(FpValue *a, FpValue *b) {
     }
 
     // Round
-    round_to_nearest_even(binary128_encoding, &result, binary128_encoding.significand_bits, guard, sticky);
+    __wcc_sf_round_to_nearest_even(_wcc_sf_binary128_encoding, &result, _wcc_sf_binary128_encoding.significand_bits, guard, sticky);
 
     #ifdef DEBUG_ARITHMETIC
     printf("Addition result:            ");
@@ -178,7 +178,7 @@ static FpValue add(FpValue *a, FpValue *b) {
 // This needs doing with a series of 128-bit multipies of the
 // four 64-bit components, followed by a bunch of additions
 // including carries.
-uint256_t multiply_256_bit(__uint128_t a, __uint128_t b) {
+uint256_t __wcc_sf_multiply_256_bit(__uint128_t a, __uint128_t b) {
     uint256_t r = {0};
 
     // Split up a and b into 64-bit values
@@ -217,7 +217,7 @@ uint256_t multiply_256_bit(__uint128_t a, __uint128_t b) {
 }
 
 // Multiply two FpValues. a and b get destroyed.
-static FpValue multiply(FpValue *a, FpValue *b) {
+static FpValue __wcc_sf_multiply(FpValue *a, FpValue *b) {
     #ifdef DEBUG_ARITHMETIC
     printf("Multiplying:\n");
     printf("a:                          ");
@@ -254,13 +254,13 @@ static FpValue multiply(FpValue *a, FpValue *b) {
     int sticky = 0;
 
     if (b->significand) {
-        uint256_t significand = multiply_256_bit(a->significand, b->significand);
+        uint256_t significand = __wcc_sf_multiply_256_bit(a->significand, b->significand);
 
         // The result needs to be shifted SIGNIFICAND_BITS bits to the right
         // | 128   | 128    |    <- multiplied  value
         // | 32 96 | 16 112 |    <- split up into parts for the 112 bit shift
         result.significand = significand.low;
-        shift_right(&result.significand, 112, &guard, &sticky);
+        __wcc_sf_shift_right(&result.significand, 112, &guard, &sticky);
         result.significand |= significand.high << 16;
     }
     else {
@@ -269,12 +269,12 @@ static FpValue multiply(FpValue *a, FpValue *b) {
 
     // Normalize
     if (result.significand & ((__uint128_t) 1) << (SIGNIFICAND_BITS + 1)) {
-        shift_right(&result.significand, 1, &guard, &sticky);
+        __wcc_sf_shift_right(&result.significand, 1, &guard, &sticky);
         result.exponent += 1;
     }
 
     // Round
-    round_to_nearest_even(binary128_encoding, &result, binary128_encoding.significand_bits, guard, sticky);
+    __wcc_sf_round_to_nearest_even(_wcc_sf_binary128_encoding, &result, _wcc_sf_binary128_encoding.significand_bits, guard, sticky);
 
     #ifdef DEBUG_ARITHMETIC
     printf("Multiplication result:      ");
@@ -288,7 +288,7 @@ static FpValue multiply(FpValue *a, FpValue *b) {
 // 1 implicit leading 1 before the dot
 // 112 significand bits
 // 3 GRS bits
-__uint128_t divide_128_bit(__uint128_t a, __uint128_t b, __uint128_t *output_remainder) {
+__uint128_t __wcc_sf_divide_128_bit(__uint128_t a, __uint128_t b, __uint128_t *output_remainder) {
     __uint128_t quotient = 0;
     __uint128_t remainder = a;
 
@@ -309,7 +309,7 @@ __uint128_t divide_128_bit(__uint128_t a, __uint128_t b, __uint128_t *output_rem
 }
 
 // Divide two FpValues. a and b get destroyed.
-static FpValue divide(FpValue *a, FpValue *b) {
+static FpValue __wcc_sf_divide(FpValue *a, FpValue *b) {
     #ifdef DEBUG_ARITHMETIC
     printf("Dividing:\n");
     printf("a:                          ");
@@ -374,7 +374,7 @@ static FpValue divide(FpValue *a, FpValue *b) {
 
     __uint128_t significand;
     if (b->significand)
-        significand = divide_128_bit(a->significand, b->significand, &remainder);
+        significand = __wcc_sf_divide_128_bit(a->significand, b->significand, &remainder);
     else
         significand = a->significand; // Don't bother dividing by 1
 
@@ -405,7 +405,7 @@ static FpValue divide(FpValue *a, FpValue *b) {
 
     // Round
     sticky |= round; // Merge the round bit into the sticky bit.
-    round_to_nearest_even(binary128_encoding, &result, binary128_encoding.significand_bits, guard, sticky);
+    __wcc_sf_round_to_nearest_even(_wcc_sf_binary128_encoding, &result, _wcc_sf_binary128_encoding.significand_bits, guard, sticky);
 
     #ifdef DEBUG_ARITHMETIC
     printf("Division result:            ");
@@ -415,62 +415,62 @@ static FpValue divide(FpValue *a, FpValue *b) {
     return result;
 }
 
-long double negate_ld(long double ld) {
-    FpValue fpv = load_ld(ld);
-    negate(&fpv);
+long double __wcc_sf_negate_ld(long double ld) {
+    FpValue fpv = __wcc_sf_load_ld(ld);
+    __wcc_sf_negate(&fpv);
 
-    return store_ld(&fpv);
+    return __wcc_sf_store_ld(&fpv);
 }
 
-long double add_ld(long double a, long double b) {
-    FpValue fpv_a = load_ld(a);
-    FpValue fpv_b = load_ld(b);
+long double __wcc_sf_add_ld(long double a, long double b) {
+    FpValue fpv_a = __wcc_sf_load_ld(a);
+    FpValue fpv_b = __wcc_sf_load_ld(b);
 
     // Return the first NAN if there is one.
-    if (fpv_a.type == TYPE_NAN) return store_ld(&fpv_a);
-    if (fpv_b.type == TYPE_NAN) return store_ld(&fpv_b);
+    if (fpv_a.type == TYPE_NAN) return __wcc_sf_store_ld(&fpv_a);
+    if (fpv_b.type == TYPE_NAN) return __wcc_sf_store_ld(&fpv_b);
 
-    FpValue result = add(&fpv_a, &fpv_b);
+    FpValue result = __wcc_sf_add(&fpv_a, &fpv_b);
 
-    return store_ld(&result);
+    return __wcc_sf_store_ld(&result);
 }
 
-long double subtract_ld(long double a, long double b) {
-    FpValue fpv_a = load_ld(a);
-    FpValue fpv_b = load_ld(b);
+long double __wcc_sf_subtract_ld(long double a, long double b) {
+    FpValue fpv_a = __wcc_sf_load_ld(a);
+    FpValue fpv_b = __wcc_sf_load_ld(b);
 
     // Return the first NAN if there is one.
-    if (fpv_a.type == TYPE_NAN) return store_ld(&fpv_a);
-    if (fpv_b.type == TYPE_NAN) return store_ld(&fpv_b);
+    if (fpv_a.type == TYPE_NAN) return __wcc_sf_store_ld(&fpv_a);
+    if (fpv_b.type == TYPE_NAN) return __wcc_sf_store_ld(&fpv_b);
 
-    negate(&fpv_b);
-    FpValue result = add(&fpv_a, &fpv_b);
+    __wcc_sf_negate(&fpv_b);
+    FpValue result = __wcc_sf_add(&fpv_a, &fpv_b);
 
-    return store_ld(&result);
+    return __wcc_sf_store_ld(&result);
 }
 
-long double multiply_ld(long double a, long double b) {
-    FpValue fpv_a = load_ld(a);
-    FpValue fpv_b = load_ld(b);
+long double __wcc_sf_multiply_ld(long double a, long double b) {
+    FpValue fpv_a = __wcc_sf_load_ld(a);
+    FpValue fpv_b = __wcc_sf_load_ld(b);
 
     // Return the first NAN if there is one.
-    if (fpv_a.type == TYPE_NAN) return store_ld(&fpv_a);
-    if (fpv_b.type == TYPE_NAN) return store_ld(&fpv_b);
+    if (fpv_a.type == TYPE_NAN) return __wcc_sf_store_ld(&fpv_a);
+    if (fpv_b.type == TYPE_NAN) return __wcc_sf_store_ld(&fpv_b);
 
-    FpValue result = multiply(&fpv_a, &fpv_b);
+    FpValue result = __wcc_sf_multiply(&fpv_a, &fpv_b);
 
-    return store_ld(&result);
+    return __wcc_sf_store_ld(&result);
 }
 
-long double divide_ld(long double a, long double b) {
-    FpValue fpv_a = load_ld(a);
-    FpValue fpv_b = load_ld(b);
+long double __wcc_sf_divide_ld(long double a, long double b) {
+    FpValue fpv_a = __wcc_sf_load_ld(a);
+    FpValue fpv_b = __wcc_sf_load_ld(b);
 
     // Return the first NAN if there is one.
-    if (fpv_a.type == TYPE_NAN) return store_ld(&fpv_a);
-    if (fpv_b.type == TYPE_NAN) return store_ld(&fpv_b);
+    if (fpv_a.type == TYPE_NAN) return __wcc_sf_store_ld(&fpv_a);
+    if (fpv_b.type == TYPE_NAN) return __wcc_sf_store_ld(&fpv_b);
 
-    FpValue result = divide(&fpv_a, &fpv_b);
+    FpValue result = __wcc_sf_divide(&fpv_a, &fpv_b);
 
-    return store_ld(&result);
+    return __wcc_sf_store_ld(&result);
 }

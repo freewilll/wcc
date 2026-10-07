@@ -6,8 +6,6 @@
 #include "softfloat.h"
 #include "testlib.h"
 
-#ifdef __aarch64__
-
 typedef union {
     __uint128_t i;
     long double ld;
@@ -33,7 +31,7 @@ typedef union {
     LongDoubleUnion u1; \
     LongDoubleUnion u2; \
     u1.ld = (a) + (b); \
-    u2.ld = add_ld(a, b); \
+    u2.ld = __wcc_sf_add_ld(a, b); \
     if (u1.i != u2.i) { \
         printf("%016lx %016lx %Lg\n", (uint64_t) (u1.i >> 64), (uint64_t) u1.i, u1.ld); \
         printf("%016lx %016lx %Lg\n", (uint64_t) (u2.i >> 64), (uint64_t) u2.i, u2.ld); \
@@ -52,7 +50,7 @@ typedef union {
     LongDoubleUnion u1; \
     LongDoubleUnion u2; \
     u1.ld = (a) - (b); \
-    u2.ld = subtract_ld(a, b); \
+    u2.ld = __wcc_sf_subtract_ld(a, b); \
     if (u1.i != u2.i) { \
         printf("%016lx %016lx %Lg\n", (uint64_t) (u1.i >> 64), (uint64_t) u1.i, u1.ld); \
         printf("%016lx %016lx %Lg\n", (uint64_t) (u2.i >> 64), (uint64_t) u2.i, u2.ld); \
@@ -71,7 +69,7 @@ typedef union {
     LongDoubleUnion u1; \
     LongDoubleUnion u2; \
     u1.ld = (a) * (b); \
-    u2.ld = multiply_ld(a, b); \
+    u2.ld = __wcc_sf_multiply_ld(a, b); \
     if (u1.i != u2.i) { \
         printf("%016lx %016lx %Lg\n", (uint64_t) (u1.i >> 64), (uint64_t) u1.i, u1.ld); \
         printf("%016lx %016lx %Lg\n", (uint64_t) (u2.i >> 64), (uint64_t) u2.i, u2.ld); \
@@ -90,7 +88,7 @@ typedef union {
     LongDoubleUnion u1; \
     LongDoubleUnion u2; \
     u1.ld = (a) / (b); \
-    u2.ld = divide_ld(a, b); \
+    u2.ld = __wcc_sf_divide_ld(a, b); \
     if (u1.i != u2.i) { \
         printf("%016lx %016lx %Lg\n", (uint64_t) (u1.i >> 64), (uint64_t) u1.i, u1.ld); \
         printf("%016lx %016lx %Lg\n", (uint64_t) (u2.i >> 64), (uint64_t) u2.i, u2.ld); \
@@ -108,7 +106,7 @@ void test_shift_right() {
     __uint128_t v = 0;
     int guard = -42;
     int sticky = -43;
-    shift_right(&v, 0, &guard, &sticky);
+    __wcc_sf_shift_right(&v, 0, &guard, &sticky);
     assert_int(-42, guard, "shift_right >> 0 a");
     assert_int(-43, sticky, "shift_right >> 0 b");
 
@@ -116,22 +114,22 @@ void test_shift_right() {
     v = 0x55;
     guard = 0;
     sticky = 0;
-    shift_right(&v, 1, &guard, &sticky);
+    __wcc_sf_shift_right(&v, 1, &guard, &sticky);
     assert_int(0x2a, v, "shift_right >> 1 a"); // 0101010
     assert_int(1, guard, "shift_right >> 1 b");
     assert_int(0, sticky, "shift_right >> 1 c");
 
-    shift_right(&v, 1, &guard, &sticky);
+    __wcc_sf_shift_right(&v, 1, &guard, &sticky);
     assert_int(0x15, v, "shift_right >> 2 a"); // 010101
     assert_int(0, guard, "shift_right >> 2 b");
     assert_int(1, sticky, "shift_right >> 2 c");
 
-    shift_right(&v, 1, &guard, &sticky);
+    __wcc_sf_shift_right(&v, 1, &guard, &sticky);
     assert_int(0x0a, v, "shift_right >> 3 a"); // 01010
     assert_int(1, guard, "shift_right >> 3 b");
     assert_int(1, sticky, "shift_right >> 3 c");
 
-    shift_right(&v, 1, &guard, &sticky);
+    __wcc_sf_shift_right(&v, 1, &guard, &sticky);
     assert_int(0x05, v, "shift_right >> 4 a"); // 0101
     assert_int(0, guard, "shift_right >> 4 b");
     assert_int(1, sticky, "shift_right >> 4 c");
@@ -140,12 +138,12 @@ void test_shift_right() {
     v = 0x55;
     guard = 0;
     sticky = 0;
-    shift_right(&v, 2, &guard, &sticky);
+    __wcc_sf_shift_right(&v, 2, &guard, &sticky);
     assert_int(0x15, v, "shift_right >> 2 a"); // 010101
     assert_int(0, guard, "shift_right >> 2 b");
     assert_int(1, sticky, "shift_right >> 2 c");
 
-    shift_right(&v, 3, &guard, &sticky);
+    __wcc_sf_shift_right(&v, 3, &guard, &sticky);
     assert_int(0x02, v, "shift_right >> 3 a"); // 010
     assert_int(1, guard, "shift_right >> 3 b");
     assert_int(1, sticky, "shift_right >> 3 c");
@@ -154,7 +152,7 @@ void test_shift_right() {
     v = 0x08;
     guard = 1;
     sticky = 0;
-    shift_right(&v, 3, &guard, &sticky);
+    __wcc_sf_shift_right(&v, 3, &guard, &sticky);
     assert_int(0x01, v, "shift_right >> 3 a"); // 1
     assert_int(0, guard, "shift_right >> 3 b");
     assert_int(1, sticky, "shift_right >> 3 c");
@@ -164,7 +162,7 @@ void run_update_GRS_bits(__uint128_t value, int shift_amount, int g1, int r1, in
     int guard = g1;
     int round = r1;
     int sticky = s1;
-    update_GRS_bits(&value, shift_amount, &guard, &round, &sticky);
+    __wcc_sf_update_GRS_bits(&value, shift_amount, &guard, &round, &sticky);
     int got_decimal = guard * 100 + round + 10 + sticky;
     int expected_decimal = g2 * 100 + r2 + 10 + s2;
     assert_int(expected_decimal, got_decimal, message);
@@ -203,7 +201,7 @@ void test_multiply_256_bit() {
         0x0000000000000000,
         0x0000000000000000,
         0x000000000000000c,
-        multiply_256_bit(a, b),
+        __wcc_sf_multiply_256_bit(a, b),
         "256 bit multiply 3 * 4"
     );
 
@@ -214,7 +212,7 @@ void test_multiply_256_bit() {
         0x000000000000000f,
         0x0000000000000026,
         0x0000000000000018,
-        multiply_256_bit(a, b),
+        __wcc_sf_multiply_256_bit(a, b),
         "256 bit multiply 3|4 * 5|6"
     );
 
@@ -225,7 +223,7 @@ void test_multiply_256_bit() {
         0x0000000000000000,
         0xfffffffffffffffe,
         0x0000000000000001,
-        multiply_256_bit(a, b),
+        __wcc_sf_multiply_256_bit(a, b),
         "256 bit multiply 0|f..f * 0|f..f"
     );
 
@@ -236,7 +234,7 @@ void test_multiply_256_bit() {
         0xfffffffffffffffe,
         0x0000000000000000,
         0x0000000000000001,
-        multiply_256_bit(a, b),
+        __wcc_sf_multiply_256_bit(a, b),
         "256 bit multiply f..f * f..f"
     );
 
@@ -247,7 +245,7 @@ void test_multiply_256_bit() {
         0x247acc9140513b74,
         0x458fab20783af122,
         0x2236d88fe5618cf0,
-        multiply_256_bit(a, b),
+        __wcc_sf_multiply_256_bit(a, b),
         "256 bit multiply seq * seq"
     );
 }
@@ -262,8 +260,8 @@ void test_float_roundtrip() {
     #define TEST_FLOAT_ROUNDTRIP(v, m) \
         f = v; \
         before = *((__uint32_t *) &f); \
-        fpv = load_float(f); \
-        f = store_float(&fpv); \
+        fpv = __wcc_sf_load_float(f); \
+        f = __wcc_sf_store_float(&fpv); \
         after = *((__uint32_t *) &f); \
         assert_int(1, before == after, m); \
 
@@ -292,8 +290,8 @@ void test_double_roundtrip() {
     #define TEST_DOUBLE_ROUNDTRIP(v, m) \
         d = v; \
         before = *((uint64_t *) &d); \
-        fpv = load_double(d); \
-        d = store_double(&fpv); \
+        fpv = __wcc_sf_load_double(d); \
+        d = __wcc_sf_store_double(&fpv); \
         after = *((uint64_t *) &d); \
         assert_long(1, before == after, m); \
 
@@ -322,8 +320,8 @@ void test_ld_roundtrip() {
     #define TEST_LD_ROUNDTRIP(v, m) \
         ld = v; \
         before = *((__uint128_t *) &ld); \
-        fpv = load_ld(ld); \
-        ld = store_ld(&fpv); \
+        fpv = __wcc_sf_load_ld(ld); \
+        ld = __wcc_sf_store_ld(&fpv); \
         after = *((__uint128_t *) &ld); \
         assert_long(1, before == after, m); \
 
@@ -344,30 +342,30 @@ void test_ld_roundtrip() {
 
 void test_convert_float_to_double() {
     float f = -1.12345;
-    double d = convert_float_to_double(f);
+    double d = __wcc_sf_convert_float_to_double(f);
     assert_double(f, d, "Conversion: float to double");
 }
 
 void test_convert_float_to_ld() {
     float f = -1.12345;
-    long double ld = convert_float_to_ld(f);
+    long double ld = __wcc_sf_convert_float_to_ld(f);
     assert_long_double(f, ld, "Conversion: float to LD");
 }
 
 void test_convert_double_to_float() {
     double d = -1.12345;
-    float f = convert_double_to_float(d);
+    float f = __wcc_sf_convert_double_to_float(d);
     assert_long_double(d, f, "Conversion: double to float");
 }
 
 void test_convert_double_to_ld() {
     double d = -1.12345;
-    long double ld = convert_double_to_ld(d);
+    long double ld = __wcc_sf_convert_double_to_ld(d);
     assert_long_double(d, ld, "Conversion: double to LD");
 }
 
 void test_convert_ld_to_float() {
-    #define TEST_LD_TO_FLOAT(v, e, m) f = convert_ld_to_float(v); assert_ld_string(f, e, m)
+    #define TEST_LD_TO_FLOAT(v, e, m) f = __wcc_sf_convert_ld_to_float(v); assert_ld_string(f, e, m)
 
     float f;
 
@@ -389,7 +387,7 @@ void test_convert_ld_to_float() {
 }
 
 void test_convert_ld_to_double() {
-    #define TEST_LD_TO_DOUBLE(v, e, m) d = convert_ld_to_double(v); assert_ld_string(d, e, m)
+    #define TEST_LD_TO_DOUBLE(v, e, m) d = __wcc_sf_convert_ld_to_double(v); assert_ld_string(d, e, m)
 
     double d;
 
@@ -412,46 +410,46 @@ void test_convert_ld_to_double() {
 
 void test_convert_fp_to_fp_nan_and_inf() {
     // Infinity
-    assert_double(INFINITY,       convert_float_to_double(INFINITY),   "Conversion: float to double +inf");
-    assert_long_double(INFINITY,  convert_float_to_ld(INFINITY),       "Conversion: float to LD +inf");
-    assert_float(INFINITY,        convert_double_to_float(INFINITY),   "Conversion: double to float +inf");
-    assert_long_double(INFINITY,  convert_double_to_ld(INFINITY),      "Conversion: double to LD +inf");
-    assert_float(INFINITY,        convert_ld_to_float(INFINITY),       "Conversion: LD to LD +inf");
-    assert_double(INFINITY,       convert_ld_to_double(INFINITY),      "Conversion: LD to double +inf");
+    assert_double(INFINITY,       __wcc_sf_convert_float_to_double(INFINITY),   "Conversion: float to double +inf");
+    assert_long_double(INFINITY,  __wcc_sf_convert_float_to_ld(INFINITY),       "Conversion: float to LD +inf");
+    assert_float(INFINITY,        __wcc_sf_convert_double_to_float(INFINITY),   "Conversion: double to float +inf");
+    assert_long_double(INFINITY,  __wcc_sf_convert_double_to_ld(INFINITY),      "Conversion: double to LD +inf");
+    assert_float(INFINITY,        __wcc_sf_convert_ld_to_float(INFINITY),       "Conversion: LD to LD +inf");
+    assert_double(INFINITY,       __wcc_sf_convert_ld_to_double(INFINITY),      "Conversion: LD to double +inf");
 
-    assert_double(-INFINITY,      convert_float_to_double(-INFINITY),  "Conversion: float to double -inf");
-    assert_long_double(-INFINITY, convert_float_to_ld(-INFINITY),      "Conversion: float to LD -inf");
-    assert_float(-INFINITY,       convert_double_to_float(-INFINITY),  "Conversion: double to float -inf");
-    assert_long_double(-INFINITY, convert_double_to_ld(-INFINITY),     "Conversion: double to LD -inf");
-    assert_float(-INFINITY,       convert_ld_to_float(-INFINITY),      "Conversion: LD to LD -inf");
-    assert_double(-INFINITY,      convert_ld_to_double(-INFINITY),     "Conversion: LD to  double -inf");
+    assert_double(-INFINITY,      __wcc_sf_convert_float_to_double(-INFINITY),  "Conversion: float to double -inf");
+    assert_long_double(-INFINITY, __wcc_sf_convert_float_to_ld(-INFINITY),      "Conversion: float to LD -inf");
+    assert_float(-INFINITY,       __wcc_sf_convert_double_to_float(-INFINITY),  "Conversion: double to float -inf");
+    assert_long_double(-INFINITY, __wcc_sf_convert_double_to_ld(-INFINITY),     "Conversion: double to LD -inf");
+    assert_float(-INFINITY,       __wcc_sf_convert_ld_to_float(-INFINITY),      "Conversion: LD to LD -inf");
+    assert_double(-INFINITY,      __wcc_sf_convert_ld_to_double(-INFINITY),     "Conversion: LD to  double -inf");
 
     // NAN
-    assert_double(NAN,      convert_float_to_double(NAN), "Conversion: float to double NAN");
-    assert_long_double(NAN, convert_float_to_ld(NAN),     "Conversion: float to LD NAN");
-    assert_float(NAN,       convert_double_to_float(NAN), "Conversion: double to float NAN");
-    assert_long_double(NAN, convert_double_to_ld(NAN),    "Conversion: double to LD NAN");
-    assert_float(NAN,       convert_ld_to_float(NAN),     "Conversion: LD to LD NAN");
-    assert_double(NAN,      convert_ld_to_double(NAN),    "Conversion: LD to double NAN");
+    assert_double(NAN,      __wcc_sf_convert_float_to_double(NAN), "Conversion: float to double NAN");
+    assert_long_double(NAN, __wcc_sf_convert_float_to_ld(NAN),     "Conversion: float to LD NAN");
+    assert_float(NAN,       __wcc_sf_convert_double_to_float(NAN), "Conversion: double to float NAN");
+    assert_long_double(NAN, __wcc_sf_convert_double_to_ld(NAN),    "Conversion: double to LD NAN");
+    assert_float(NAN,       __wcc_sf_convert_ld_to_float(NAN),     "Conversion: LD to LD NAN");
+    assert_double(NAN,      __wcc_sf_convert_ld_to_double(NAN),    "Conversion: LD to double NAN");
 
-    assert_double(-NAN,      convert_float_to_double(-NAN), "Conversion: float to double -NAN");
-    assert_long_double(-NAN, convert_float_to_ld(-NAN),     "Conversion: float to LD -NAN");
-    assert_float(-NAN,       convert_double_to_float(-NAN), "Conversion: double to float -NAN");
-    assert_long_double(-NAN, convert_double_to_ld(-NAN),    "Conversion: double to LD -NAN");
-    assert_float(-NAN,       convert_ld_to_float(-NAN),     "Conversion: LD to LD -NAN");
-    assert_double(-NAN,      convert_ld_to_double(-NAN),    "Conversion: LD to double -NAN");
+    assert_double(-NAN,      __wcc_sf_convert_float_to_double(-NAN), "Conversion: float to double -NAN");
+    assert_long_double(-NAN, __wcc_sf_convert_float_to_ld(-NAN),     "Conversion: float to LD -NAN");
+    assert_float(-NAN,       __wcc_sf_convert_double_to_float(-NAN), "Conversion: double to float -NAN");
+    assert_long_double(-NAN, __wcc_sf_convert_double_to_ld(-NAN),    "Conversion: double to LD -NAN");
+    assert_float(-NAN,       __wcc_sf_convert_ld_to_float(-NAN),     "Conversion: LD to LD -NAN");
+    assert_double(-NAN,      __wcc_sf_convert_ld_to_double(-NAN),    "Conversion: LD to double -NAN");
 }
 
 #define TEST_ROUNDING(t1, t2, g, s1, s2, et1, et2) \
     fpv.significand = 0; \
-    if (t1) SET_SBIT(fpv.significand, binary32_encoding.significand_bits - 2); \
-    if (t2) SET_SBIT(fpv.significand, binary32_encoding.significand_bits - 1); \
-    if (g) SET_SBIT(fpv.significand, binary32_encoding.significand_bits); \
-    if (s1) SET_SBIT(fpv.significand, binary32_encoding.significand_bits + 1); \
-    if (s2) SET_SBIT(fpv.significand, binary32_encoding.significand_bits + 2); \
-    round_to_nearest_even_at_bits(binary32_encoding, &fpv, binary32_encoding.significand_bits); \
-    assert_int(et1, GET_SBIT(fpv.significand, binary32_encoding.significand_bits - 2), "Rounding test " # t1 # t2 # g # s1 # s2); \
-    assert_int(et2, GET_SBIT(fpv.significand, binary32_encoding.significand_bits - 1), "Rounding test " # t1 # t2 # g # s1 # s2);
+    if (t1) SET_SBIT(fpv.significand, _wcc_sf_binary32_encoding.significand_bits - 2); \
+    if (t2) SET_SBIT(fpv.significand, _wcc_sf_binary32_encoding.significand_bits - 1); \
+    if (g) SET_SBIT(fpv.significand, _wcc_sf_binary32_encoding.significand_bits); \
+    if (s1) SET_SBIT(fpv.significand, _wcc_sf_binary32_encoding.significand_bits + 1); \
+    if (s2) SET_SBIT(fpv.significand, _wcc_sf_binary32_encoding.significand_bits + 2); \
+    __wcc_sf_round_to_nearest_even_at_bits(_wcc_sf_binary32_encoding, &fpv, _wcc_sf_binary32_encoding.significand_bits); \
+    assert_int(et1, GET_SBIT(fpv.significand, _wcc_sf_binary32_encoding.significand_bits - 2), "Rounding test " # t1 # t2 # g # s1 # s2); \
+    assert_int(et2, GET_SBIT(fpv.significand, _wcc_sf_binary32_encoding.significand_bits - 1), "Rounding test " # t1 # t2 # g # s1 # s2);
 
 // Test a couple of cases of round to even using the float digits boundary
 void test_rounding() {
@@ -479,102 +477,102 @@ void test_rounding() {
 
     // Edge case of a round up with the significand consisting of all ones
     fpv.significand = -1; // This is 1.111111....11111 * 2^0, which is almost 2.00000
-    float f = store_float(&fpv);
+    float f = __wcc_sf_store_float(&fpv);
     assert_int(1, fpv.exponent, "Rounding up with overflow 1");
     assert_int(1, fpv.significand == 0, "Rounding up with overflow 2");
     assert_float(2.0, f, "Rounding up with overflow 3");
-    round_to_nearest_even_at_bits(binary32_encoding, &fpv, binary32_encoding.significand_bits);
-    f = store_float(&fpv);
+    __wcc_sf_round_to_nearest_even_at_bits(_wcc_sf_binary32_encoding, &fpv, _wcc_sf_binary32_encoding.significand_bits);
+    f = __wcc_sf_store_float(&fpv);
     assert_float(2.0, f, "Rounding up with overflow 4");
     assert_int(1, fpv.exponent, "Rounding up with overflow 5");
     assert_int(0, fpv.significand, "Rounding up with overflow 6");
 }
 
 void test_convert_ld_to_int64() {
-    assert_long(0,              convert_ld_to_int64(0.0L),                    "ld to int64: +0.0");
-    assert_long(0,              convert_ld_to_int64(-0.0L),                   "ld to int64: -0.0");
-    assert_long(INT64_MAX,      convert_ld_to_int64(INFINITY),                "ld to int64: +inf");
-    assert_long(INT64_MIN,      convert_ld_to_int64(-INFINITY),               "ld to int64: -inf");
-    assert_long(INT64_MAX,      convert_ld_to_int64(NAN),                     "ld to int64: +nan");
-    assert_long(0,              convert_ld_to_int64(-NAN),                    "ld to int64: -nan");
-    assert_long(INT64_MIN,      convert_ld_to_int64(-9223372036854775809.0L), "ld to int64: INT64_MIN - 1");
-    assert_long(INT64_MIN,      convert_ld_to_int64(-9223372036854775808.0L), "ld to int64: INT64_MIN");
-    assert_long(INT64_MIN + 1,  convert_ld_to_int64(-9223372036854775807.0L), "ld to int64: INT64_MIN + 1");
-    assert_long(-100000000,     convert_ld_to_int64(-100000000.1L),           "ld to int64: -100000000.1");
-    assert_long(-100,           convert_ld_to_int64(-100.1L),                 "ld to int64: -100.1");
-    assert_long(-10,            convert_ld_to_int64(-10.1L),                  "ld to int64: -10.1");
-    assert_long(-1,             convert_ld_to_int64(-1.1L),                   "ld to int64: -1.1");
-    assert_long(INT64_MIN,      convert_ld_to_int64(-1e100L),                 "ld to int64: -1e100");
-    assert_long(0,              convert_ld_to_int64(-0.1L),                   "ld to int64: -0.1");
-    assert_long(0,              convert_ld_to_int64(0.1L),                    "ld to int64: 0.1");
-    assert_long(1,              convert_ld_to_int64(1.1L),                    "ld to int64: 1.1");
-    assert_long(10,             convert_ld_to_int64(10.1L),                   "ld to int64: 10.1");
-    assert_long(100,            convert_ld_to_int64(100.1L),                  "ld to int64: 100.1");
-    assert_long(100000000,      convert_ld_to_int64(100000000.1L),            "ld to int64: 100000000.1");
-    assert_long(INT64_MAX - 1,  convert_ld_to_int64(9223372036854775806.0L),  "ld to int64: INT64_MAX - 1");
-    assert_long(INT64_MAX,      convert_ld_to_int64(9223372036854775807.0L),  "ld to int64: INT64_MAX");
+    assert_long(0,              __wcc_sf_convert_ld_to_int64(0.0L),                    "ld to int64: +0.0");
+    assert_long(0,              __wcc_sf_convert_ld_to_int64(-0.0L),                   "ld to int64: -0.0");
+    assert_long(INT64_MAX,      __wcc_sf_convert_ld_to_int64(INFINITY),                "ld to int64: +inf");
+    assert_long(INT64_MIN,      __wcc_sf_convert_ld_to_int64(-INFINITY),               "ld to int64: -inf");
+    assert_long(INT64_MAX,      __wcc_sf_convert_ld_to_int64(NAN),                     "ld to int64: +nan");
+    assert_long(0,              __wcc_sf_convert_ld_to_int64(-NAN),                    "ld to int64: -nan");
+    assert_long(INT64_MIN,      __wcc_sf_convert_ld_to_int64(-9223372036854775809.0L), "ld to int64: INT64_MIN - 1");
+    assert_long(INT64_MIN,      __wcc_sf_convert_ld_to_int64(-9223372036854775808.0L), "ld to int64: INT64_MIN");
+    assert_long(INT64_MIN + 1,  __wcc_sf_convert_ld_to_int64(-9223372036854775807.0L), "ld to int64: INT64_MIN + 1");
+    assert_long(-100000000,     __wcc_sf_convert_ld_to_int64(-100000000.1L),           "ld to int64: -100000000.1");
+    assert_long(-100,           __wcc_sf_convert_ld_to_int64(-100.1L),                 "ld to int64: -100.1");
+    assert_long(-10,            __wcc_sf_convert_ld_to_int64(-10.1L),                  "ld to int64: -10.1");
+    assert_long(-1,             __wcc_sf_convert_ld_to_int64(-1.1L),                   "ld to int64: -1.1");
+    assert_long(INT64_MIN,      __wcc_sf_convert_ld_to_int64(-1e100L),                 "ld to int64: -1e100");
+    assert_long(0,              __wcc_sf_convert_ld_to_int64(-0.1L),                   "ld to int64: -0.1");
+    assert_long(0,              __wcc_sf_convert_ld_to_int64(0.1L),                    "ld to int64: 0.1");
+    assert_long(1,              __wcc_sf_convert_ld_to_int64(1.1L),                    "ld to int64: 1.1");
+    assert_long(10,             __wcc_sf_convert_ld_to_int64(10.1L),                   "ld to int64: 10.1");
+    assert_long(100,            __wcc_sf_convert_ld_to_int64(100.1L),                  "ld to int64: 100.1");
+    assert_long(100000000,      __wcc_sf_convert_ld_to_int64(100000000.1L),            "ld to int64: 100000000.1");
+    assert_long(INT64_MAX - 1,  __wcc_sf_convert_ld_to_int64(9223372036854775806.0L),  "ld to int64: INT64_MAX - 1");
+    assert_long(INT64_MAX,      __wcc_sf_convert_ld_to_int64(9223372036854775807.0L),  "ld to int64: INT64_MAX");
 }
 
 void test_convert_ld_to_uint64() {
-    assert_long(0,              convert_ld_to_uint64(0.0L),                    "ld to uint64: +0.0");
-    assert_long(0,              convert_ld_to_uint64(-0.0L),                   "ld to uint64: -0.0");
-    assert_long(UINT64_MAX,     convert_ld_to_uint64(INFINITY),                "ld to uint64: +inf");
-    assert_long(0,              convert_ld_to_uint64(-INFINITY),               "ld to uint64: -inf");
-    assert_long(UINT64_MAX,     convert_ld_to_uint64(NAN),                     "ld to uint64: nan");
-    assert_long(0,              convert_ld_to_uint64(-NAN),                    "ld to uint64: nan");
-    assert_long(0,              convert_ld_to_uint64(-1e100L),                 "ld to uint64: -1e100");
-    assert_long(0,              convert_ld_to_uint64(-0.1L),                   "ld to uint64: -0.1");
-    assert_long(0,              convert_ld_to_uint64(0.1L),                    "ld to uint64: 0.1");
-    assert_long(1,              convert_ld_to_uint64(1.1L),                    "ld to uint64: 1.1");
-    assert_long(10,             convert_ld_to_uint64(10.1L),                   "ld to uint64: 10.1");
-    assert_long(100,            convert_ld_to_uint64(100.1L),                  "ld to uint64: 100.1");
-    assert_long(100000000,      convert_ld_to_uint64(100000000.1L),            "ld to uint64: 100000000.1");
-    assert_long(UINT64_MAX - 1, convert_ld_to_uint64(18446744073709551614.0L), "ld to uint64: UINT64_MAX - 1");
-    assert_long(UINT64_MAX,     convert_ld_to_uint64(18446744073709551615.0L), "ld to uint64: UINT64_MAX");
-    assert_long(UINT64_MAX,     convert_ld_to_uint64(18446744073709551616.0L), "ld to uint64: UINT64_MAX + 1");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint64(0.0L),                    "ld to uint64: +0.0");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint64(-0.0L),                   "ld to uint64: -0.0");
+    assert_long(UINT64_MAX,     __wcc_sf_convert_ld_to_uint64(INFINITY),                "ld to uint64: +inf");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint64(-INFINITY),               "ld to uint64: -inf");
+    assert_long(UINT64_MAX,     __wcc_sf_convert_ld_to_uint64(NAN),                     "ld to uint64: nan");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint64(-NAN),                    "ld to uint64: nan");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint64(-1e100L),                 "ld to uint64: -1e100");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint64(-0.1L),                   "ld to uint64: -0.1");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint64(0.1L),                    "ld to uint64: 0.1");
+    assert_long(1,              __wcc_sf_convert_ld_to_uint64(1.1L),                    "ld to uint64: 1.1");
+    assert_long(10,             __wcc_sf_convert_ld_to_uint64(10.1L),                   "ld to uint64: 10.1");
+    assert_long(100,            __wcc_sf_convert_ld_to_uint64(100.1L),                  "ld to uint64: 100.1");
+    assert_long(100000000,      __wcc_sf_convert_ld_to_uint64(100000000.1L),            "ld to uint64: 100000000.1");
+    assert_long(UINT64_MAX - 1, __wcc_sf_convert_ld_to_uint64(18446744073709551614.0L), "ld to uint64: UINT64_MAX - 1");
+    assert_long(UINT64_MAX,     __wcc_sf_convert_ld_to_uint64(18446744073709551615.0L), "ld to uint64: UINT64_MAX");
+    assert_long(UINT64_MAX,     __wcc_sf_convert_ld_to_uint64(18446744073709551616.0L), "ld to uint64: UINT64_MAX + 1");
 }
 
 void test_convert_int64_to_ld() {
-    assert_long_double(-9223372036854775808.000000L,  convert_int64_to_ld(INT64_MIN),      "int64 to ld: INT64_MIN");
-    assert_long_double(-9223372036854775807.000000L,  convert_int64_to_ld(INT64_MIN + 1),  "int64 to ld: INT64_MIN - 1");
-    assert_long_double(-100000000.0,                  convert_int64_to_ld(-100000000),     "int64 to ld: -100000000.0");
-    assert_long_double(-100.0,                        convert_int64_to_ld(-100),           "int64 to ld: -100.0");
-    assert_long_double(-10.0,                         convert_int64_to_ld(-10),            "int64 to ld: -10.0");
-    assert_long_double(-1.0,                          convert_int64_to_ld(-1),             "int64 to ld: -1.0");
-    assert_long_double(0.0,                           convert_int64_to_ld(0),              "int64 to ld: 0.0");
-    assert_long_double(1.0,                           convert_int64_to_ld(1),              "int64 to ld: 1.0");
-    assert_long_double(10.0,                          convert_int64_to_ld(10),             "int64 to ld: 10.0");
-    assert_long_double(100.0,                         convert_int64_to_ld(100),            "int64 to ld: 100.0");
-    assert_long_double(100000000.0,                   convert_int64_to_ld(100000000),      "int64 to ld: 100000000.0");
-    assert_long_double(9223372036854775806.000000L,   convert_int64_to_ld(INT64_MAX - 1),  "int64 to ld: INT64_MAX - 1");
-    assert_long_double(9223372036854775807.000000L,   convert_int64_to_ld(INT64_MAX),      "int64 to ld: INT64_MAX");
-    assert_long_double(-2.0,                          convert_int64_to_ld(UINT64_MAX - 1), "int64 to ld: UINT64_MAX - 1");
-    assert_long_double(-1.0,                          convert_int64_to_ld(UINT64_MAX),     "int64 to ld: UINT64_MAX");
+    assert_long_double(-9223372036854775808.000000L,  __wcc_sf_convert_int64_to_ld(INT64_MIN),      "int64 to ld: INT64_MIN");
+    assert_long_double(-9223372036854775807.000000L,  __wcc_sf_convert_int64_to_ld(INT64_MIN + 1),  "int64 to ld: INT64_MIN - 1");
+    assert_long_double(-100000000.0,                  __wcc_sf_convert_int64_to_ld(-100000000),     "int64 to ld: -100000000.0");
+    assert_long_double(-100.0,                        __wcc_sf_convert_int64_to_ld(-100),           "int64 to ld: -100.0");
+    assert_long_double(-10.0,                         __wcc_sf_convert_int64_to_ld(-10),            "int64 to ld: -10.0");
+    assert_long_double(-1.0,                          __wcc_sf_convert_int64_to_ld(-1),             "int64 to ld: -1.0");
+    assert_long_double(0.0,                           __wcc_sf_convert_int64_to_ld(0),              "int64 to ld: 0.0");
+    assert_long_double(1.0,                           __wcc_sf_convert_int64_to_ld(1),              "int64 to ld: 1.0");
+    assert_long_double(10.0,                          __wcc_sf_convert_int64_to_ld(10),             "int64 to ld: 10.0");
+    assert_long_double(100.0,                         __wcc_sf_convert_int64_to_ld(100),            "int64 to ld: 100.0");
+    assert_long_double(100000000.0,                   __wcc_sf_convert_int64_to_ld(100000000),      "int64 to ld: 100000000.0");
+    assert_long_double(9223372036854775806.000000L,   __wcc_sf_convert_int64_to_ld(INT64_MAX - 1),  "int64 to ld: INT64_MAX - 1");
+    assert_long_double(9223372036854775807.000000L,   __wcc_sf_convert_int64_to_ld(INT64_MAX),      "int64 to ld: INT64_MAX");
+    assert_long_double(-2.0,                          __wcc_sf_convert_int64_to_ld(UINT64_MAX - 1), "int64 to ld: UINT64_MAX - 1");
+    assert_long_double(-1.0,                          __wcc_sf_convert_int64_to_ld(UINT64_MAX),     "int64 to ld: UINT64_MAX");
 }
 
 void test_convert_uint64_to_ld() {
-    assert_long_double(0.0,                     convert_uint64_to_ld(0),              "uint64 to ld: 0.0");
-    assert_long_double(1.0,                     convert_uint64_to_ld(1),              "uint64 to ld: 1.0");
-    assert_long_double(10.0,                    convert_uint64_to_ld(10),             "uint64 to ld: 10.0");
-    assert_long_double(100.0,                   convert_uint64_to_ld(100),            "uint64 to ld: 100.0");
-    assert_long_double(100000000.0,             convert_uint64_to_ld(100000000),      "uint64 to ld: 100000000.0");
-    assert_long_double(18446744073709551614.0L, convert_uint64_to_ld(UINT64_MAX - 1), "uint64 to ld: UINT64_MAX - 1");
-    assert_long_double(18446744073709551615.0L, convert_uint64_to_ld(UINT64_MAX),     "uint64 to ld: UINT64_MAX");
+    assert_long_double(0.0,                     __wcc_sf_convert_uint64_to_ld(0),              "uint64 to ld: 0.0");
+    assert_long_double(1.0,                     __wcc_sf_convert_uint64_to_ld(1),              "uint64 to ld: 1.0");
+    assert_long_double(10.0,                    __wcc_sf_convert_uint64_to_ld(10),             "uint64 to ld: 10.0");
+    assert_long_double(100.0,                   __wcc_sf_convert_uint64_to_ld(100),            "uint64 to ld: 100.0");
+    assert_long_double(100000000.0,             __wcc_sf_convert_uint64_to_ld(100000000),      "uint64 to ld: 100000000.0");
+    assert_long_double(18446744073709551614.0L, __wcc_sf_convert_uint64_to_ld(UINT64_MAX - 1), "uint64 to ld: UINT64_MAX - 1");
+    assert_long_double(18446744073709551615.0L, __wcc_sf_convert_uint64_to_ld(UINT64_MAX),     "uint64 to ld: UINT64_MAX");
 }
 
 void test_negate_ld() {
-    assert_long_double(-0,        negate_ld(0),         "negate +0");
-    assert_long_double(0,         negate_ld(-0),        "negate -0");
-    assert_long_double(-INFINITY, negate_ld(INFINITY),  "negate +inf");
-    assert_long_double(INFINITY,  negate_ld(-INFINITY), "negate -inf");
-    assert_long_double(-NAN,      negate_ld(NAN),       "negate +nan");
-    assert_long_double(NAN,       negate_ld(-NAN),      "negate -nan");
-    assert_long_double(-1,        negate_ld(1),         "negate 1");
-    assert_long_double(1,         negate_ld(-1),        "negate -1");
+    assert_long_double(-0,        __wcc_sf_negate_ld(0),         "negate +0");
+    assert_long_double(0,         __wcc_sf_negate_ld(-0),        "negate -0");
+    assert_long_double(-INFINITY, __wcc_sf_negate_ld(INFINITY),  "negate +inf");
+    assert_long_double(INFINITY,  __wcc_sf_negate_ld(-INFINITY), "negate -inf");
+    assert_long_double(-NAN,      __wcc_sf_negate_ld(NAN),       "negate +nan");
+    assert_long_double(NAN,       __wcc_sf_negate_ld(-NAN),      "negate -nan");
+    assert_long_double(-1,        __wcc_sf_negate_ld(1),         "negate 1");
+    assert_long_double(1,         __wcc_sf_negate_ld(-1),        "negate -1");
 }
 
 void test_add_ld() {
-    #define TEST_ADD_LD(a, b, e, m) { long double ld = add_ld(a, b); assert_ld_string(ld, e, m); }
+    #define TEST_ADD_LD(a, b, e, m) { long double ld = __wcc_sf_add_ld(a, b); assert_ld_string(ld, e, m); }
 
     // Zero, infinity, nan
     TEST_ADD_LD(0.0L,   0.0L,  "0.00000000e+00", "+0.0 + +0.0");
@@ -644,7 +642,7 @@ void test_add_ld() {
 }
 
 void test_subtract_ld() {
-    #define TEST_SUB_LD(a, b, e, m) { long double ld = subtract_ld(a, b); assert_ld_string(ld, e, m); }
+    #define TEST_SUB_LD(a, b, e, m) { long double ld = __wcc_sf_subtract_ld(a, b); assert_ld_string(ld, e, m); }
 
     // Zero, infinity, nan
     TEST_SUB_LD(0.0L,   0.0L,  "0.00000000e+00", "+0.0 - +0.0");
@@ -891,12 +889,12 @@ void test_divide_ld() {
 }
 
 void test_comparisons() {
-    #define ASSERT_LD_EQ(a, b) assert_int((a) == (b), ld_eq(a, b), #a " == " #b)
-    #define ASSERT_LD_NE(a, b) assert_int((a) != (b), ld_ne(a, b), #a " != " #b)
-    #define ASSERT_LD_LT(a, b) assert_int((a) <  (b), ld_lt(a, b), #a " < "  #b)
-    #define ASSERT_LD_GT(a, b) assert_int((a) >  (b), ld_gt(a, b), #a " > "  #b)
-    #define ASSERT_LD_LE(a, b) assert_int((a) <= (b), ld_le(a, b), #a " <= " #b)
-    #define ASSERT_LD_GE(a, b) assert_int((a) >= (b), ld_ge(a, b), #a " >= " #b)
+    #define ASSERT_LD_EQ(a, b) assert_int((a) == (b), __wcc_sf_ld_eq(a, b), #a " == " #b)
+    #define ASSERT_LD_NE(a, b) assert_int((a) != (b), __wcc_sf_ld_ne(a, b), #a " != " #b)
+    #define ASSERT_LD_LT(a, b) assert_int((a) <  (b), __wcc_sf_ld_lt(a, b), #a " < "  #b)
+    #define ASSERT_LD_GT(a, b) assert_int((a) >  (b), __wcc_sf_ld_gt(a, b), #a " > "  #b)
+    #define ASSERT_LD_LE(a, b) assert_int((a) <= (b), __wcc_sf_ld_le(a, b), #a " <= " #b)
+    #define ASSERT_LD_GE(a, b) assert_int((a) >= (b), __wcc_sf_ld_ge(a, b), #a " >= " #b)
 
     // Run a comparison with all comparison operators
     #define ASSERT_LD_CMP(a, b) \
@@ -1047,15 +1045,12 @@ void test_comparisons() {
     ASSERT_LD_CMP(-1.1e-2, -1.2e1);
 }
 
-#endif
-
 int main() {
     #ifdef __x86_64__
     printf("Softfloat is not supported on x86_64\n");
     exit(0);
     #endif
 
-    #ifdef __aarch64__
     test_shift_right();
     test_update_GRS_bits();
     test_multiply_256_bit();
@@ -1080,7 +1075,6 @@ int main() {
     test_multiply_ld();
     test_divide_ld();
     test_comparisons();
-    #endif
 
     finish_tests();
 }
