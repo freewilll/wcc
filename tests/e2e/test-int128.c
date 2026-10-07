@@ -683,6 +683,16 @@ static void test_constant_promotions() {
     ASSERT_INT128(1, 6, si, "constant -> int128 promotion 4");
 }
 
+void test_sign(__int128 expected) {
+    ASSERT_INT128(0, -1, expected, "Ensure -1L isn't sign extended");
+}
+
+// Test bug where a unsigned long 0xffffffffffffffff would be sign extended to an int128
+// instead of kept at 0xffffffffffffffff.
+int test_signedness_function_call_bug(void) {
+    test_sign(0xffffffffffffffff);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -709,6 +719,7 @@ int main(int argc, char **argv) {
     test_conditional_jmp_cmp_to_zero();
     test_pointers();
     test_constant_promotions();
+    test_signedness_function_call_bug();
 
     finalize();
 }

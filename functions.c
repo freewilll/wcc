@@ -542,14 +542,8 @@ static Value *make_function_call_arg_value_for_int128(Function *function, CallVa
             return value;
         }
         else {
-            Value *value;
-            if (arg->type->is_unsigned) {
-                value = new_integral_constant(TYPE_LONG, 0);
-            }
-            else {
-                long int_value = arg->int_value & (1L << 63) ? -1 : 0;
-                value = new_integral_constant(TYPE_LONG, int_value);
-            }
+            long high_value = arg->int128_value >> 64;
+            Value *value = new_integral_constant(TYPE_LONG, high_value);
             value->type->is_unsigned = arg->type->is_unsigned;
 
             return value;
