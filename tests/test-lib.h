@@ -10,6 +10,7 @@
 void assert_uchar(unsigned char expected, unsigned char actual, char *message);
 void assert_int(int expected, int actual, char *message);
 void assert_long(long expected, long actual, char *message);
+void assert_int128(long expected_high, long expected_low, __int128 actual, char *message);
 int float_eq(float expected, float got);
 void assert_float(float expected, float got, char *message);
 void assert_double(double expected, double got, char *message);

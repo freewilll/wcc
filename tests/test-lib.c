@@ -57,6 +57,24 @@ void assert_long(long expected, long actual, char *message) {
     }
 }
 
+void assert_int128(long expected_high, long expected_low, __int128 actual, char *message) {
+    long actual_low = actual;
+    long actual_high = actual >> 64;
+
+    if (expected_low != actual_low || expected_high != actual_high) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected %016lx %016lx got %016lx %016lx\n", expected_high, expected_low, actual_high, actual_low);
+    }
+    else {
+        passes++;
+        if (verbose) {
+            printf("%-60s ", message);
+            printf("ok\n");
+        }
+    }
+}
+
 int float_eq(float expected, float actual) {
     if (isinf(expected) != isinf(actual)) return 0;
     if (isinf(expected) || isinf(actual)) return 1;
