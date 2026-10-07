@@ -5,8 +5,43 @@ test:
 endif
 
 CC ?= gcc
-SOURCES = testlib.o loadstore.o conversions.o rounding.o integers.o arithmetic.o comparisons.o
-OBJECTS := ${SOURCES:c=o}
+OBJECTS = \
+	encoding.o \
+	load.o \
+	load_float.o \
+	load_double.o \
+	load_ld.o \
+	store.o \
+	store_float.o \
+	store_double.o \
+	store_ld.o \
+	rounding.o \
+	integers.o \
+	arithmetic.o \
+	arithmetic_add.o \
+	arithmetic_subtract.o \
+	arithmetic_multiply.o \
+	arithmetic_divide.o \
+	arithmetic_negate.o \
+	comparisons.o \
+	comparison_ld_eq.o \
+	comparison_ld_ne.o \
+	comparison_ld_lt.o \
+	comparison_ld_gt.o \
+	comparison_ld_le.o \
+	comparison_ld_ge.o \
+	conversion_float_to_double.o \
+	conversion_float_to_ld.o \
+	conversion_double_to_float.o \
+	conversion_double_to_ld.o \
+	conversion_ld_to_float.o \
+	conversion_ld_to_double.o \
+	conversion_ld_to_int64.o \
+	conversion_ld_to_uint64.o \
+	conversion_int64_to_ld.o \
+	conversion_uint64_to_ld.o \
+
+
 OBJECTS_ABS_PATH := ${OBJECTS:%=$(BUILD_DIR)/softfloat/%}
 
 # set DEBUG=1 to activate all debug flags
@@ -24,7 +59,7 @@ $(BUILD_DIR)/softfloat/testlib.o: testlib.c softfloat.h testlib.h
 $(BUILD_DIR)/softfloat/test_softfloat.o: test_softfloat.c softfloat.h testlib.h
 	gcc -c $< -o $@ $(CC_OPTS)
 
-test_softfloat: $(BUILD_DIR)/softfloat/test_softfloat.o $(OBJECTS_ABS_PATH)
+test_softfloat: $(BUILD_DIR)/softfloat/test_softfloat.o $(OBJECTS_ABS_PATH) $(BUILD_DIR)/softfloat/testlib.o
 	gcc $^ -o $(BUILD_DIR)/softfloat/test_softfloat
 
 .PHONY: lib

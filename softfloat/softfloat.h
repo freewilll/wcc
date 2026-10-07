@@ -61,6 +61,11 @@ extern const FpEncoding _wcc_sf_binary32_encoding;
 extern const FpEncoding _wcc_sf_binary64_encoding;
 extern const FpEncoding _wcc_sf_binary128_encoding;
 
+// load*.c and store*.c
+FpValue __wcc_sf_load(FpEncoding encoding, __uint128_t raw);
+void __wcc_sf_convert_to_inf_if_needed(FpEncoding encoding, FpValue *fpv);
+void __wcc_sf_convert_to_subnormal_if_needed(FpEncoding encoding, FpValue *fpv);
+__uint128_t __wcc_sf_store(FpEncoding encoding, FpValue *fpv);
 FpValue     __wcc_sf_load_float(float f);
 FpValue     __wcc_sf_load_double(double d);
 FpValue     __wcc_sf_load_ld(long double ld);
@@ -68,7 +73,7 @@ float       __wcc_sf_store_float(FpValue *fpv);
 double      __wcc_sf_store_double(FpValue *fpv);
 long double __wcc_sf_store_ld(FpValue *fpv);
 
-// conversions.c
+// conversions*.c
 double      __wcc_sf_convert_float_to_double (float f);
 long double __wcc_sf_convert_float_to_ld     (float f);
 float       __wcc_sf_convert_double_to_float (double d);
@@ -90,20 +95,33 @@ void __wcc_sf_round_to_nearest_even(FpEncoding encoding, FpValue *fpv, int bits,
 void __wcc_sf_round_to_nearest_even_at_bits(FpEncoding encoding, FpValue *fpv, int bits);
 
 // integers.c
-int64_t  __wcc_sf_convert_fpv_to_int64(FpValue *fpv);
-uint64_t __wcc_sf_convert_fpv_to_uint64(FpValue *fpv);
-FpValue  __wcc_sf_convert_int64_to_fpv(int64_t i);
-FpValue  __wcc_sf_convert_uint64_to_fpv(uint64_t i);
+FpValue __wcc_sf_convert_common_int64_to_fpv(uint64_t i, int is_signed);
 
-// arithmetic.c
+// arithmetic*.c
+extern const FpValue zero_fpv;
+extern const FpValue nan_fpv;
+extern const FpValue inf_fpv;
+
+FpValue __wcc_sf_add(FpValue *a, FpValue *b);
 uint256_t __wcc_sf_multiply_256_bit(__uint128_t a, __uint128_t b);
+void __wcc_sf_negate(FpValue *fpv);
 long double __wcc_sf_negate_ld(long double ld);
 long double __wcc_sf_add_ld(long double a, long double b);
 long double __wcc_sf_subtract_ld(long double a, long double b);
 long double __wcc_sf_multiply_ld(long double a, long double b);
 long double __wcc_sf_divide_ld(long double a, long double b);
 
-// comparisons.c
+// comparisons*.c
+int __wcc_sf_compare(FpValue *a, FpValue *b);
+
+#define COMPARE_FUNC(cmp_op, nan_result) { \
+    FpValue fpv_a = __wcc_sf_load_ld(a); \
+    FpValue fpv_b = __wcc_sf_load_ld(b); \
+    if (fpv_a.type == TYPE_NAN || fpv_b.type == TYPE_NAN) return nan_result; \
+    int result = __wcc_sf_compare(&fpv_a, &fpv_b); \
+    return result cmp_op 0; \
+}
+
 int __wcc_sf_ld_eq(long double a, long double b);
 int __wcc_sf_ld_ne(long double a, long double b);
 int __wcc_sf_ld_lt(long double a, long double b);

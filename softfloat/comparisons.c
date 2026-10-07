@@ -1,7 +1,6 @@
 #include "softfloat.h"
 
-
-static int __wcc_sf_compare(FpValue *a, FpValue *b) {
+int __wcc_sf_compare(FpValue *a, FpValue *b) {
     // Zero cmp zero
     if (a->type == TYPE_ZERO && b->type == TYPE_ZERO)
         return 0;
@@ -75,18 +74,3 @@ static int __wcc_sf_compare(FpValue *a, FpValue *b) {
 
     return result;
 }
-
-#define COMPARE_FUNC(cmp_op, nan_result) { \
-    FpValue fpv_a = __wcc_sf_load_ld(a); \
-    FpValue fpv_b = __wcc_sf_load_ld(b); \
-    if (fpv_a.type == TYPE_NAN || fpv_b.type == TYPE_NAN) return nan_result; \
-    int result = __wcc_sf_compare(&fpv_a, &fpv_b); \
-    return result cmp_op 0; \
-}
-
-int __wcc_sf_ld_eq(long double a, long double b) COMPARE_FUNC(==, 0)
-int __wcc_sf_ld_ne(long double a, long double b) COMPARE_FUNC(!=, 1)
-int __wcc_sf_ld_lt(long double a, long double b) COMPARE_FUNC(<,  0)
-int __wcc_sf_ld_gt(long double a, long double b) COMPARE_FUNC(>,  0)
-int __wcc_sf_ld_le(long double a, long double b) COMPARE_FUNC(<=, 0)
-int __wcc_sf_ld_ge(long double a, long double b) COMPARE_FUNC(>=, 0)
