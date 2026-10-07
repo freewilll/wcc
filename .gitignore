@@ -7,6 +7,7 @@ internals.c
 instrgen
 instrrules-generated.c
 libwcc.a
+libwcccore.a
 wcc
 wcc2
 wcc3

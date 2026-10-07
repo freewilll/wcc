@@ -6,7 +6,7 @@ INTEGRATION_TEST_FLAGS := ${GCC_OPTS} -g -I ${BUILD_DIR}
 
 all: run-test-instrsel
 
-${TEST_BUILD_DIR}/test-instrsel: test-instrsel.c ${SRC_DIR}/tests/test-utils.c ${BUILD_DIR}/libwcc.a
+${TEST_BUILD_DIR}/test-instrsel: test-instrsel.c ${SRC_DIR}/tests/test-utils.c ${BUILD_DIR}/libwcccore.a
 	@mkdir -p $(@D)
 	${GCC} -I ${SRC_DIR} ${INTEGRATION_TEST_FLAGS} $^ -o $@
 

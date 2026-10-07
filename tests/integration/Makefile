@@ -19,7 +19,7 @@ run-%: ${TEST_BUILD_DIR}/%
 
 ${TEST_BUILD_DIR}/test-debug: test-debug.c ${BUILD_DIR}/wcc
 	@mkdir -p $(@D)
-	${BUILD_DIR}/wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} -g $< -o $@
+	${BUILD_DIR}/wcc ${WCC_OPTS} -L ${BUILD_DIR} ${WCC_RUN_FLAGS} -g $< -o $@
 
 check-test-debug-headers: ${TEST_BUILD_DIR}/test-debug
 	objdump -h $< | grep .debug_info > /dev/null

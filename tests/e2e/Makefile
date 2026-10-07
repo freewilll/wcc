@@ -224,7 +224,7 @@ ifeq ($(TARGET),x86_64)
 # Includes
 ${BUILD_DIR}/tests/e2e/test-include/test-include: ${BUILD_DIR}/wcc ${SRC_DIR}/tests/e2e/test-include/include.h ${SRC_DIR}/tests/e2e/test-include/main.c ${SRC_DIR}/tests/e2e/test-include/foo.c
 	@mkdir -p $(@D)
-	${BUILD_DIR}/wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} -I ${SRC_DIR}/tests/e2e/test-include ${SRC_DIR}/tests/e2e/test-include/main.c ${SRC_DIR}/tests/e2e/test-include/foo.c -o $@
+	${BUILD_DIR}/wcc ${WCC_OPTS} -L ${BUILD_DIR} ${WCC_RUN_FLAGS} -I ${SRC_DIR}/tests/e2e/test-include ${SRC_DIR}/tests/e2e/test-include/main.c ${SRC_DIR}/tests/e2e/test-include/foo.c -o $@
 
 run-test-include: ${BUILD_DIR}/tests/e2e/test-include/test-include
 	$<
@@ -237,7 +237,7 @@ ifeq ($(TARGET),x86_64)
 # -fcommon
 ${BUILD_DIR}/tests/e2e/test-fcommon: ${BUILD_DIR}/wcc ${SRC_DIR}/tests/e2e/test-fcommon-main.c ${SRC_DIR}/tests/e2e/test-fcommon-lib.c
 	@mkdir -p $(@D)
-	${BUILD_DIR}/wcc ${WCC_OPTS} -fcommon ${WCC_RUN_FLAGS} ${SRC_DIR}/tests/e2e/test-fcommon-main.c ${SRC_DIR}/tests/e2e/test-fcommon-lib.c -o $@
+	${BUILD_DIR}/wcc ${WCC_OPTS} -L ${BUILD_DIR} -fcommon ${WCC_RUN_FLAGS} ${SRC_DIR}/tests/e2e/test-fcommon-main.c ${SRC_DIR}/tests/e2e/test-fcommon-lib.c -o $@
 
 run-test-fcommon: ${BUILD_DIR}/tests/e2e/test-fcommon
 	$<

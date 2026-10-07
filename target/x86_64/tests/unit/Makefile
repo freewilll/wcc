@@ -6,7 +6,7 @@ UNIT_TEST_WARN_FLAGS := -Wno-int-conversion -Wno-pointer-to-int-cast
 
 all: run-test-functions
 
-${TEST_BUILD_DIR}/test-functions: test-functions.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/tests/test-lib.o ${SRC_DIR}/tests/test-functions-lib.c
+${TEST_BUILD_DIR}/test-functions: test-functions.c ${BUILD_DIR}/libwcccore.a ${BUILD_DIR}/tests/test-lib.o ${SRC_DIR}/tests/test-functions-lib.c
 	@mkdir -p $(@D)
 	${GCC} -I ${SRC_DIR} -I ${SRC_DIR}/tests/ ${UNIT_TEST_FLAGS} ${UNIT_TEST_WARN_FLAGS} $^ -o $@
 

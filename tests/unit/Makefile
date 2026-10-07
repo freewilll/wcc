@@ -18,39 +18,39 @@ all:  \
 	run-test-types \
 	run-test-graph  \
 
-${TEST_BUILD_DIR}/test-lexer: test-lexer.c ${BUILD_DIR}/libwcc.a
+${TEST_BUILD_DIR}/test-lexer: test-lexer.c ${BUILD_DIR}/libwcccore.a
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-cpp: test-cpp.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/tests/test-lib.o
+${TEST_BUILD_DIR}/test-cpp: test-cpp.c ${BUILD_DIR}/libwcccore.a ${BUILD_DIR}/tests/test-lib.o
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-set: test-set.c ${BUILD_DIR}/libwcc.a
+${TEST_BUILD_DIR}/test-set: test-set.c ${BUILD_DIR}/libwcccore.a
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-list: test-list.c ${BUILD_DIR}/libwcc.a
+${TEST_BUILD_DIR}/test-list: test-list.c ${BUILD_DIR}/libwcccore.a
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-strmap: test-strmap.c ${BUILD_DIR}/libwcc.a
+${TEST_BUILD_DIR}/test-strmap: test-strmap.c ${BUILD_DIR}/libwcccore.a
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-strset: test-strset.c ${BUILD_DIR}/libwcc.a
+${TEST_BUILD_DIR}/test-strset: test-strset.c ${BUILD_DIR}/libwcccore.a
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-longmap: test-longmap.c ${BUILD_DIR}/libwcc.a
+${TEST_BUILD_DIR}/test-longmap: test-longmap.c ${BUILD_DIR}/libwcccore.a
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-longset: test-longset.c ${BUILD_DIR}/libwcc.a
+${TEST_BUILD_DIR}/test-longset: test-longset.c ${BUILD_DIR}/libwcccore.a
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-ssa: test-ssa.c ${SRC_DIR}/tests/test-utils.c ${BUILD_DIR}/libwcc.a
+${TEST_BUILD_DIR}/test-ssa: test-ssa.c ${SRC_DIR}/tests/test-utils.c ${BUILD_DIR}/libwcccore.a
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} ${UNIT_TEST_WARN_FLAGS} $^ -o $@
 
@@ -58,11 +58,11 @@ ${TEST_BUILD_DIR}/test-graph: test-graph.c ${SRC_DIR}/graph.c ${SRC_DIR}/utils.c
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-parser: test-parser.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/tests/test-lib.o
+${TEST_BUILD_DIR}/test-parser: test-parser.c ${BUILD_DIR}/libwcccore.a ${BUILD_DIR}/tests/test-lib.o
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} ${UNIT_TEST_WARN_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-types: test-types.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/tests/test-lib.o
+${TEST_BUILD_DIR}/test-types: test-types.c ${BUILD_DIR}/libwcccore.a ${BUILD_DIR}/tests/test-lib.o
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} ${UNIT_TEST_WARN_FLAGS} $^ -o $@
 

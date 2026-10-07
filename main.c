@@ -720,6 +720,9 @@ int main(int argc, char **argv) {
                 s += sprintf(s, " -l%s", (char *) cli_libraries->elements[linker_input->library_index]);
         }
 
+        // Include wcc library
+        s += sprintf(s, " -L %s -lwcc", INSTALL_LIB_DIR);
+
         // Include standard libraries
         s += sprintf(s, " -lc");        // C standard library
         s += sprintf(s, " -lgcc");      // gcc libs

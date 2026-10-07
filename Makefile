@@ -47,13 +47,17 @@ SOURCES := \
 	cpp.c \
 	flags.c
 
+LIBWCC_OBJECTS = ""
+
 ifeq ($(TARGET),x86_64)
-SOURCES += \
-	target/x86_64/codegen.c \
-	target/x86_64/functions.c \
-	target/x86_64/instrrules.c \
-	target/x86_64/registers.c \
-	target/x86_64/x86_64.c
+	SOURCES += \
+		target/x86_64/codegen.c \
+		target/x86_64/functions.c \
+		target/x86_64/instrrules.c \
+		target/x86_64/registers.c \
+		target/x86_64/x86_64.c
+
+	LIBWCC_OBJECTS =
 else ifeq ($(TARGET),aarch64)
 	SOURCES += \
 		target/aarch64/aarch64.c \
@@ -61,6 +65,8 @@ else ifeq ($(TARGET),aarch64)
 		target/aarch64/functions.c \
 		target/aarch64/instrrules.c \
 		target/aarch64/registers.c
+
+	LIBWCC_OBJECTS = $(BUILD_DIR)/softfloat/lib/*.o
 endif
 
 MISC_SOURCES := instrrules-generated.c internals.c wcc.c main.c
@@ -110,12 +116,19 @@ target/${TARGET}/%.o: ${SRC_DIR}/target/${TARGET}/%.c ${BUILD_DIR}/config.h ${HE
 target/${TARGET}/libtarget.a:
 	make -C target/${TARGET}
 
-libwcc.a: ${OBJECTS} wcc.o instrrules-generated.o internals.o
-	rm -f libwcc.a
-	ar rcs libwcc.a ${OBJECTS} wcc.o instrrules-generated.o internals.o
+libwcccore.a: ${OBJECTS} wcc.o instrrules-generated.o internals.o
+	rm -f libwcccore.a
+	ar rcs libwcccore.a ${OBJECTS} wcc.o instrrules-generated.o internals.o
 
-wcc: libwcc.a ${SRC_DIR}/main.c instrrules-generated.c config.h ${HEADERS_ABS_PATH}
-	${GCC} ${GCC_OPTS} -g -Wunused -Wno-return-type ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -I ${SRC_DIR} ${SRC_DIR}/main.c instrrules-generated.c libwcc.a -o $@
+ifeq ($(TARGET),aarch64)
+libwcc.a: softfloat-lib
+endif
+
+libwcc.a:
+	ar rcs libwcc.a $(LIBWCC_OBJECTS)
+
+wcc: libwcc.a libwcccore.a ${SRC_DIR}/main.c instrrules-generated.c config.h ${HEADERS_ABS_PATH}
+	${GCC} ${GCC_OPTS} -g -Wunused -Wno-return-type ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -I ${SRC_DIR} ${SRC_DIR}/main.c instrrules-generated.c libwcccore.a -o $@
 
 # wcc2
 WCC2_SOURCES := ${SOURCES:%=build/wcc2/%}
@@ -137,7 +150,7 @@ build/wcc2/target/${TARGET}/%.s: ${SRC_DIR}/target/${TARGET}/%.c wcc
 	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
 wcc2: ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} wcc
-	./wcc ${WCC_OPTS} ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} -o wcc2
+	./wcc ${WCC_OPTS} -L ${BUILD_DIR}  ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} -o wcc2
 
 # wcc3
 WCC3_SOURCES := ${SOURCES:%=build/wcc3/%}
@@ -159,7 +172,7 @@ build/wcc3/target/${TARGET}/%.s: ${SRC_DIR}/target/${TARGET}/%.c wcc2
 	./wcc2 ${WCC_SELFHOST_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
 wcc3: ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} wcc2
-	./wcc2 ${WCC_OPTS} ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} -o wcc3
+	./wcc2 ${WCC_OPTS} -L ${BUILD_DIR} ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} -o wcc3
 
 .PHONY: test-self-compilation
 test-self-compilation: wcc2 wcc3
@@ -180,31 +193,31 @@ ${BUILD_DIR}/tests/test-lib.o:
 	${MAKE} -C ${SRC_DIR}/tests ${BUILD_DIR}/tests/test-lib.o
 
 .PHONY: test-all
-test-all: wcc internals.c libwcc.a utils.o memory.o ${SRC_DIR}/include/stdarg.h
+test-all: wcc internals.c libwcccore.a utils.o memory.o ${SRC_DIR}/include/stdarg.h
 	${MAKE} -C ${SRC_DIR}/tests all
 
 .PHONY: test-target-all
-test-target-all: wcc internals.c libwcc.a utils.o memory.o ${SRC_DIR}/include/stdarg.h ${BUILD_DIR}/tests/test-lib.o
+test-target-all: wcc internals.c libwcccore.a utils.o memory.o ${SRC_DIR}/include/stdarg.h ${BUILD_DIR}/tests/test-lib.o
 	${MAKE} -C ${SRC_DIR}/target/${TARGET}/tests all
 
 .PHONY: test-unit
-test-unit: libwcc.a
+test-unit: libwcccore.a
 	${MAKE} -C ${SRC_DIR}/tests test-unit
 
 .PHONY: test-unit-parser
-test-unit-parser: libwcc.a
+test-unit-parser: libwcccore.a
 	${MAKE} -C ${SRC_DIR}/tests test-unit-parser
 
 .PHONY: test-unit-ssa
-test-unit-ssa: libwcc.a
+test-unit-ssa: libwcccore.a
 	${MAKE} -C ${SRC_DIR}/tests test-unit-ssa
 
 .PHONY: test-unit-functions
-test-unit-functions: libwcc.a
+test-unit-functions: libwcccore.a
 	${MAKE} -C ${SRC_DIR}/tests test-unit-functions
 
 .PHONY: test-unit-cpp
-test-unit-cpp: libwcc.a
+test-unit-cpp: libwcccore.a
 	${MAKE} -C ${SRC_DIR}/tests test-unit-cpp
 
 .PHONY: regen-cpp-tests-output
@@ -212,15 +225,15 @@ regen-cpp-tests-output: wcc
 	${MAKE} -C ${SRC_DIR}/tests regen-cpp-tests-output
 
 .PHONY: test-unit-types
-test-unit-types: libwcc.a
+test-unit-types: libwcccore.a
 	${MAKE} -C ${SRC_DIR}/tests test-unit-types
 
 .PHONY: test-integration
-test-integration: libwcc.a wcc
+test-integration: libwcccore.a wcc
 	${MAKE} -C ${SRC_DIR}/tests test-integration
 
 .PHONY: test-integration-test-linkage-and-storage
-test-integration-test-linkage-and-storage: libwcc.a wcc
+test-integration-test-linkage-and-storage: libwcccore.a wcc
 	${MAKE} -C ${SRC_DIR}/tests test-integration-test-linkage-and-storage
 
 .PHONY: test-e2e
@@ -234,6 +247,10 @@ test-cpp: wcc
 .PHONY: test-softfloat
 test-softfloat:
 	${MAKE} -C ${SRC_DIR}/softfloat test
+
+.PHONY: softfloat-lib
+softfloat-lib:
+	${MAKE} -C ${SRC_DIR}/softfloat lib
 
 .PHONY: run-benchmark
 run-benchmark: wcc wcc2
@@ -249,6 +266,7 @@ install: wcc
 	cp ${SRC_DIR}/musl-wcc '${INSTALL_BIN_DIR}/'
 	mkdir -p '${INSTALL_LIB_INCLUDE_DIR}'
 	cp ${SRC_DIR}/include/* '${INSTALL_LIB_INCLUDE_DIR}'
+	cp libwcc.a '${INSTALL_LIB_DIR}/'
 
 clean:
 	${MAKE} -C ${SRC_DIR}/tests clean
@@ -259,6 +277,7 @@ clean:
 	@rm -f internals.c
 	@rm -f instrgen
 	@rm -f instrrules-generated.c
+	@rm -f libwcccore.a
 	@rm -f libwcc.a
 	@rm -f wcc
 	@rm -f wcc2
