@@ -10,6 +10,16 @@ void set_global_override_integer_type(int type) {
     global_override_integer_type = type;
 }
 
+// Converts a a non-int128 constant to an int128 one.
+// v is modified in place. It's type is ignored; original_type is used
+// to determine signedness.
+void extend_int_constant_to_int128(Value *v, Type *original_type) {
+    if (!original_type->is_unsigned)
+        v->int128_value =v->int_value; // Sign extends
+    else
+        v->int128_value = (unsigned long) v->int_value; // Truncates
+}
+
 static Value *indirect(Value *value) {
     if (!is_pointer_type(value->type)) error("Cannot dereference a non-pointer");
 
@@ -259,14 +269,9 @@ Value *cast_constant_value(Value *src, Type *dst_type) {
 
     // Check for a cast upwards from a non-128 to an int128
     if (dst_type->type == TYPE_INT128 && src_type->type != TYPE_INT128) {
-        if (!src_type->is_unsigned)
-            dst->int128_value = src->int_value; // Sign extends
-        else
-            dst->int128_value = (unsigned long) src->int_value; // Truncates
+        dst->int_value = src->int_value;
+        extend_int_constant_to_int128(dst, src_type);
     }
-
-    // This is necessary so that the int128 lowering code knows if the constant was originally signed.
-    if (dst_type->type == TYPE_INT128) dst->int128_constant_is_unsigned = src->type->is_unsigned;
 
     return dst;
 }

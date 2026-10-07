@@ -362,7 +362,6 @@ typedef struct value {
     unsigned int has_been_renamed:1;                     // Used in renaming and stack renumbering code
     unsigned int is_address_of:1;                        // Is an address of a constant expression.
     unsigned int load_from_got:1;                        // Load from Global Offset Table (GOT)
-    unsigned int int128_constant_is_unsigned:1;          // Used in int128 lowering code to know if the constant was originally signed
     int local_index;                                     // Used by parser for local variable, temporaries and function arguments
     StackLocation stack;                                 // If the value is in the stack, details of where
     int string_literal_index;                            // Index in the string_literals array in the case of a string literal
@@ -1102,6 +1101,7 @@ void init_parser(void);
 void free_parser(void);
 
 // constexpr.c
+void extend_int_constant_to_int128(Value *v, Type *original_type);
 void set_global_override_integer_type(int type);
 Value* evaluate_const_binary_int_operation(int operation, Value *src1, Value *src2);
 Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src2, Type *type);

@@ -1253,7 +1253,7 @@ static Value *integer_type_change(Value *src, Type *type) {
         // This is necessary so that the int128 lowering code
         // knows if the constant was originally signed.
         if (dst->type->type == TYPE_INT128)
-            dst->int128_constant_is_unsigned = src->type->is_unsigned;
+            extend_int_constant_to_int128(dst, src->type);
 
         return dst;
     }
@@ -1694,7 +1694,7 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
                 // knows if the constant was originally signed.
                 Value *src2 = dup_value(src);
                 src2->type = dup_type(dst_type);
-                src2->int128_constant_is_unsigned = src->type->is_unsigned;
+                extend_int_constant_to_int128(src2, src->type);
                 return src2;
             }
 
