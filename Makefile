@@ -121,9 +121,15 @@ libwcccore.a: ${OBJECTS} wcc.o instrrules-generated.o internals.o
 	ar rcs libwcccore.a ${OBJECTS} wcc.o instrrules-generated.o internals.o
 
 ifeq ($(TARGET),aarch64)
-libwcc.a: softfloat-lib
-endif
+# Always call the softfloat make
+.PHONY: softfloat-check
+softfloat-check:
 
+$(BUILD_DIR)/softfloat/lib/.lib: softfloat-check
+	$(MAKE) -C $(SRC_DIR)/softfloat lib
+
+libwcc.a: $(BUILD_DIR)/softfloat/lib/.lib
+endif
 libwcc.a:
 	ar rcs libwcc.a $(LIBWCC_OBJECTS)
 
@@ -247,10 +253,6 @@ test-cpp: wcc
 .PHONY: test-softfloat
 test-softfloat:
 	${MAKE} -C ${SRC_DIR}/softfloat test
-
-.PHONY: softfloat-lib
-softfloat-lib:
-	${MAKE} -C ${SRC_DIR}/softfloat lib
 
 .PHONY: run-benchmark
 run-benchmark: wcc wcc2

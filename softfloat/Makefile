@@ -62,10 +62,12 @@ $(BUILD_DIR)/softfloat/test_softfloat.o: test_softfloat.c softfloat.h testlib.h
 test_softfloat: $(BUILD_DIR)/softfloat/test_softfloat.o $(OBJECTS_ABS_PATH) $(BUILD_DIR)/softfloat/testlib.o
 	gcc $^ -o $(BUILD_DIR)/softfloat/test_softfloat
 
-.PHONY: lib
-lib: $(OBJECTS_ABS_PATH)
+lib: $(BUILD_DIR)/softfloat/lib/.lib
+
+$(BUILD_DIR)/softfloat/lib/.lib: $(OBJECTS_ABS_PATH)
 	@mkdir -p $(BUILD_DIR)/softfloat/lib
 	cp $(OBJECTS_ABS_PATH) $(BUILD_DIR)/softfloat/lib
+	touch $(BUILD_DIR)/softfloat/lib/.lib
 
 .PHONY: debug
 debug: debug.o $(OBJECTS_ABS_PATH)
@@ -81,3 +83,4 @@ clean:
 	@rm -f $(BUILD_DIR)/softfloat/test_softfloat
 	@rm -f $(BUILD_DIR)/softfloat/*.o
 	@rm -Rf $(BUILD_DIR)/softfloat/lib
+	@rm -f $(BUILD_DIR)/softfloat/lib/.lib
