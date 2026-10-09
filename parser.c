@@ -17,15 +17,15 @@ typedef struct goto_backpatch {
     Tac *ir;
 } GotoBackPatch;
 
-int function_call_count; // Uniquely identify a function call within a function
+static int function_call_count; // Uniquely identify a function call within a function
 
 int vreg_count;                          // Virtual register count for currently parsed function
-int local_static_symbol_count;           // Amount of static objects with block scope
+static int local_static_symbol_count;    // Amount of static objects with block scope
 
 static List *parser_allocated_strings;
 static StrMap *origin_filenames; // Map lexer filename to a unique filename in memory
 static List *allocated_origins;  // Allocated Origin instances
-static List *allocated_sets;     // Allocated Set instances
+List *allocated_sets;            // Allocated Set instances
 
 static BaseType *base_type;
 

@@ -652,6 +652,7 @@ void allocate_value_vregs(Function *function) {
 // Convert:
 // - IR_JZ  => IR_EQ with 0.0 & IR_JNZ
 // - IR_JNZ => IR_NE with 0.0 & IR_JNZ
+// TODO aarch64 is this only x86_64 specific?
 void convert_long_doubles_jz_and_jnz(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation.id == IR_JZ || ir->operation.id == IR_JNZ) && is_floating_point_type(ir->src1->type)) {
@@ -819,7 +820,7 @@ static Value *insert_address_of_instruction_after(Function *function, Tac **ir, 
     return v;
 }
 
-static Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Value *v, int int_arg_index) {
+Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Value *v, int int_arg_index) {
     Value *arg_value = dup_value(function_call_value);
     arg_value->function_call.function_call_arg_index = int_arg_index;
 
@@ -837,7 +838,7 @@ static Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Va
     return new_tac_after(ir, IR_ARG, 0, arg_value, v);
 }
 
-static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, Symbol *symbol) {
+Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, Symbol *symbol, Value *return_value) {
     // Add call instruction
     Value *function_value = new_value();
     function_value->int_value = call_value->int_value;
@@ -846,12 +847,43 @@ static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, 
     function_value->function_call.function_call_stack_size = 0;
     function_value->function_call.function_call_fp_register_arg_count = 0;
     call_value->function_call.function_call_stack_size = 0;
-    ir = new_tac_after(ir, IR_CALL, 0, function_value, 0);
+
+    if (return_value) {
+        function_value->return_value_live_ranges = allocate_return_value_live_ranges();
+        append_to_list(allocated_sets, function_value->return_value_live_ranges);
+    }
+
+    ir = new_tac_after(ir, IR_CALL, return_value, function_value, 0);
 
     // Add end call instruction
     ir = new_tac_after(ir, IR_END_CALL, 0, call_value, 0);
 
     return ir;
+}
+
+// Lookup a function symbol, add an IR_START_CALL and return some context
+Tac *prepare_function_call(Function *function, Tac *tac, char *symbol_name, FunctionCallContext *output_fcc) {
+    Symbol *function_symbol = lookup_symbol(symbol_name, global_scope, 0);
+    if (!function_symbol) panic("In prepare_function_call(): Unable to lookup symbol %s", symbol_name);
+
+    // Add start call instruction
+    int max_function_call_value = make_max_function_call_value(function);
+    Value *call_value = make_function_call_value(++max_function_call_value, function_symbol->type);
+    call_value->function_call.function_symbol = function_symbol;
+    tac = new_tac_after(tac, IR_START_CALL, 0, call_value, 0);
+
+    FunctionCallContext fcc;
+    fcc.symbol = function_symbol;
+    fcc.call_value = call_value;
+
+    *output_fcc = fcc;
+
+    return tac;
+}
+
+// A wrapper for insert_function_call_instructions_after using FunctionCallContext
+Tac *finish_function_call(Tac *tac, FunctionCallContext fcc, Value *return_value) {
+    return insert_function_call_instructions_after(tac, fcc.call_value, fcc.symbol, return_value);
 }
 
 // Make a value in a vreg with type pointer to void
@@ -875,13 +907,9 @@ static Value *add_memcpy_offset_add_instructions(Tac *ir, Value *v) {
 
 // Add memcpy calls for struct/union -> struct/union copies
 static Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
-    int max_function_call_value = make_max_function_call_value(function);
+    FunctionCallContext fcc;
+    ir = prepare_function_call(function, ir, "memcpy", &fcc);
 
-    // Add start call instruction
-    Value *call_value = make_function_call_value(++max_function_call_value, memcpy_symbol->type);
-    call_value->function_call.function_symbol = memcpy_symbol;
-
-    ir = new_tac_after(ir, IR_START_CALL, 0, call_value, 0);
 
     // Load of addresses of src1, dst & make size value
     Value *src1_value;
@@ -909,12 +937,12 @@ static Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst,
     src1_value->type = make_pointer_to_void();
 
     // Add arg instructions
-    ir = insert_arg_instruction_after(ir, call_value, dst_value, 0);
-    ir = insert_arg_instruction_after(ir, call_value, src1_value, 1);
-    ir = insert_arg_instruction_after(ir, call_value, size_value, 2);
+    ir = insert_arg_instruction_after(ir, fcc.call_value, dst_value, 0);
+    ir = insert_arg_instruction_after(ir, fcc.call_value, src1_value, 1);
+    ir = insert_arg_instruction_after(ir, fcc.call_value, size_value, 2);
 
     // Add function call
-    ir = insert_function_call_instructions_after(ir, call_value, memcpy_symbol);
+    ir = finish_function_call(ir, fcc, NULL);
 
     return ir;
 }
@@ -1201,22 +1229,18 @@ void add_zero_memory_instructions(Function *function) {
         }
         else {
             // Call memset
-            int max_function_call_value = make_max_function_call_value(function);
-
-            // Add start call instruction
-            Value *call_value = make_function_call_value(++max_function_call_value, memset_symbol->type);
-            call_value->function_call.function_symbol = memset_symbol;
-            tac = new_tac_after(tac, IR_START_CALL, 0, call_value, 0);
+            FunctionCallContext fcc;
+            tac = prepare_function_call(function, tac, "memset", &fcc);
 
             Value *size_value = new_integral_constant(TYPE_INT, size);
             Value *dst_address = insert_address_of_instruction_after(function, &tac, dst);
 
-            tac = insert_arg_instruction_after(tac, call_value, dst_address, 0);
-            tac = insert_arg_instruction_after(tac, call_value, zero, 1);
-            tac = insert_arg_instruction_after(tac, call_value, size_value, 2);
+            tac = insert_arg_instruction_after(tac, fcc.call_value, dst_address, 0);
+            tac = insert_arg_instruction_after(tac, fcc.call_value, zero, 1);
+            tac = insert_arg_instruction_after(tac, fcc.call_value, size_value, 2);
 
             // Add function call
-            tac = insert_function_call_instructions_after(tac, call_value, memset_symbol);
+            tac = finish_function_call(tac, fcc, NULL);
         }
     }
 }

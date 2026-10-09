@@ -1,6 +1,9 @@
 #include "wcc.h"
 #include "aarch64.h"
 
+#define VALUE_IS_LD(value) (value && value->type && value->type->type == TYPE_LONG_DOUBLE)
+#define TAC_IS_LD(tac) (VALUE_IS_LD(tac->dst) || VALUE_IS_LD(tac->src1) || VALUE_IS_LD(tac->src2))
+
 int char_is_unsigned_by_default = 1;
 int total_function_stack_size_alignment = 16;
 int long_doubles_are_in_the_stack = 0;
@@ -638,6 +641,67 @@ static void remove_self_register_copies(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next)
         if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
             if (tac->operation.id == AARCH64_OP_MOV && !tac->operation.is_convert_move) tac->operation.id = IR_NOP;
+}
+
+static Tac *replace_operation_with_function_call(Function *function, Tac *tac, char *symbol_name) {
+    Tac *top_tac = tac;
+
+    FunctionCallContext fcc;
+    tac = prepare_function_call(function, tac, symbol_name, &fcc);
+    tac = insert_arg_instruction_after(tac, fcc.call_value, top_tac->src1, 0);
+
+    if (top_tac->src2)
+        tac = insert_arg_instruction_after(tac, fcc.call_value, top_tac->src2, 1);
+
+    tac = finish_function_call(tac, fcc, top_tac->dst);
+
+    // Disable the original instruction
+    make_instruction_a_nop(top_tac);
+
+    return tac;
+}
+
+#define REPLACE_OP(s) { tac = replace_operation_with_function_call(function, tac, s); break; }
+
+void transform_long_double_instructions(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (!TAC_IS_LD(tac)) continue;
+
+        switch (tac->operation.id) {
+            case IR_ADD: REPLACE_OP("__wcc_sf_add_ld");
+            case IR_SUB: REPLACE_OP("__wcc_sf_subtract_ld");
+            case IR_MUL: REPLACE_OP("__wcc_sf_multiply_ld");
+            case IR_DIV: REPLACE_OP("__wcc_sf_divide_ld");
+            case IR_EQ:  REPLACE_OP("__wcc_sf_ld_eq");
+            case IR_NE:  REPLACE_OP("__wcc_sf_ld_ne");
+            case IR_LT:  REPLACE_OP("__wcc_sf_ld_lt");
+            case IR_GT:  REPLACE_OP("__wcc_sf_ld_gt");
+            case IR_LE:  REPLACE_OP("__wcc_sf_ld_le");
+            case IR_GE:  REPLACE_OP("__wcc_sf_ld_ge");
+
+            case IR_MOVE: {
+                int dst = tac->dst->type->type;
+                int src = tac->src1->type->type;
+
+                int dstu = tac->dst->type->is_unsigned;
+                int srcu = tac->src1->type->is_unsigned;
+
+                // FP -> FP conversions
+                     if (src == TYPE_FLOAT  && dst == TYPE_LONG_DOUBLE) REPLACE_OP("__wcc_sf_convert_float_to_ld")
+                else if (src == TYPE_DOUBLE && dst == TYPE_LONG_DOUBLE) REPLACE_OP("__wcc_sf_convert_double_to_ld")
+                else if (src == TYPE_LONG_DOUBLE && dst == TYPE_FLOAT) REPLACE_OP("__wcc_sf_convert_ld_to_float")
+                else if (src == TYPE_LONG_DOUBLE && dst == TYPE_DOUBLE) REPLACE_OP("__wcc_sf_convert_ld_to_double")
+
+                // FP <-> long conversions
+                else if (src == TYPE_LONG_DOUBLE && dst == TYPE_LONG        && !dstu) REPLACE_OP("__wcc_sf_convert_ld_to_int64")
+                else if (src == TYPE_LONG_DOUBLE && dst == TYPE_LONG        &&  dstu) REPLACE_OP("__wcc_sf_convert_ld_to_uint64")
+                else if (src == TYPE_LONG        && dst == TYPE_LONG_DOUBLE && !srcu) REPLACE_OP("__wcc_sf_convert_int64_to_ld")
+                else if (src == TYPE_LONG        && dst == TYPE_LONG_DOUBLE &&  srcu) REPLACE_OP("__wcc_sf_convert_uint64_to_ld")
+
+                break;
+            }
+        }
+    }
 }
 
 void perform_peephole_optimization(Function *function) {

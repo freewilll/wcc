@@ -1075,10 +1075,9 @@ void preprocess_to_file(char *input_filename, char *output_filename, List *cli_d
 void free_cpp_allocated_garbage();
 
 // parser.c
-typedef Value *parse_expression_function_type(int);
+extern List *allocated_sets;
 
-extern Symbol *memcpy_symbol;
-extern Symbol *memset_symbol;
+typedef Value *parse_expression_function_type(int);
 
 Value *make_string_literal_value_from_cur_string_literal(void);
 Value *new_label_dst(void);
@@ -1166,6 +1165,11 @@ void complete_struct_or_union(StructOrUnion *s);
 int type_is_modifiable(Type *type);
 
 // ir.c
+typedef struct {
+    Symbol *symbol;     // The function's symbol
+    Value *call_value;  // The value corresponding to the function call
+} FunctionCallContext;
+
 void init_ir(void);
 void free_ir(void);
 
@@ -1209,6 +1213,10 @@ void determine_bit_field_params(Value *v, int *offset, int *bit_offset, int *bit
 void process_bit_fields(Function *function);
 void remove_unused_function_call_results(Function *function);
 void process_struct_and_union_copies(Function *function);
+Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Value *v, int int_arg_index);
+Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, Symbol *symbol, Value *return_value);
+Tac *prepare_function_call(Function *function, Tac *tac, char *symbol_name, FunctionCallContext *output_context);
+Tac *finish_function_call(Tac *tac, FunctionCallContext fcc, Value *return_value);
 Value *make_pointer_to_void_in_vreg_value(Function *function);
 Tac *add_memory_copy_with_registers(Function *function, Tac *ir, Value *dst, Value *src1, int size, int splay_offsets);
 Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);
@@ -1641,6 +1649,7 @@ char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index);
 int get_preg_class_for_scalar_type(Type *type);
+void transform_long_double_instructions(Function *function);
 void perform_peephole_optimization(Function *function);
 
 // Target functions related code

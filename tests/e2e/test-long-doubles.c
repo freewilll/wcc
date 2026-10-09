@@ -79,8 +79,6 @@ void test_assignment() {
     assert_ld_string(gs.ld2, "1.40000", "Long double assignment to global struct 2");
 }
 
-#ifdef __x86_64__
-
 void test_arithmetic() {
     long double ld1, ld2, ld3;
 
@@ -250,8 +248,6 @@ void test_jz_jnz() {
     i = 1; assert_int(1, nan  || i++, "long double nan  || 0 result"); assert_int(1, i, "long double nan  || 0 i");
 }
 
-#endif
-
 void test_arrays() {
     long double ld[2];
     ld[0] = 1.1;
@@ -371,6 +367,8 @@ void test_pointer_casting() {
     *((long *) &s1->ld + 1);
 }
 
+#endif
+
 void test_structs() {
     struct s1 *s1 = malloc(sizeof(struct s1));
     struct s2 *s2 = malloc(sizeof(struct s2));
@@ -404,6 +402,7 @@ void test_constant_operations() {
     assert_int(1, 1.0L >= 1.0L, "1.0L >= 1.0L");
 }
 
+
 void test_inc_dec() {
     long double ld = 1.0;
     char *buffer = malloc(100);
@@ -423,6 +422,8 @@ void test_inc_dec() {
 long double return_ld_from_int_constant () {
     return 1;
 }
+
+#ifdef __x86_64__
 
 void test_int_long_double_type_changes() {
     long double ld;
@@ -606,6 +607,7 @@ void test_long_double_type_int_changes() {
     assert_int(-42, return_int_from_ld_constant(), "Return int from long double constant");
 }
 
+#endif
 
 void function_with_int_parameter(int i) {
     assert_int(1, i, "Long double to int conversion in function call");
@@ -619,6 +621,9 @@ void test_function_call_argument_conversions() {
     function_with_int_parameter(1.0l);
     function_with_long_double_parameter(1);
 }
+
+
+#ifdef __x86_64__
 
 void test___builtin_nanf() {
     float f = __builtin_nanf("");
@@ -653,23 +658,25 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     test_assignment();
-    #ifdef __x86_64__
     test_arithmetic();
     test_comparison_assignment();
     test_comparison_conditional_jump();
     test_jz_jnz();
-    #endif
     test_arrays();
     #ifdef __x86_64__
     test_pointers();
     test_pointer_arithmetic();
     test_pointer_casting();
+    #endif
     test_structs();
     test_constant_operations();
     test_inc_dec();
+    #ifdef __x86_64__
     test_int_long_double_type_changes();
     test_long_double_type_int_changes();
+    #endif
     test_function_call_argument_conversions();
+    #ifdef __x86_64__
     test___builtin_nanf();
     test___builtin_inff();
     #endif

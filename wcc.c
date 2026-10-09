@@ -96,8 +96,9 @@ static CompilerPhase compiler_phases[] = {
     { free_phi_functions,                          PH_NONE,  PH_NONE,  NULL },
     { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
 
-    // The target x86_64 specific phase follows
+    // The target specific phase follows
     { convert_long_doubles_jz_and_jnz,             PH_NONE,  PH_NONE,  "Convert long double conditional jumps" },
+    { transform_long_double_instructions,          PH_NONE,  PH_NONE,  "Lower long double code" },
     { transform_int128_instructions,               PH_NONE,  PH_NONE,  "Lower int128 code" },
     { process_target_functions,                    PH_NONE,  PH_PARAM, "Process target function calls, args, params and return values" },
 
@@ -206,9 +207,6 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     init_parser();
 
     if (!debug_dont_compile_internals) compile_internals();
-
-    memcpy_symbol = lookup_symbol("memcpy", global_scope, 0);
-    memset_symbol = lookup_symbol("memset", global_scope, 0);
 
     compile_phase = CP_PARSING;
     init_lexer_from_string(input);

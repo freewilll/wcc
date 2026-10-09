@@ -182,6 +182,9 @@ static void remove_self_register_copies(Function *function) {
             if (tac->operation.id == X86_OP_MOV) tac->operation.id = IR_NOP;
 }
 
+// Not used in x86_64
+void transform_long_double_instructions(Function *function) {}
+
 void perform_peephole_optimization(Function *function) {
     remove_stack_self_moves(function);
     remove_self_register_copies(function);

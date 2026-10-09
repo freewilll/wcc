@@ -83,7 +83,7 @@ ${BUILD_DIR}/tests/e2e/test-%.o: ${BUILD_DIR}/tests/e2e/test-%.s
 	${AS} $< -o $@
 
 ${BUILD_DIR}/tests/e2e/test-%-wcc: ${BUILD_DIR}/tests/e2e/test-%.o ${E2E_LINK_OBJECTS}
-	${GCC} ${GCC_E2E_WARN_FLAGS} ${GCC_OPTS} $^ -o $@
+	${GCC} ${GCC_E2E_WARN_FLAGS} ${GCC_OPTS} -L ${BUILD_DIR} $^ -o $@ -lwcc
 
 run-test-%-wcc: ${BUILD_DIR}/tests/e2e/test-%-wcc
 	cd ${TEST_BUILD_DIR} && ./$(notdir $<)
