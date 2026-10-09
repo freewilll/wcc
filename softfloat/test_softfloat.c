@@ -488,6 +488,126 @@ void test_rounding() {
     assert_int(0, fpv.significand, "Rounding up with overflow 6");
 }
 
+void test_convert_ld_to_int8() {
+    assert_long(0,              __wcc_sf_convert_ld_to_int8(0.0L),      "ld to int8: +0.0");
+    assert_long(0,              __wcc_sf_convert_ld_to_int8(-0.0L),     "ld to int8: -0.0");
+    assert_long(INT8_MAX,       __wcc_sf_convert_ld_to_int8(INFINITY),  "ld to int8: +inf");
+    assert_long(INT8_MIN,       __wcc_sf_convert_ld_to_int8(-INFINITY), "ld to int8: -inf");
+    assert_long(INT8_MAX,       __wcc_sf_convert_ld_to_int8(NAN),       "ld to int8: +nan");
+    assert_long(0,              __wcc_sf_convert_ld_to_int8(-NAN),      "ld to int8: -nan");
+    assert_long(INT8_MIN,       __wcc_sf_convert_ld_to_int8(-128.0L),   "ld to int8: INT8_MIN");
+    assert_long(INT8_MIN + 1,   __wcc_sf_convert_ld_to_int8(-127.0L),   "ld to int8: INT8_MIN + 1");
+    assert_long(-100,           __wcc_sf_convert_ld_to_int8(-100.1L),   "ld to int8: -100.1");
+    assert_long(-10,            __wcc_sf_convert_ld_to_int8(-10.1L),    "ld to int8: -10.1");
+    assert_long(-1,             __wcc_sf_convert_ld_to_int8(-1.1L),     "ld to int8: -1.1");
+    assert_long(INT8_MIN,       __wcc_sf_convert_ld_to_int8(-1e100L),   "ld to int8: -1e100");
+    assert_long(0,              __wcc_sf_convert_ld_to_int8(-0.1L),     "ld to int8: -0.1");
+    assert_long(0,              __wcc_sf_convert_ld_to_int8(0.1L),      "ld to int8: 0.1");
+    assert_long(1,              __wcc_sf_convert_ld_to_int8(1.1L),      "ld to int8: 1.1");
+    assert_long(10,             __wcc_sf_convert_ld_to_int8(10.1L),     "ld to int8: 10.1");
+    assert_long(100,            __wcc_sf_convert_ld_to_int8(100.1L),    "ld to int8: 100.1");
+    assert_long(INT8_MAX - 1,   __wcc_sf_convert_ld_to_int8(126.0L),    "ld to int8: INT8_MAX - 1");
+    assert_long(INT8_MAX,       __wcc_sf_convert_ld_to_int8(127.0L),    "ld to int8: INT8_MAX");
+}
+
+void test_convert_ld_to_uint8() {
+    assert_long(0,              __wcc_sf_convert_ld_to_uint8(0.0L),      "ld to uint8: +0.0");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint8(-0.0L),     "ld to uint8: -0.0");
+    assert_long(UINT8_MAX,      __wcc_sf_convert_ld_to_uint8(INFINITY),  "ld to uint8: +inf");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint8(-INFINITY), "ld to uint8: -inf");
+    assert_long(UINT8_MAX,      __wcc_sf_convert_ld_to_uint8(NAN),       "ld to uint8: nan");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint8(-NAN),      "ld to uint8: nan");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint8(-1e100L),   "ld to uint8: -1e100");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint8(-0.1L),     "ld to uint8: -0.1");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint8(0.1L),      "ld to uint8: 0.1");
+    assert_long(1,              __wcc_sf_convert_ld_to_uint8(1.1L),      "ld to uint8: 1.1");
+    assert_long(10,             __wcc_sf_convert_ld_to_uint8(10.1L),     "ld to uint8: 10.1");
+    assert_long(100,            __wcc_sf_convert_ld_to_uint8(100.1L),    "ld to uint8: 100.1");
+    assert_long(UINT8_MAX - 1, __wcc_sf_convert_ld_to_uint8(254.0L),     "ld to uint8: UINT8_MAX - 1");
+    assert_long(UINT8_MAX,     __wcc_sf_convert_ld_to_uint8(255.0L),     "ld to uint8: UINT8_MAX");
+    assert_long(UINT8_MAX,     __wcc_sf_convert_ld_to_uint8(255.0L),     "ld to uint8: UINT8_MAX + 1");
+}
+
+void test_convert_ld_to_int16() {
+    assert_long(0,               __wcc_sf_convert_ld_to_int16(0.0L),      "ld to int16: +0.0");
+    assert_long(0,               __wcc_sf_convert_ld_to_int16(-0.0L),     "ld to int16: -0.0");
+    assert_long(INT16_MAX,       __wcc_sf_convert_ld_to_int16(INFINITY),  "ld to int16: +inf");
+    assert_long(INT16_MIN,       __wcc_sf_convert_ld_to_int16(-INFINITY), "ld to int16: -inf");
+    assert_long(INT16_MAX,       __wcc_sf_convert_ld_to_int16(NAN),       "ld to int16: +nan");
+    assert_long(0,               __wcc_sf_convert_ld_to_int16(-NAN),      "ld to int16: -nan");
+    assert_long(INT16_MIN,       __wcc_sf_convert_ld_to_int16(-32768.0L), "ld to int16: INT16_MIN");
+    assert_long(INT16_MIN + 1,   __wcc_sf_convert_ld_to_int16(-32767.0L), "ld to int16: INT16_MIN + 1");
+    assert_long(-100,            __wcc_sf_convert_ld_to_int16(-100.1L),   "ld to int16: -100.1");
+    assert_long(-10,             __wcc_sf_convert_ld_to_int16(-10.1L),    "ld to int16: -10.1");
+    assert_long(-1,              __wcc_sf_convert_ld_to_int16(-1.1L),     "ld to int16: -1.1");
+    assert_long(INT16_MIN,       __wcc_sf_convert_ld_to_int16(-1e100L),   "ld to int16: -1e100");
+    assert_long(0,               __wcc_sf_convert_ld_to_int16(-0.1L),     "ld to int16: -0.1");
+    assert_long(0,               __wcc_sf_convert_ld_to_int16(0.1L),      "ld to int16: 0.1");
+    assert_long(1,               __wcc_sf_convert_ld_to_int16(1.1L),      "ld to int16: 1.1");
+    assert_long(10,              __wcc_sf_convert_ld_to_int16(10.1L),     "ld to int16: 10.1");
+    assert_long(100,             __wcc_sf_convert_ld_to_int16(100.1L),    "ld to int16: 100.1");
+    assert_long(INT16_MAX - 1,   __wcc_sf_convert_ld_to_int16(32766.0L),  "ld to int16: INT16_MAX - 1");
+    assert_long(INT16_MAX,       __wcc_sf_convert_ld_to_int16(32767.0L),  "ld to int16: INT16_MAX");
+}
+
+void test_convert_ld_to_uint16() {
+    assert_long(0,              __wcc_sf_convert_ld_to_uint16(0.0L),      "ld to uint16: +0.0");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint16(-0.0L),     "ld to uint16: -0.0");
+    assert_long(UINT16_MAX,      __wcc_sf_convert_ld_to_uint16(INFINITY), "ld to uint16: +inf");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint16(-INFINITY), "ld to uint16: -inf");
+    assert_long(UINT16_MAX,      __wcc_sf_convert_ld_to_uint16(NAN),      "ld to uint16: nan");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint16(-NAN),      "ld to uint16: nan");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint16(-1e100L),   "ld to uint16: -1e100");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint16(-0.1L),     "ld to uint16: -0.1");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint16(0.1L),      "ld to uint16: 0.1");
+    assert_long(1,              __wcc_sf_convert_ld_to_uint16(1.1L),      "ld to uint16: 1.1");
+    assert_long(10,             __wcc_sf_convert_ld_to_uint16(10.1L),     "ld to uint16: 10.1");
+    assert_long(100,            __wcc_sf_convert_ld_to_uint16(100.1L),    "ld to uint16: 100.1");
+    assert_long(UINT16_MAX - 1, __wcc_sf_convert_ld_to_uint16(65534.0L),  "ld to uint16: UINT16_MAX - 1");
+    assert_long(UINT16_MAX,     __wcc_sf_convert_ld_to_uint16(65535.0L),  "ld to uint16: UINT16_MAX");
+    assert_long(UINT16_MAX,     __wcc_sf_convert_ld_to_uint16(65535.0L),  "ld to uint16: UINT16_MAX + 1");
+}
+
+void test_convert_ld_to_int32() {
+    assert_long(0,               __wcc_sf_convert_ld_to_int32(0.0L),           "ld to int32: +0.0");
+    assert_long(0,               __wcc_sf_convert_ld_to_int32(-0.0L),          "ld to int32: -0.0");
+    assert_long(INT32_MAX,       __wcc_sf_convert_ld_to_int32(INFINITY),       "ld to int32: +inf");
+    assert_long(INT32_MIN,       __wcc_sf_convert_ld_to_int32(-INFINITY),      "ld to int32: -inf");
+    assert_long(INT32_MAX,       __wcc_sf_convert_ld_to_int32(NAN),            "ld to int32: +nan");
+    assert_long(0,               __wcc_sf_convert_ld_to_int32(-NAN),           "ld to int32: -nan");
+    assert_long(INT32_MIN,       __wcc_sf_convert_ld_to_int32(-2147483648.0L), "ld to int32: INT32_MIN");
+    assert_long(INT32_MIN + 1,   __wcc_sf_convert_ld_to_int32(-2147483647.0L), "ld to int32: INT32_MIN + 1");
+    assert_long(-100,            __wcc_sf_convert_ld_to_int32(-100.1L),        "ld to int32: -100.1");
+    assert_long(-10,             __wcc_sf_convert_ld_to_int32(-10.1L),         "ld to int32: -10.1");
+    assert_long(-1,              __wcc_sf_convert_ld_to_int32(-1.1L),          "ld to int32: -1.1");
+    assert_long(INT32_MIN,       __wcc_sf_convert_ld_to_int32(-1e100L),        "ld to int32: -1e100");
+    assert_long(0,               __wcc_sf_convert_ld_to_int32(-0.1L),          "ld to int32: -0.1");
+    assert_long(0,               __wcc_sf_convert_ld_to_int32(0.1L),           "ld to int32: 0.1");
+    assert_long(1,               __wcc_sf_convert_ld_to_int32(1.1L),           "ld to int32: 1.1");
+    assert_long(10,              __wcc_sf_convert_ld_to_int32(10.1L),          "ld to int32: 10.1");
+    assert_long(100,             __wcc_sf_convert_ld_to_int32(100.1L),         "ld to int32: 100.1");
+    assert_long(INT32_MAX - 1,   __wcc_sf_convert_ld_to_int32(2147483646.0L),  "ld to int32: INT32_MAX - 1");
+    assert_long(INT32_MAX,       __wcc_sf_convert_ld_to_int32(2147483647.0L),  "ld to int32: INT32_MAX");
+}
+
+void test_convert_ld_to_uint32() {
+    assert_long(0,              __wcc_sf_convert_ld_to_uint32(0.0L),          "ld to uint32: +0.0");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint32(-0.0L),         "ld to uint32: -0.0");
+    assert_long(UINT32_MAX,      __wcc_sf_convert_ld_to_uint32(INFINITY),     "ld to uint32: +inf");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint32(-INFINITY),     "ld to uint32: -inf");
+    assert_long(UINT32_MAX,      __wcc_sf_convert_ld_to_uint32(NAN),          "ld to uint32: nan");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint32(-NAN),          "ld to uint32: nan");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint32(-1e100L),       "ld to uint32: -1e100");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint32(-0.1L),         "ld to uint32: -0.1");
+    assert_long(0,              __wcc_sf_convert_ld_to_uint32(0.1L),          "ld to uint32: 0.1");
+    assert_long(1,              __wcc_sf_convert_ld_to_uint32(1.1L),          "ld to uint32: 1.1");
+    assert_long(10,             __wcc_sf_convert_ld_to_uint32(10.1L),         "ld to uint32: 10.1");
+    assert_long(100,            __wcc_sf_convert_ld_to_uint32(100.1L),        "ld to uint32: 100.1");
+    assert_long(UINT32_MAX - 1, __wcc_sf_convert_ld_to_uint32(4294967294.0L), "ld to uint32: UINT32_MAX - 1");
+    assert_long(UINT32_MAX,     __wcc_sf_convert_ld_to_uint32(4294967295.0L), "ld to uint32: UINT32_MAX");
+    assert_long(UINT32_MAX,     __wcc_sf_convert_ld_to_uint32(4294967295.0L), "ld to uint32: UINT32_MAX + 1");
+}
+
 void test_convert_ld_to_int64() {
     assert_long(0,              __wcc_sf_convert_ld_to_int64(0.0L),                    "ld to int64: +0.0");
     assert_long(0,              __wcc_sf_convert_ld_to_int64(-0.0L),                   "ld to int64: -0.0");
@@ -530,6 +650,81 @@ void test_convert_ld_to_uint64() {
     assert_long(UINT64_MAX - 1, __wcc_sf_convert_ld_to_uint64(18446744073709551614.0L), "ld to uint64: UINT64_MAX - 1");
     assert_long(UINT64_MAX,     __wcc_sf_convert_ld_to_uint64(18446744073709551615.0L), "ld to uint64: UINT64_MAX");
     assert_long(UINT64_MAX,     __wcc_sf_convert_ld_to_uint64(18446744073709551616.0L), "ld to uint64: UINT64_MAX + 1");
+}
+
+void test_convert_int8_to_ld() {
+    assert_long_double(-128.000000L,  __wcc_sf_convert_int8_to_ld(INT8_MIN),      "int8 to ld: INT8_MIN");
+    assert_long_double(-127.000000L,  __wcc_sf_convert_int8_to_ld(INT8_MIN + 1),  "int8 to ld: INT8_MIN - 1");
+    assert_long_double(-100.0,        __wcc_sf_convert_int8_to_ld(-100),          "int8 to ld: -100.0");
+    assert_long_double(-10.0,         __wcc_sf_convert_int8_to_ld(-10),           "int8 to ld: -10.0");
+    assert_long_double(-1.0,          __wcc_sf_convert_int8_to_ld(-1),            "int8 to ld: -1.0");
+    assert_long_double(0.0,           __wcc_sf_convert_int8_to_ld(0),             "int8 to ld: 0.0");
+    assert_long_double(1.0,           __wcc_sf_convert_int8_to_ld(1),             "int8 to ld: 1.0");
+    assert_long_double(10.0,          __wcc_sf_convert_int8_to_ld(10),            "int8 to ld: 10.0");
+    assert_long_double(100.0,         __wcc_sf_convert_int8_to_ld(100),           "int8 to ld: 100.0");
+    assert_long_double(126.000000L,   __wcc_sf_convert_int8_to_ld(INT8_MAX - 1),  "int8 to ld: INT8_MAX - 1");
+    assert_long_double(127.000000L,   __wcc_sf_convert_int8_to_ld(INT8_MAX),      "int8 to ld: INT8_MAX");
+    assert_long_double(-2.0,          __wcc_sf_convert_int8_to_ld(UINT8_MAX - 1), "int8 to ld: UINT8_MAX - 1");
+    assert_long_double(-1.0,          __wcc_sf_convert_int8_to_ld(UINT8_MAX),     "int8 to ld: UINT8_MAX");
+}
+
+void test_convert_uint8_to_ld() {
+    assert_long_double(0.0,    __wcc_sf_convert_uint8_to_ld(0),              "uint8 to ld: 0.0");
+    assert_long_double(1.0,    __wcc_sf_convert_uint8_to_ld(1),              "uint8 to ld: 1.0");
+    assert_long_double(10.0,   __wcc_sf_convert_uint8_to_ld(10),             "uint8 to ld: 10.0");
+    assert_long_double(100.0,  __wcc_sf_convert_uint8_to_ld(100),            "uint8 to ld: 100.0");
+    assert_long_double(254.0L, __wcc_sf_convert_uint8_to_ld(UINT8_MAX - 1),  "uint8 to ld: UINT8_MAX - 1");
+    assert_long_double(255.0L, __wcc_sf_convert_uint8_to_ld(UINT8_MAX),      "uint8 to ld: UINT8_MAX");
+}
+
+void test_convert_int16_to_ld() {
+    assert_long_double(-32768.000000L,  __wcc_sf_convert_int16_to_ld(INT16_MIN),      "int16 to ld: INT16_MIN");
+    assert_long_double(-32767.000000L,  __wcc_sf_convert_int16_to_ld(INT16_MIN + 1),  "int16 to ld: INT16_MIN - 1");
+    assert_long_double(-100.0,          __wcc_sf_convert_int16_to_ld(-100),           "int16 to ld: -100.0");
+    assert_long_double(-10.0,           __wcc_sf_convert_int16_to_ld(-10),            "int16 to ld: -10.0");
+    assert_long_double(-1.0,            __wcc_sf_convert_int16_to_ld(-1),             "int16 to ld: -1.0");
+    assert_long_double(0.0,             __wcc_sf_convert_int16_to_ld(0),              "int16 to ld: 0.0");
+    assert_long_double(1.0,             __wcc_sf_convert_int16_to_ld(1),              "int16 to ld: 1.0");
+    assert_long_double(10.0,            __wcc_sf_convert_int16_to_ld(10),             "int16 to ld: 10.0");
+    assert_long_double(100.0,           __wcc_sf_convert_int16_to_ld(100),            "int16 to ld: 100.0");
+    assert_long_double(32766.000000L,   __wcc_sf_convert_int16_to_ld(INT16_MAX - 1),  "int16 to ld: INT16_MAX - 1");
+    assert_long_double(32767.000000L,   __wcc_sf_convert_int16_to_ld(INT16_MAX),      "int16 to ld: INT16_MAX");
+    assert_long_double(-2.0,            __wcc_sf_convert_int16_to_ld(UINT16_MAX - 1), "int16 to ld: UINT16_MAX - 1");
+    assert_long_double(-1.0,            __wcc_sf_convert_int16_to_ld(UINT16_MAX),     "int16 to ld: UINT16_MAX");
+}
+
+void test_convert_uint16_to_ld() {
+    assert_long_double(0.0,      __wcc_sf_convert_uint16_to_ld(0),              "uint16 to ld: 0.0");
+    assert_long_double(1.0,      __wcc_sf_convert_uint16_to_ld(1),              "uint16 to ld: 1.0");
+    assert_long_double(10.0,     __wcc_sf_convert_uint16_to_ld(10),             "uint16 to ld: 10.0");
+    assert_long_double(100.0,    __wcc_sf_convert_uint16_to_ld(100),            "uint16 to ld: 100.0");
+    assert_long_double(65534.0L, __wcc_sf_convert_uint16_to_ld(UINT16_MAX - 1), "uint16 to ld: UINT16_MAX - 1");
+    assert_long_double(65535.0L, __wcc_sf_convert_uint16_to_ld(UINT16_MAX),     "uint16 to ld: UINT16_MAX");
+}
+
+void test_convert_int32_to_ld() {
+    assert_long_double(-2147483648.000000L,  __wcc_sf_convert_int32_to_ld(INT32_MIN),      "int32 to ld: INT32_MIN");
+    assert_long_double(-2147483647.000000L,  __wcc_sf_convert_int32_to_ld(INT32_MIN + 1),  "int32 to ld: INT32_MIN - 1");
+    assert_long_double(-100.0,                __wcc_sf_convert_int32_to_ld(-100),          "int32 to ld: -100.0");
+    assert_long_double(-10.0,                 __wcc_sf_convert_int32_to_ld(-10),           "int32 to ld: -10.0");
+    assert_long_double(-1.0,                  __wcc_sf_convert_int32_to_ld(-1),            "int32 to ld: -1.0");
+    assert_long_double(0.0,                   __wcc_sf_convert_int32_to_ld(0),             "int32 to ld: 0.0");
+    assert_long_double(1.0,                   __wcc_sf_convert_int32_to_ld(1),             "int32 to ld: 1.0");
+    assert_long_double(10.0,                  __wcc_sf_convert_int32_to_ld(10),            "int32 to ld: 10.0");
+    assert_long_double(100.0,                 __wcc_sf_convert_int32_to_ld(100),           "int32 to ld: 100.0");
+    assert_long_double(2147483646.000000L,   __wcc_sf_convert_int32_to_ld(INT32_MAX - 1),  "int32 to ld: INT32_MAX - 1");
+    assert_long_double(2147483647.000000L,   __wcc_sf_convert_int32_to_ld(INT32_MAX),      "int32 to ld: INT32_MAX");
+    assert_long_double(-2.0,                 __wcc_sf_convert_int32_to_ld(UINT32_MAX - 1), "int32 to ld: UINT32_MAX - 1");
+    assert_long_double(-1.0,                 __wcc_sf_convert_int32_to_ld(UINT32_MAX),     "int32 to ld: UINT32_MAX");
+}
+
+void test_convert_uint32_to_ld() {
+    assert_long_double(0.0,           __wcc_sf_convert_uint32_to_ld(0),              "uint32 to ld: 0.0");
+    assert_long_double(1.0,           __wcc_sf_convert_uint32_to_ld(1),              "uint32 to ld: 1.0");
+    assert_long_double(10.0,          __wcc_sf_convert_uint32_to_ld(10),             "uint32 to ld: 10.0");
+    assert_long_double(100.0,         __wcc_sf_convert_uint32_to_ld(100),            "uint32 to ld: 100.0");
+    assert_long_double(4294967294.0L, __wcc_sf_convert_uint32_to_ld(UINT32_MAX - 1), "uint32 to ld: UINT32_MAX - 1");
+    assert_long_double(4294967295.0L, __wcc_sf_convert_uint32_to_ld(UINT32_MAX),     "uint32 to ld: UINT32_MAX");
 }
 
 void test_convert_int64_to_ld() {
@@ -1065,10 +1260,24 @@ int main() {
     test_convert_ld_to_double();
     test_convert_fp_to_fp_nan_and_inf();
     test_rounding();
+
+    test_convert_ld_to_int8();
+    test_convert_ld_to_uint8();
+    test_convert_ld_to_int16();
+    test_convert_ld_to_uint16();
+    test_convert_ld_to_int32();
+    test_convert_ld_to_uint32();
     test_convert_ld_to_int64();
     test_convert_ld_to_uint64();
+    test_convert_int8_to_ld();
+    test_convert_uint8_to_ld();
+    test_convert_int16_to_ld();
+    test_convert_uint16_to_ld();
+    test_convert_int32_to_ld();
+    test_convert_uint32_to_ld();
     test_convert_int64_to_ld();
     test_convert_uint64_to_ld();
+
     test_negate_ld();
     test_add_ld();
     test_subtract_ld();

@@ -80,6 +80,19 @@ float       __wcc_sf_convert_double_to_float (double d);
 long double __wcc_sf_convert_double_to_ld    (double d);
 float       __wcc_sf_convert_ld_to_float     (long double ld);
 double      __wcc_sf_convert_ld_to_double    (long double ld);
+
+int8_t      __wcc_sf_convert_ld_to_int8      (long double ld);
+uint8_t     __wcc_sf_convert_ld_to_uint8     (long double ld);
+long double __wcc_sf_convert_int8_to_ld      (int8_t  i);
+long double __wcc_sf_convert_uint8_to_ld     (uint8_t i);
+int16_t     __wcc_sf_convert_ld_to_int16     (long double ld);
+uint16_t    __wcc_sf_convert_ld_to_uint16    (long double ld);
+long double __wcc_sf_convert_int16_to_ld     (int16_t  i);
+long double __wcc_sf_convert_uint16_to_ld    (uint16_t i);
+int32_t     __wcc_sf_convert_ld_to_int32     (long double ld);
+uint32_t    __wcc_sf_convert_ld_to_uint32    (long double ld);
+long double __wcc_sf_convert_int32_to_ld     (int32_t  i);
+long double __wcc_sf_convert_uint32_to_ld    (uint32_t i);
 int64_t     __wcc_sf_convert_ld_to_int64     (long double ld);
 uint64_t    __wcc_sf_convert_ld_to_uint64    (long double ld);
 long double __wcc_sf_convert_int64_to_ld     (int64_t  i);
@@ -129,5 +142,56 @@ int __wcc_sf_ld_gt(long double a, long double b);
 int __wcc_sf_ld_le(long double a, long double b);
 int __wcc_sf_ld_ge(long double a, long double b);
 
+// Common LD to int code template
+#define LD_TO_INT_TEMPLATE(int_type, func_name, int_min, int_max, max_exponent) \
+int_type func_name(long double ld) { \
+    FpValue fpv = __wcc_sf_load_ld(ld); \
+\
+    if (fpv.type == TYPE_ZERO || fpv.exponent < 0) \
+        return 0; \
+    else if (fpv.type == TYPE_INF) \
+        return fpv.sign ? int_min : int_max; \
+    else if (fpv.type == TYPE_NAN) \
+        return fpv.sign ? 0 : int_max; \
+    else if (fpv.exponent >= max_exponent) \
+        return fpv.sign ? int_min : int_max; \
+\
+    __uint128_t result = fpv.significand >> 1; \
+    SET_SBIT(result, 0); \
+    int shift_amount = SIGNIFICAND_BITS - fpv.exponent - 1; \
+    if (shift_amount >= SIGNIFICAND_BITS) return 0; \
+    result >>=  shift_amount; \
+\
+    if (fpv.sign) result = -result; \
+\
+\
+    return result; \
+}
+
 #endif
 
+// Common LD to uint code template
+#define LD_TO_UINT_TEMPLATE(uint_type, func_name, uint_max) \
+uint_type func_name(long double ld) { \
+    FpValue fpv = __wcc_sf_load_ld(ld); \
+\
+    if (fpv.type == TYPE_ZERO || fpv.exponent < 0) \
+        return 0; \
+    else if (fpv.type == TYPE_INF) \
+        return fpv.sign ? 0 : uint_max; \
+    else if (fpv.type == TYPE_NAN) \
+        return fpv.sign ? 0 : uint_max; \
+    else if (fpv.sign) \
+        return 0; \
+    else if (fpv.exponent >= 64) \
+        return uint_max; \
+\
+    __uint128_t result = fpv.significand >> 1; \
+    SET_SBIT(result, 0); \
+    int shift_amount = SIGNIFICAND_BITS - fpv.exponent - 1; \
+    if (shift_amount >= SIGNIFICAND_BITS) return 0; \
+    result >>=  shift_amount; \
+\
+\
+    return result; \
+}

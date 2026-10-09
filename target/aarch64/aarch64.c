@@ -693,10 +693,22 @@ void transform_long_double_instructions(Function *function) {
                 else if (src == TYPE_LONG_DOUBLE && dst == TYPE_DOUBLE) REPLACE_OP("__wcc_sf_convert_ld_to_double")
 
                 // FP <-> long conversions
-                else if (src == TYPE_LONG_DOUBLE && dst == TYPE_LONG        && !dstu) REPLACE_OP("__wcc_sf_convert_ld_to_int64")
-                else if (src == TYPE_LONG_DOUBLE && dst == TYPE_LONG        &&  dstu) REPLACE_OP("__wcc_sf_convert_ld_to_uint64")
-                else if (src == TYPE_LONG        && dst == TYPE_LONG_DOUBLE && !srcu) REPLACE_OP("__wcc_sf_convert_int64_to_ld")
-                else if (src == TYPE_LONG        && dst == TYPE_LONG_DOUBLE &&  srcu) REPLACE_OP("__wcc_sf_convert_uint64_to_ld")
+                else if (src == TYPE_LONG_DOUBLE  && dst == TYPE_CHAR        && !dstu) REPLACE_OP("__wcc_sf_convert_ld_to_int8")
+                else if (src == TYPE_LONG_DOUBLE  && dst == TYPE_CHAR        &&  dstu) REPLACE_OP("__wcc_sf_convert_ld_to_uint8")
+                else if (src == TYPE_CHAR         && dst == TYPE_LONG_DOUBLE && !srcu) REPLACE_OP("__wcc_sf_convert_int8_to_ld")
+                else if (src == TYPE_CHAR         && dst == TYPE_LONG_DOUBLE &&  srcu) REPLACE_OP("__wcc_sf_convert_uint8_to_ld")
+                else if (src == TYPE_LONG_DOUBLE  && dst == TYPE_SHORT       && !dstu) REPLACE_OP("__wcc_sf_convert_ld_to_int16")
+                else if (src == TYPE_LONG_DOUBLE  && dst == TYPE_SHORT       &&  dstu) REPLACE_OP("__wcc_sf_convert_ld_to_uint16")
+                else if (src == TYPE_SHORT        && dst == TYPE_LONG_DOUBLE && !srcu) REPLACE_OP("__wcc_sf_convert_int16_to_ld")
+                else if (src == TYPE_SHORT        && dst == TYPE_LONG_DOUBLE &&  srcu) REPLACE_OP("__wcc_sf_convert_uint16_to_ld")
+                else if (src == TYPE_LONG_DOUBLE  && dst == TYPE_INT         && !dstu) REPLACE_OP("__wcc_sf_convert_ld_to_int32")
+                else if (src == TYPE_LONG_DOUBLE  && dst == TYPE_INT         &&  dstu) REPLACE_OP("__wcc_sf_convert_ld_to_uint32")
+                else if (src == TYPE_INT          && dst == TYPE_LONG_DOUBLE && !srcu) REPLACE_OP("__wcc_sf_convert_int32_to_ld")
+                else if (src == TYPE_INT          && dst == TYPE_LONG_DOUBLE &&  srcu) REPLACE_OP("__wcc_sf_convert_uint32_to_ld")
+                else if (src == TYPE_LONG_DOUBLE  && dst == TYPE_LONG        && !dstu) REPLACE_OP("__wcc_sf_convert_ld_to_int64")
+                else if (src == TYPE_LONG_DOUBLE  && dst == TYPE_LONG        &&  dstu) REPLACE_OP("__wcc_sf_convert_ld_to_uint64")
+                else if (src == TYPE_LONG         && dst == TYPE_LONG_DOUBLE && !srcu) REPLACE_OP("__wcc_sf_convert_int64_to_ld")
+                else if (src == TYPE_LONG         && dst == TYPE_LONG_DOUBLE &&  srcu) REPLACE_OP("__wcc_sf_convert_uint64_to_ld")
 
                 break;
             }

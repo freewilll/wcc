@@ -36,8 +36,20 @@ OBJECTS = \
 	conversion_double_to_ld.o \
 	conversion_ld_to_float.o \
 	conversion_ld_to_double.o \
+	conversion_ld_to_int8.o \
+	conversion_ld_to_uint8.o \
+	conversion_ld_to_int16.o \
+	conversion_ld_to_uint16.o \
+	conversion_ld_to_int32.o \
+	conversion_ld_to_uint32.o \
 	conversion_ld_to_int64.o \
 	conversion_ld_to_uint64.o \
+	conversion_int8_to_ld.o \
+	conversion_uint8_to_ld.o \
+	conversion_int16_to_ld.o \
+	conversion_uint16_to_ld.o \
+	conversion_int32_to_ld.o \
+	conversion_uint32_to_ld.o \
 	conversion_int64_to_ld.o \
 	conversion_uint64_to_ld.o \
 
