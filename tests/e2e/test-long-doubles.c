@@ -423,11 +423,9 @@ long double return_ld_from_int_constant () {
     return 1;
 }
 
-#ifdef __x86_64__
-
 void test_int_long_double_type_changes() {
     long double ld;
-    char c;
+    signed char c;
     short s;
     int i;
     long l;
@@ -486,11 +484,15 @@ void test_int_long_double_type_changes() {
     ld = 1.1L; i = -1; assert_ld_string((ld + i), "0.10000", "ld + i");
     ld = 1.1L; l = -1; assert_ld_string((ld + l), "0.10000", "ld + l");
 
-    // Unsigned int conversions
-    ld = 1.1L; uc = -1; assert_ld_string((ld + uc), "256.10000",                  "ld + uc");
-    ld = 1.1L; us = -1; assert_ld_string((ld + us), "65536.10000",                "ld + us");
-    ld = 1.1L; ui = -1; assert_ld_string((ld + ui), "4294967296.10000",           "ld + ui");
-    ld = 1.1L; ul = -1; assert_ld_string((ld + ul), "18446744073709551616.00000", "ld + ul");
+    // Unsigned int conversions.
+    // We can't go all the way with the unsigned long since we hit precision limits,
+    // causing different results on x86_64 and aarch64
+    ld = 1.1L; uc = -1;                  assert_ld_string((ld + uc), "256.10000",           "ld + uc");
+    ld = 1.1L; us = -1;                  assert_ld_string((ld + us), "65536.10000",         "ld + us");
+    ld = 1.1L; ui = -1;                  assert_ld_string((ld + ui), "4294967296.10000",    "ld + ui");
+    ld = 1000000.1L; ul = 1000000000000; assert_ld_string((ld + ul), "1000001000000.10000", "ld + ul");
+
+    ld = 1.1L;
 
     // Local signed int conversion
     int lsi, *plsi;
@@ -535,6 +537,8 @@ void test_int_long_double_type_changes() {
     ul = -1;
     assert_ld_string((long double) ul, "18446744073709551615.00000", "(long double) (unsigned long) -1");
 }
+
+#ifdef __x86_64__
 
 void assert_long_double_int_conversion(long double ld, char c, short s, int i, long l, unsigned char uc, unsigned short us, unsigned int ui, unsigned long ul, char *message) {
     char *buffer = malloc(100);
@@ -671,8 +675,8 @@ int main(int argc, char **argv) {
     test_structs();
     test_constant_operations();
     test_inc_dec();
-    #ifdef __x86_64__
     test_int_long_double_type_changes();
+    #ifdef __x86_64__
     test_long_double_type_int_changes();
     #endif
     test_function_call_argument_conversions();
