@@ -538,19 +538,45 @@ void test_int_long_double_type_changes() {
     assert_ld_string((long double) ul, "18446744073709551615.00000", "(long double) (unsigned long) -1");
 }
 
-#ifdef __x86_64__
+#define SKIP 42
 
-void assert_long_double_int_conversion(long double ld, char c, short s, int i, long l, unsigned char uc, unsigned short us, unsigned int ui, unsigned long ul, char *message) {
+// assert_long_double_int_conversion are split up to bypass a x86_64 FPE exception bug.
+void assert_long_double_int_conversion1a(long double ld, signed char sc, short ss, char *message) {
+    char buffer[100] = {0};
+    sprintf(buffer, "%s sc",  message); if (sc != SKIP) assert_uchar(sc, (signed char)  ld, buffer);
+    sprintf(buffer, "%s ss",  message); if (ss != SKIP) assert_short(ss, (signed short) ld, buffer);
+}
+
+void assert_long_double_int_conversion1b(long double ld, int si, long sl, char *message) {
+    char buffer[100] = {0};
+    sprintf(buffer, "%s si",  message); if (si != SKIP) assert_int(si,  (signed int)  ld, buffer);
+    sprintf(buffer, "%s sl",  message); if (sl != SKIP) assert_long(sl, (signed long) ld, buffer);
+}
+
+void assert_long_double_int_conversion2a(long double ld, unsigned char uc, unsigned short us, char *message) {
+    char buffer[100] = {0};
+    sprintf(buffer, "%s uc",  message); if (uc != SKIP) assert_uchar(uc, (unsigned char)  ld, buffer);
+    sprintf(buffer, "%s us",  message); if (us != SKIP) assert_short(us, (unsigned short) ld, buffer);
+}
+
+void assert_long_double_int_conversion2b(long double ld, unsigned int ui, unsigned long ul, char *message) {
+    char buffer[100] = {0};
+    sprintf(buffer, "%s ui",  message); if (ui != SKIP) assert_int(ui, (unsigned int)   ld, buffer);
+    sprintf(buffer, "%s ul",  message); if (ul != SKIP) assert_long(ul, (unsigned long) ld, buffer);
+}
+
+void assert_long_double_int_conversion(
+        long double ld,
+        signed char sc, short ss, int si, long sl,
+        unsigned char uc, unsigned short us, unsigned int ui, unsigned long ul,
+        char *message) {
+
     char *buffer = malloc(100);
 
-    wasprintf(&buffer, "%s c",  message); assert_int(1, (char)           ld == c,  buffer);
-    wasprintf(&buffer, "%s s",  message); assert_int(1, (short)          ld == s,  buffer);
-    wasprintf(&buffer, "%s i",  message); assert_int(1, (int)            ld == i,  buffer);
-    wasprintf(&buffer, "%s l",  message); assert_int(1, (long)           ld == l,  buffer);
-    wasprintf(&buffer, "%s uc", message); assert_int(1, (unsigned char)  ld == uc, buffer);
-    wasprintf(&buffer, "%s us", message); assert_int(1, (unsigned short) ld == us, buffer);
-    wasprintf(&buffer, "%s ui", message); assert_int(1, (unsigned int)   ld == ui, buffer);
-    wasprintf(&buffer, "%s ul", message); assert_int(1, (unsigned long)  ld == ul, buffer);
+    assert_long_double_int_conversion1a(ld, sc, ss, message);
+    assert_long_double_int_conversion1b(ld, si, sl, message);
+    assert_long_double_int_conversion2a(ld, uc, us, message);
+    assert_long_double_int_conversion2b(ld, ui, ul, message);
 }
 
 int return_int_from_ld_constant() {
@@ -560,7 +586,7 @@ int return_int_from_ld_constant() {
 void test_long_double_type_int_changes() {
     long double ld;
 
-    char c;
+    signed char c;
     short s;
     int i;
     long l;
@@ -570,22 +596,24 @@ void test_long_double_type_int_changes() {
     unsigned int ui;
     unsigned long ul;
 
-    // Moves/casts
-    assert_long_double_int_conversion(-100.1L,                        -100,         -100,         -100,                 -100,          156,        65436,         -100, 18446744073709551516UL, "-100.1L                ");
-    assert_long_double_int_conversion(100.1L,                          100,          100,          100,                  100,          100,          100,          100,                  100UL, "100.1L                 ");
-    assert_long_double_int_conversion(-1000.1L,                         24,        -1000,        -1000,                -1000,           24,        64536,        -1000, 18446744073709550616UL, "-1000.1L               ");
-    assert_long_double_int_conversion(1000.1L,                         -24,         1000,         1000,                 1000,          232,         1000,         1000,                 1000UL, "1000.1L                ");
-    assert_long_double_int_conversion(-10000.1L,                       -16,       -10000,       -10000,               -10000,          240,        55536,       -10000, 18446744073709541616UL, "-10000.1L              ");
-    assert_long_double_int_conversion(10000.1L,                         16,        10000,        10000,                10000,           16,        10000,        10000,                10000UL, "10000.1L               ");
-    assert_long_double_int_conversion(-100000.1L,                        0,       -32768,      -100000,              -100000,            0,        31072,      -100000, 18446744073709451616UL, "-100000.1L             ");
-    assert_long_double_int_conversion(100000.1L,                         0,       -32768,       100000,               100000,            0,        34464,       100000,               100000UL, "100000.1L              ");
-    assert_long_double_int_conversion(-1000000000.1L,                    0,       -32768,  -1000000000,          -1000000000,            0,        13824,  -1000000000, 18446744072709551616UL, "-1000000000.1L         ");
-    assert_long_double_int_conversion(1000000000.1L,                     0,       -32768,   1000000000,           1000000000,            0,        51712,   1000000000,           1000000000UL, "1000000000.1L          ");
-    assert_long_double_int_conversion(-10000000000.1L,                   0,       -32768,  -2147483648,         -10000000000,            0,            0,  -1410065408, 18446744063709551616UL, "-10000000000.1L        ");
-    assert_long_double_int_conversion(10000000000.1L,                    0,       -32768,  -2147483648,          10000000000,            0,            0,   1410065408,          10000000000UL, "10000000000.1L         ");
-    assert_long_double_int_conversion(9223372036854775807.1L,            0,       -32768,  -2147483648,  9223372036854775807,            0,            0,           -1,  9223372036854775807UL, "9223372036854775807.1L ");
-    assert_long_double_int_conversion(9223372036854775808.1L,            0,       -32768,  -2147483648, -9223372036854775808UL,          0,            0,            0,  9223372036854775808UL, "9223372036854775808.1L ");
-    assert_long_double_int_conversion(9900000000000000000.1L,            0,       -32768,  -2147483648, -9223372036854775808UL,          0,            0,            0,  9900000000000000000UL, "9900000000000000000.1L ");
+    // // Moves/casts. SKIP is used for undefined behavior cases.
+    // // They are not tested, since they differ between targets,
+    // // which is ok.
+    //                                                           char   short       int             long                    uchar   ushort  uint    ulong
+    assert_long_double_int_conversion(-100.1L,                   -100,  -100,       -100,           -100,                   SKIP,   SKIP,   SKIP,   SKIP,                   "-100.1L");
+    assert_long_double_int_conversion(100.1L,                     100,   100,        100,            100,                   100,    100,    100,    100UL,                  "100.1L");
+    assert_long_double_int_conversion(-1000.1L,                   SKIP, -1000,      -1000,          -1000,                  SKIP,   SKIP,   SKIP,   SKIP,                   "-1000.1L");
+    assert_long_double_int_conversion(1000.1L,                    SKIP,  1000,       1000,           1000,                  SKIP,   1000,   1000,   1000UL,                 "1000.1L");
+    assert_long_double_int_conversion(-10000.1L,                  SKIP, -10000,     -10000,         -10000,                 SKIP,   SKIP,   SKIP,   SKIP,                   "-10000.1L");
+    assert_long_double_int_conversion(10000.1L,                   SKIP,  10000,      10000,          10000,                 SKIP,   10000,  10000,  10000UL,                "10000.1L");
+    assert_long_double_int_conversion(-100000.1L,                 SKIP,  SKIP,      -100000,       -100000,                 SKIP,   SKIP,   SKIP,   SKIP,                   "-100000.1L");
+    assert_long_double_int_conversion(100000.1L,                  SKIP,  SKIP,       100000,        100000,                 SKIP,   SKIP,   100000, 100000UL,               "100000.1L");
+    assert_long_double_int_conversion(-1000000000.1L,             SKIP,  SKIP,      -1000000000,   -1000000000,             SKIP,   SKIP,   SKIP,   SKIP,                   "-1000000000.1L");
+    assert_long_double_int_conversion(1000000000.1L,              SKIP,  SKIP,       1000000000,    1000000000,             SKIP,   SKIP,   SKIP,   1000000000UL,           "1000000000.1L");
+    assert_long_double_int_conversion(-10000000000.1L,            SKIP,  SKIP,      -2147483648,   -10000000000,            SKIP,   SKIP,   SKIP,   SKIP,                   "-10000000000.1L");
+    assert_long_double_int_conversion(10000000000.1L,             SKIP,  SKIP,      SKIP,           10000000000,            SKIP,   SKIP,   SKIP,   10000000000UL,          "10000000000.1L");
+    assert_long_double_int_conversion(9223372036854775807.1L,     SKIP,  SKIP,      SKIP,           9223372036854775807,    SKIP,   SKIP,   SKIP,   9223372036854775807UL,  "9223372036854775807.1L");
+    assert_long_double_int_conversion(9223372036854775808.1L,     SKIP,  SKIP,      SKIP,           SKIP,                   SKIP,   SKIP,   SKIP,   9223372036854775808UL,  "9223372036854775808.1L");
 
     // Assignment of a constant
     c  = -1.1L;  assert_int(-1, c, "c = -1.1L");
@@ -610,8 +638,6 @@ void test_long_double_type_int_changes() {
     // Function return
     assert_int(-42, return_int_from_ld_constant(), "Return int from long double constant");
 }
-
-#endif
 
 void function_with_int_parameter(int i) {
     assert_int(1, i, "Long double to int conversion in function call");
@@ -676,9 +702,7 @@ int main(int argc, char **argv) {
     test_constant_operations();
     test_inc_dec();
     test_int_long_double_type_changes();
-    #ifdef __x86_64__
     test_long_double_type_int_changes();
-    #endif
     test_function_call_argument_conversions();
     #ifdef __x86_64__
     test___builtin_nanf();

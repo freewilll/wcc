@@ -8,6 +8,7 @@
     assert_long(expected_low, (long) (got),   message " low")
 
 void assert_uchar(unsigned char expected, unsigned char actual, char *message);
+void assert_short(short expected, short actual, char *message);
 void assert_int(int expected, int actual, char *message);
 void assert_long(long expected, long actual, char *message);
 void assert_int128(long expected_high, long expected_low, __int128 actual, char *message);
