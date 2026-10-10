@@ -529,6 +529,16 @@ int make_vreg_count(Function *function, int starting_count) {
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
         if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
     }
+
+    // Go through int128 low/high vregs that may have been allocated but not used in the IR
+    for (int i = 1; i <= function->int128_register_mappings_count; i++) {
+        SplitVreg *split_vreg = function->int128_register_mappings[i];
+        if (split_vreg) {
+            if (split_vreg->low > vreg_count) vreg_count = split_vreg->low;
+            if (split_vreg->high > vreg_count) vreg_count = split_vreg->high;
+        }
+    }
+
     function->vreg_count = vreg_count;
 
     return vreg_count;

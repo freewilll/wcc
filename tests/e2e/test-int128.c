@@ -693,6 +693,29 @@ int test_signedness_function_call_bug(void) {
     test_sign(0xffffffffffffffff);
 }
 
+// Test a bug where an used low/high int128 vreg was
+// not counted in the total and reused
+__int128 vab0(__int128 i) {
+    return i + 1;
+}
+
+void vab1(long i, long j) {
+    assert_long(43, i, "int128 vreg counting bug 1");
+    assert_long(43, j, "int128 vreg counting bug 2");
+}
+
+void vab2(long i) {
+    assert_long(43, i, "int128 vreg counting bug 3");
+}
+
+void test_register_vreg_counting_bug() {
+    __int128 si = 42;
+
+    vab1(vab0(si), vab0(si));
+    vab2(vab0(si));
+    vab2(vab0(si));
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -720,6 +743,7 @@ int main(int argc, char **argv) {
     test_pointers();
     test_constant_promotions();
     test_signedness_function_call_bug();
+    test_register_vreg_counting_bug();
 
     finalize();
 }
