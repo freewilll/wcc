@@ -1104,6 +1104,7 @@ void extend_int_constant_to_int128(Value *v, Type *original_type);
 void set_global_override_integer_type(int type);
 Value* evaluate_const_binary_int_operation(int operation, Value *src1, Value *src2);
 Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src2, Type *type);
+Value *parse_binary_constant_expression(int operation, Value *value1, Value *value2);
 Value *cast_constant_value(Value *src, Type *type);
 Value *parse_constant_expression(int level);
 Value *parse_constant_integer_expression(int override_integer_type);

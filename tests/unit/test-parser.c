@@ -391,6 +391,17 @@ void test_constant_expressions() {
     assert_int_const_expr("~-0",           -1);
     assert_int_const_expr("~-1",           0);
 
+    assert_int_const_expr("1 | 0x80000000", 0x80000001);
+
+    // Pointer comparisons
+    assert_int_const_expr("(char *) 0 == 0",  1);
+    assert_int_const_expr("(char *) 0 != 0",  0);
+    assert_int_const_expr("(char *) 1 == 0",  0);
+    assert_int_const_expr("(char *) 1 != 0",  1);
+    assert_int_const_expr("(char *) -1 == 0", 0);
+    assert_int_const_expr("(char *) -1 != 0", 1);
+    assert_int_const_expr("(char *) 1 < (char *) -1", 1); // A pointer compares like an unsigned long
+
     // int128
     assert_int128_const_expr("1",                        0,  1);  // Plain old int/long
     assert_int128_const_expr("-1",                       0, -1);  // An int -1 is not sign extended without a cast

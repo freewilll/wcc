@@ -1373,11 +1373,18 @@ static Value *float_type_change(Value *src) {
 static void arithmetic_operation(int operation, Type *dst_type) {
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be evaluated directly.
+
     Type *common_type = vs_operation_type();
     if (!dst_type) dst_type = common_type;
 
     Value *src2 = pl();
     Value *src1 = pl();
+
+    if (src1->is_constant && src2->is_constant) {
+        Value *result = parse_binary_constant_expression(operation, src1, src2);
+        push(result);
+        return;
+    }
 
     int src2_is_int = is_integer_type(src2->type);
 
@@ -2282,6 +2289,7 @@ static void parse_bitwise_shift(int level, int unsigned_operation, int signed_op
     Value *src2 = integer_promote(pl());
     check_bitwise_shift_operation_type(src1, src2);
     int operation = src1->type->is_unsigned ? unsigned_operation : signed_operation;
+
     add_ir_op(operation, src1->type, new_vreg(), src1, src2);
 }
 

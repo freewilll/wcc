@@ -162,8 +162,15 @@ Value *evaluate_const_binary_int_operation(int operation, Value *src1, Value *sr
     if (operation == IR_DIV && src1->int_value == 0) error("Division by zero");
     if (operation == IR_MOD && src1->int_value == 0) error("Modulus by zero");
 
-    int is_unsigned = src1->type->is_unsigned;
-    int is_long = src1->type->type == TYPE_LONG || src2->type->type == TYPE_LONG;
+    Type *result_type = operation_type(src1, src2, 0);
+    int is_unsigned = result_type->is_unsigned;
+    int is_long = result_type->type == TYPE_LONG;
+
+    // Pointers behave like unsigned longs
+    if (src1->type->type == TYPE_PTR || src2->type->type == TYPE_PTR) {
+        is_unsigned = 1;
+        is_long = 1;
+    }
 
     unsigned long r = 0;
 
@@ -354,6 +361,14 @@ static Value *parse_address_plus_minus(int operation, Value *value1, Value *valu
     return result;
 }
 
+Value *parse_binary_constant_expression(int operation, Value *value1, Value *value2) {
+    Type *result_type = operation_type(value1, value2, 0);
+    if (is_floating_point_type(result_type))
+        return evaluate_const_binary_fp_operation(operation, value1, value2, result_type);
+    else
+        return evaluate_const_binary_int_operation(operation, value1, value2);
+}
+
 static Value *parse_binary_expression(int operation, int second_level, Value *value1) {
     next();
     Value *value2 = parse_constant_expression(second_level);
@@ -362,11 +377,7 @@ static Value *parse_binary_expression(int operation, int second_level, Value *va
     if ((operation == IR_ADD || operation == IR_SUB) && (is_pointer_type(value1->type) || is_pointer_type(value2->type)) || value1->is_string_literal || value2->is_string_literal)
         return parse_address_plus_minus(operation, value1, value2);
 
-    Type *result_type = operation_type(value1, value2, 0);
-    if (is_floating_point_type(result_type))
-        return evaluate_const_binary_fp_operation(operation, value1, value2, result_type);
-    else
-        return evaluate_const_binary_int_operation(operation, value1, value2);
+    return parse_binary_constant_expression(operation, value1, value2);
 }
 
 static Value *parse_ternary(Value *value) {
