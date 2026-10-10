@@ -424,11 +424,11 @@ void test_instrsel_expr() {
     finish_ir(function);
     assert_target_op("movq        r1q, g1(%rip)");
 
-    // // Store a1 in g using IR_MOVE
-    // si(function, 0, IR_MOVE, p(gsz(1, TYPE_CHAR)),  asz(1, TYPE_VOID), 0); assert_target_op("movq        r1q, g1(%rip)");
-    // si(function, 0, IR_MOVE, p(gsz(1, TYPE_SHORT)), asz(1, TYPE_VOID), 0); assert_target_op("movq        r1q, g1(%rip)");
-    // si(function, 0, IR_MOVE, p(gsz(1, TYPE_INT)),   asz(1, TYPE_VOID), 0); assert_target_op("movq        r1q, g1(%rip)");
-    // si(function, 0, IR_MOVE, p(gsz(1, TYPE_LONG)),  asz(1, TYPE_VOID), 0); assert_target_op("movq        r1q, g1(%rip)");
+    // Store a1 in g using IR_MOVE
+    si(function, 0, IR_MOVE, p(gsz(1, TYPE_CHAR)),  asz(1, TYPE_VOID), 0); assert_target_op("movq        r1q, g1(%rip)");
+    si(function, 0, IR_MOVE, p(gsz(1, TYPE_SHORT)), asz(1, TYPE_VOID), 0); assert_target_op("movq        r1q, g1(%rip)");
+    si(function, 0, IR_MOVE, p(gsz(1, TYPE_INT)),   asz(1, TYPE_VOID), 0); assert_target_op("movq        r1q, g1(%rip)");
+    si(function, 0, IR_MOVE, p(gsz(1, TYPE_LONG)),  asz(1, TYPE_VOID), 0); assert_target_op("movq        r1q, g1(%rip)");
 
     // Load g into r1 using IR_MOVE
     start_ir();
@@ -1744,6 +1744,30 @@ void test_bitscans() {
     assert_target_op("tzcntq      r1q, r2q");
 }
 
+void test_long_double_to_int_move() {
+    remove_reserved_physical_registers = 1;
+    live_range_reserved_pregs_offset = 0; // Disable register allocation
+
+    start_ir();
+    i(0, IR_MOVE, vsz(2, TYPE_INT), Ssz(-2, TYPE_LONG_DOUBLE), 0);
+    finish_spill_ir(function);
+    assert_rx86_preg_op("fldt        -16(%rbp)");
+    assert_rx86_preg_op("fnstcw      -26(%rbp)");
+    assert_rx86_preg_op("mov         -26(%rbp), %r11w");
+    assert_rx86_preg_op("movw        %r11w, -30(%rbp)");
+    assert_rx86_preg_op("movw        -30(%rbp), %r10w");
+    assert_rx86_preg_op("orw         $3072, %r10w");
+    assert_rx86_preg_op("movw        -30(%rbp), %r10w");
+    assert_rx86_preg_op("movw        %r10w, -28(%rbp)");
+    assert_rx86_preg_op("fldcw       -28(%rbp)");
+    assert_rx86_preg_op("fistpl      -20(%rbp)");
+    assert_rx86_preg_op("fldcw       -26(%rbp)");
+    assert_rx86_preg_op("movl        -20(%rbp), %r11d");
+    assert_rx86_preg_op("movl        %r11d, -24(%rbp)");
+
+    init_allocate_registers(); // Enable register allocation again
+}
+
 int main() {
     int verbose;
 
@@ -1803,6 +1827,7 @@ int main() {
     if (verbose) printf("Running instrsel ptr_to_void_memory_load_to_ptr\n");                 test_ptr_to_void_memory_load_to_ptr();
     if (verbose) printf("Running instrsel constant_cast_to_ptr\n");                           test_constant_cast_to_ptr();
     if (verbose) printf("Running instrsel spilling\n");                                       test_spilling();
+    if (verbose) printf("Running instrsel long double to int move\n");                        test_long_double_to_int_move();
     if (verbose) printf("Running instrsel param_vreg_moves\n");                               test_param_vreg_moves();
     if (verbose) printf("Running instrsel bitscans\n");                                       test_bitscans();
 

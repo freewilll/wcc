@@ -370,8 +370,8 @@ static void add_long_double_integer_move_rule(int dst, int type, char *conv_temp
     }
 
     add_op(r, X86_OP_MOVC, 0,   0,   SV1, "fnstcw %v2");         // Backup control word into allocated stack entry
-    add_op(r, X86_OP_MOVZ, 0,   SV2, SV1, "movzwl %v2w, %v1l");  // Move control word into register
-    add_op(r, X86_OP_BOR,  0,   SV2, 0,   "orl $3072, %v1l");    // Set rounding and precision control bits
+    add_op(r, X86_OP_MOVZ, SV2, SV1, 0,   "mov %v1w, %vdw");     // Move control word into register
+    add_op(r, X86_OP_BOR,  0,   SV2, 0,   "orw $3072, %v1w");    // Set rounding and precision control bits to round towards zero
     add_op(r, X86_OP_MOVC, SV3, SV2, SV3, "movw %v1w, %v2w");    // Move control word into allocated stack
     add_op(r, X86_OP_MOVC, 0,   0,   SV3, "fldcw %v2w");         // Load control word from allocated stack
     add_op(r, X86_OP_MOVC, 0,   0,   SV4, conv_template);        // Do conversion and store it on the stack

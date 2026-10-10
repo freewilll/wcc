@@ -540,31 +540,6 @@ void test_int_long_double_type_changes() {
 
 #define SKIP 42
 
-// assert_long_double_int_conversion are split up to bypass a x86_64 FPE exception bug.
-void assert_long_double_int_conversion1a(long double ld, signed char sc, short ss, char *message) {
-    char buffer[100] = {0};
-    sprintf(buffer, "%s sc",  message); if (sc != SKIP) assert_uchar(sc, (signed char)  ld, buffer);
-    sprintf(buffer, "%s ss",  message); if (ss != SKIP) assert_short(ss, (signed short) ld, buffer);
-}
-
-void assert_long_double_int_conversion1b(long double ld, int si, long sl, char *message) {
-    char buffer[100] = {0};
-    sprintf(buffer, "%s si",  message); if (si != SKIP) assert_int(si,  (signed int)  ld, buffer);
-    sprintf(buffer, "%s sl",  message); if (sl != SKIP) assert_long(sl, (signed long) ld, buffer);
-}
-
-void assert_long_double_int_conversion2a(long double ld, unsigned char uc, unsigned short us, char *message) {
-    char buffer[100] = {0};
-    sprintf(buffer, "%s uc",  message); if (uc != SKIP) assert_uchar(uc, (unsigned char)  ld, buffer);
-    sprintf(buffer, "%s us",  message); if (us != SKIP) assert_short(us, (unsigned short) ld, buffer);
-}
-
-void assert_long_double_int_conversion2b(long double ld, unsigned int ui, unsigned long ul, char *message) {
-    char buffer[100] = {0};
-    sprintf(buffer, "%s ui",  message); if (ui != SKIP) assert_int(ui, (unsigned int)   ld, buffer);
-    sprintf(buffer, "%s ul",  message); if (ul != SKIP) assert_long(ul, (unsigned long) ld, buffer);
-}
-
 void assert_long_double_int_conversion(
         long double ld,
         signed char sc, short ss, int si, long sl,
@@ -573,10 +548,14 @@ void assert_long_double_int_conversion(
 
     char *buffer = malloc(100);
 
-    assert_long_double_int_conversion1a(ld, sc, ss, message);
-    assert_long_double_int_conversion1b(ld, si, sl, message);
-    assert_long_double_int_conversion2a(ld, uc, us, message);
-    assert_long_double_int_conversion2b(ld, ui, ul, message);
+    sprintf(buffer, "%s sc",  message); if (sc != SKIP) assert_uchar(sc, (signed char)    ld, buffer);
+    sprintf(buffer, "%s ss",  message); if (ss != SKIP) assert_short(ss, (signed short)   ld, buffer);
+    sprintf(buffer, "%s si",  message); if (si != SKIP) assert_int(si,   (signed int)     ld, buffer);
+    sprintf(buffer, "%s sl",  message); if (sl != SKIP) assert_long(sl,  (signed long)    ld, buffer);
+    sprintf(buffer, "%s uc",  message); if (uc != SKIP) assert_uchar(uc, (unsigned char)  ld, buffer);
+    sprintf(buffer, "%s us",  message); if (us != SKIP) assert_short(us, (unsigned short) ld, buffer);
+    sprintf(buffer, "%s ui",  message); if (ui != SKIP) assert_int(ui,   (unsigned int)   ld, buffer);
+    sprintf(buffer, "%s ul",  message); if (ul != SKIP) assert_long(ul,  (unsigned long)  ld, buffer);
 }
 
 int return_int_from_ld_constant() {
