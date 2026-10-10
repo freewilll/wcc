@@ -181,21 +181,37 @@ Value *evaluate_const_binary_int_operation(int operation, Value *src1, Value *sr
     return v;
 }
 
+#define CONVERT_FP_TO_INT(src, dst) { \
+    if (src->type->is_unsigned) \
+        dst = (unsigned long) src->int_value; \
+    else \
+        dst = (long) src->int_value; \
+}
+
+// Evaluate an expression that results in a FP value.
+// One of the operands could be an integer.
 Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src2, Type *type) {
     int is_int;
     unsigned int i;
     long double ld;
 
-         if (operation == IR_ADD) { is_int = 0; ld = src1->fp_value +  src2->fp_value; }
-    else if (operation == IR_SUB) { is_int = 0; ld = src1->fp_value -  src2->fp_value; }
-    else if (operation == IR_MUL) { is_int = 0; ld = src1->fp_value *  src2->fp_value; }
-    else if (operation == IR_DIV) { is_int = 0; ld = src1->fp_value /  src2->fp_value; }
-    else if (operation == IR_EQ ) { is_int = 1; i =  src1->fp_value == src2->fp_value; }
-    else if (operation == IR_NE ) { is_int = 1; i =  src1->fp_value != src2->fp_value; }
-    else if (operation == IR_LT ) { is_int = 1; i =  src1->fp_value <  src2->fp_value; }
-    else if (operation == IR_GT ) { is_int = 1; i =  src1->fp_value >  src2->fp_value; }
-    else if (operation == IR_LE ) { is_int = 1; i =  src1->fp_value <= src2->fp_value; }
-    else if (operation == IR_GE ) { is_int = 1; i =  src1->fp_value >= src2->fp_value; }
+    long double vsrc1 = src1->fp_value;
+    long double vsrc2 = src2->fp_value;
+
+    // Convert integers to FP
+    if (is_integer_type(src1->type)) CONVERT_FP_TO_INT(src1, vsrc1);
+    if (is_integer_type(src2->type)) CONVERT_FP_TO_INT(src2, vsrc2);
+
+         if (operation == IR_ADD) { is_int = 0; ld = vsrc1 +  vsrc2; }
+    else if (operation == IR_SUB) { is_int = 0; ld = vsrc1 -  vsrc2; }
+    else if (operation == IR_MUL) { is_int = 0; ld = vsrc1 *  vsrc2; }
+    else if (operation == IR_DIV) { is_int = 0; ld = vsrc1 /  vsrc2; }
+    else if (operation == IR_EQ ) { is_int = 1; i =  vsrc1 == vsrc2; }
+    else if (operation == IR_NE ) { is_int = 1; i =  vsrc1 != vsrc2; }
+    else if (operation == IR_LT ) { is_int = 1; i =  vsrc1 <  vsrc2; }
+    else if (operation == IR_GT ) { is_int = 1; i =  vsrc1 >  vsrc2; }
+    else if (operation == IR_LE ) { is_int = 1; i =  vsrc1 <= vsrc2; }
+    else if (operation == IR_GE ) { is_int = 1; i =  vsrc1 >= vsrc2; }
     else return 0;
 
     Value *v = new_value();
@@ -423,8 +439,9 @@ Value *parse_constant_expression(int level) {
             }
             break;
 
-        case TOK_INTEGER:
+        case TOK_INTEGER: {
             value = new_integral_constant(global_override_integer_type ? global_override_integer_type : cur_lexer_type->type, cur_long);
+            value->type->is_unsigned = cur_lexer_type->is_unsigned;
 
             if (global_override_integer_type == TYPE_INT128) {
                 value->type->type = TYPE_INT128;
@@ -433,6 +450,7 @@ Value *parse_constant_expression(int level) {
 
             next();
             break;
+        }
 
         case TOK_FLOATING_POINT_NUMBER:
             value = new_floating_point_constant(cur_lexer_type->type, cur_long_double);

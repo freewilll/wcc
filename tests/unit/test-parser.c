@@ -459,6 +459,28 @@ void test_constant_expressions() {
     assert_fp_const_expr("+1.1",              1.1);
     assert_fp_const_expr("-1.1",              -1.1);
 
+    // Mixed int and FP
+    assert_fp_const_expr("1.1 + 1",    2.1);
+    assert_fp_const_expr("1 + 1.1f",   2.1);
+    assert_fp_const_expr("1 + 1.1",    2.1);
+    assert_fp_const_expr("1 + 1.1L",   2.1);
+    assert_fp_const_expr("1L + 1.1f",  2.1);
+    assert_fp_const_expr("1L + 1.1",   2.1);
+    assert_fp_const_expr("1L + 1.1L",  2.1);
+    assert_fp_const_expr("-1L + 1.1f", 0.1);
+    assert_fp_const_expr("-1L + 1.1",  0.1);
+    assert_fp_const_expr("-1L + 1.1L", 0.1);
+    assert_fp_const_expr("1UL + 1.1f", 2.1);
+    assert_fp_const_expr("1UL + 1.1",  2.1);
+    assert_fp_const_expr("1UL + 1.1L", 2.1);
+
+    // Check unsigned int conversion to FP
+    value = parse_constant_expression_str("-1UL + 0.0");
+    assert_int(1, value->fp_value >= 18446744073709551615.0L, "-1UL + 0.0");
+
+    value = parse_constant_expression_str("-1UL + 100000000000000000.1");
+    assert_int(1, value->fp_value >= 18446744073709551615.0L + 100000000000000000.1, "-1UL + 100000000000000000.1");
+
     // Sizes
     assert_int_const_expr("sizeof(int)",             4);
     assert_int_const_expr("sizeof(int *)",           8);
