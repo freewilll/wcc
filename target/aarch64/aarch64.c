@@ -579,8 +579,12 @@ void add_address_of_instructions(Function *function) {
 // For each AARCH64_OP_ADRP instruction, append a AARCH64_OP_ADD_LO12 following it using the same register
 void expand_adrp_instructions(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation.id == AARCH64_OP_ADRP)
-            insert_target_instruction(tac, AARCH64_OP_ADD_LO12, tac->dst, tac->dst, tac->src1, "add %vdx, %v1x, :lo12:%v2");
+        if (tac->operation.id == AARCH64_OP_ADRP) {
+            if (tac->src1->load_from_got)
+                panic("TODO aarch64 load from GOT");
+            else
+                insert_target_instruction(tac, AARCH64_OP_ADD_LO12, tac->dst, tac->dst, tac->src1, "add %vdx, %v1x, :lo12:%v2");
+        }
     }
 }
 

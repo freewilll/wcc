@@ -595,8 +595,6 @@ int test_assignment_after_va_arg() {
     assert_int(2, pi[0], "va_arg(ap, int*)[0] = 2");
 }
 
-#ifdef __x86_64__
-
 int call_function_in_vararg(int i, ...) {
     va_list ap;
     va_start(ap, i);
@@ -618,8 +616,6 @@ int test_function_in_vararg(){
     call_function_in_vararg(1, &set_gi);
     assert_int(1, gi, "Function in vararg with pointer to function");
 }
-
-#endif
 
 void test_va_hfaf(int c, ...) {
     va_list ap;
@@ -892,9 +888,7 @@ int main(int argc, char **argv) {
     test_va_mixed_types();
     test_default_argument_promotions();
     test_big_struct();
-    #ifdef __x86_64__
     test_function_in_vararg();
-    #endif
     test_va_aarch64_hfa_structs();
     test_va_aarch64_small_structs();
     test_va_aarch64_big_structs();

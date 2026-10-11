@@ -308,6 +308,17 @@ static void add_register_memory_move_rules(void) {
         r = add_rule(ubase + 4, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
         r = add_rule(ubase + 4, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
     }
+
+    // Moves of registers to pointers to functions in memory
+    r = add_rule(MSPF, IR_MOVE, RI3, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MSPF, IR_MOVE, RI4, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MSPF, IR_MOVE, RU3, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MSPF, IR_MOVE, RU4, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+
+    r = add_rule(MGPF, IR_MOVE, RI3, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MGPF, IR_MOVE, RI4, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MGPF, IR_MOVE, RU3, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MGPF, IR_MOVE, RU4, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
 }
 
 static void add_one_operand_rules(char *target_operand, int base1, int base2, int operation, int target_operation, int cost) {
@@ -587,12 +598,12 @@ static void add_load_stack_address_rule(int dst, int src1) {
 
 static void add_load_global_address_rule(int dst, int src1, int operation) {
     Rule *r = add_rule(dst, operation, src1,  0, 2);
-    add_op(r, AARCH64_OP_ADRP, DST, SRC1, 0,   "adrp %vdx, %v1");
+    add_op(r, AARCH64_OP_ADRP, DST, SRC1, 0, "adrp %vdx, %v1");
 }
 
 static void add_load_global_address_to_rule_into_sv1(Rule *r, int src1) {
     add_allocate_register_in_slot(r, 1, TYPE_LONG);
-    add_op(r, AARCH64_OP_ADRP, SV1, SRC1, 0,   "adrp %vdx, %v1");
+    add_op(r, AARCH64_OP_ADRP, SV1, SRC1, 0, "adrp %vdx, %v1");
 }
 
 // In aarch64, memory moves into a register are done on the leaf nodes
@@ -639,6 +650,8 @@ static void add_indirect_rules(void) {
 
     // Pointer to pointer
     for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RP1 + dst, RP4, 1);
+    add_int_indirect_rule(RP5, RP4, 1);
+    add_int_indirect_rule(RPF, RP4, 1);
 }
 
 static void add_pointer_rules() {
@@ -666,6 +679,8 @@ static void add_pointer_rules() {
     r = add_rule(MSPV, IR_MOVE, RP5, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
     r = add_rule(MGPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
     r = add_rule(MGPV, IR_MOVE, RP5, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
+    r = add_rule(MSPF, IR_MOVE, RPF, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
+    r = add_rule(MGPF, IR_MOVE, RPF, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
 
     add_indirect_rules();
 
@@ -690,6 +705,7 @@ static void add_pointer_rules() {
     add_load_stack_address_rule(RP3, MSSA);
     add_load_stack_address_rule(RP4, MSSA);
     add_load_stack_address_rule(RP5, MSSA);
+    add_load_stack_address_rule(RP4, MSPF);
 
     // IR_ADDRESS_OF for globals
     add_load_global_address_rule(RP1, MGI1, IR_ADDRESS_OF);
@@ -712,6 +728,9 @@ static void add_pointer_rules() {
     add_load_global_address_rule(RP4, MGSA, IR_ADDRESS_OF);
     add_load_global_address_rule(RP5, MGSA, IR_ADDRESS_OF);
 
+    add_load_global_address_rule(RPF, FUN,  IR_ADDRESS_OF); // Address of a pointer to a function
+    add_load_global_address_rule(RPF, FUN,  IR_MOVE);       // Address of a function
+
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++) {
         for (int src = RP1; src <= RP5; src++) {
@@ -732,6 +751,9 @@ static void add_pointer_rules() {
     r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RO3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2S, [%v1x]");
     r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RO4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2D, [%v1x]");
     r = add_rule(RP5, IR_MOVE_TO_PTR, RP5, RO5, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2Q, [%v1x]");
+
+    // Move a pointer to a function to a pointer to a pointer to a function
+    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RPF, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2x, [%v1x]");
 
     // Stores of a constant into one of the 32 or 64 bit registers to a pointer
     r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RI3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
@@ -926,6 +948,9 @@ void define_rules(void) {
     r = add_rule(MGO5,     0, MGO5,     0, 0);
     r = add_rule(STL,      0, STL,      0, 0);
     r = add_rule(FUN,      0, FUN,      0, 0);
+    r = add_rule(RPF,      0, RPF,      0, 0);
+    r = add_rule(MSPF,     0, MSPF,     0, 0);
+    r = add_rule(MGPF,     0, MGPF,     0, 0);
     r = add_rule(LAB,      0, LAB,      0, 0);
     r = add_rule(MSSA,     0, MSSA,     0, 0);
     r = add_rule(MGSA,     0, MGSA,     0, 0);
@@ -977,6 +1002,12 @@ void define_rules(void) {
 
     add_pointer_rules();
 
+    // Load function pointer from stack into register
+    add_stack_memory_into_register_rule(RPF, MSPF, "ldr %vdx, [%v1x]");
+
+    // Load function pointer from global into register
+    add_global_memory_into_register_rule(RPF, MGPF, "ldr %vdx, [%v1x]");
+
     // Operations
     // Use adds and subs to set the carry flag for _int128 operations
 
@@ -1015,9 +1046,12 @@ void define_rules(void) {
         for (int j = 0; j < 4; j++)
             add_int_comparison_rules(&ntc, 1, RP1 + i, RP1 + j);
 
+    add_int_comparison_rules(&ntc, 1, RPF, RPF);
+
     add_int_comparison_rules(&ntc, 0, XRI, XRI); add_int_comparison_rules(&ntc, 1, XRU, XRU);
     add_int_comparison_rules(&ntc, 1, RI4, XRP); add_int_comparison_rules(&ntc, 1, RU4, XRP);
     add_int_comparison_rules(&ntc, 1, XRP, RI4); add_int_comparison_rules(&ntc, 1, XRP, RU4);
+    add_int_comparison_rules(&ntc, 1, RPF, XCI); add_int_comparison_rules(&ntc, 1, RPF, XCU);
 
     add_fp_comparison_rules(&ntc, RO3, 1);
     add_fp_comparison_rules(&ntc, RO4, 0);
@@ -1026,18 +1060,35 @@ void define_rules(void) {
     r = add_rule(XRI,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(XRU,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(XRP,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
+    r = add_rule(RPF,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(RO3,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(RO4,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(RO5,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(MSSA, IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
+
+    // Function pointers
+    r = add_rule(XRI,  IR_MOVE, RPF, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x"); fin_rule(r);
+    r = add_rule(XRU,  IR_MOVE, RPF, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x"); fin_rule(r);
+    r = add_rule(XRP,  IR_MOVE, RPF, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x"); fin_rule(r);
+    r = add_rule(RPF,  IR_MOVE, RPF, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RPF,  IR_MOVE, RP1, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RPF,  IR_MOVE, RP2, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RPF,  IR_MOVE, RP3, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RPF,  IR_MOVE, RP4, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RPF,  IR_MOVE, CI3, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RPF,  IR_MOVE, CU3, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RPF,  IR_MOVE, CU3, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RPF,  IR_MOVE, CU3, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x");
 
     // Jump rules
     r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, AARCH64_OP_B, 0, SRC1, 0, "b %v1"); fin_rule(r);
 
     add_conditional_zero_jump_rule(IR_JZ,  XR,  LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "beq %v1");
     add_conditional_zero_jump_rule(IR_JZ,  XRP, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "beq %v1");
+    add_conditional_zero_jump_rule(IR_JZ,  RPF, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "beq %v1");
     add_conditional_zero_jump_rule(IR_JNZ, XR,  LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "bne %v1");
     add_conditional_zero_jump_rule(IR_JNZ, XRP, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "bne %v1");
+    add_conditional_zero_jump_rule(IR_JNZ, RPF, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "bne %v1");
 
     add_bit_scan_rules();
     add_int128_rules();

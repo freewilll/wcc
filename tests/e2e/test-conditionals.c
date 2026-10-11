@@ -179,7 +179,6 @@ void test_ternary() {
     assert_int(3, 0 ? 1, 2 : 3, "Ternary with , between ? and : 1");
     assert_int(2, 1 ? 1, 2 : 3, "Ternary with , between ? and : 2");
 
-    #ifdef __x86__64
     // With functions and null pointer operands
     int (*x1)() = 0 ? f2 : 0;
     int (*x2)() = 0 ? 0 : f2;
@@ -189,7 +188,6 @@ void test_ternary() {
     int (*x6)() = 0 ? 0 : &f2;
     int (*x7)() = 0 ? &f2 : (void *) 0;
     int (*x8)() = 0 ? (void *) 0 : &f2;
-    #endif
 }
 
 int ternary_cast() {

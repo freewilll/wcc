@@ -1580,7 +1580,7 @@ void define_rules(void) {
     r = add_rule(RP1, 0,  STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For char
     r = add_rule(RP3, 0,  STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For wchar_t
 
-    // Load function pointer into register
+    // Load function pointer from memory into register
     r = add_rule(RPF, 0,  MPF,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
 
     // Register -> register move rules

@@ -531,7 +531,9 @@ void add_final_instructions(Function *function) {
                 Tac *tac = new_instruction(AARCH64_OP_CALL_FROM_FUNC);
 
                 if (!orig_ir->src1->function_call.function_symbol) {
-                    panic("TODO aarch64 codegen function call from register");
+                    wasprintf(&(tac->target_template), "blr %%v1x");
+                    append_to_list(allocated_strings, tac->target_template);
+                    tac->src1 = orig_ir->src1;
                 }
                 else {
                     wasprintf(&(tac->target_template), "bl %s", orig_ir->src1->function_call.function_symbol->global_identifier);

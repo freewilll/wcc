@@ -215,13 +215,9 @@ int return_int() { return 1; }
 
 fri *function_that_returns_int = return_int;
 
-#ifdef __x86_64__
-
 static void test_typedef_of_function_returning_int() {
     assert_int(1, function_that_returns_int(), "typedef int (fri)()");
 }
-#endif
-
 int main(int argc, char **argv) {
     parse_args(argc, argv);
 
@@ -236,9 +232,7 @@ int main(int argc, char **argv) {
     test_typedef_forward_declaration();
     test_typedef_redeclared_as_variable();
     test_typedef_as_single_function_parameter();
-    #ifdef __x86_64__
     test_typedef_of_function_returning_int();
-    #endif
 
     finalize();
 }

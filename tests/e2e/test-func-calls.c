@@ -227,21 +227,17 @@ void test_open_read_write_close() {
     assert_int(0, memcmp(data, "foo", 3), "read/write bytes match");
 }
 
-#ifdef __x86_64__
-
 int (*null_global_func_ptr)(int);
 
 int plus(int);
 int (*global_func_ptr)(int) = plus;
 int (*global_func_ptr2)(int) = &plus;
 
-#endif
 int          plus(int x)  { return x + 1; }
 unsigned int uplus(int x)  { return x + 1; }
 int          minus(int x) { return x - 1; }
 float        fplus(int i) { return i + 1.1; }
 double       dplus(int i) { return i + 1.1; }
-#ifdef __x86_64__
 long double  ldplus(int i) { return i + 1.1; }
 
 void vplus(int *i) { (*i)++; }
@@ -280,6 +276,7 @@ void *return_pfi2() { return &return_1; }
 void test_function_pointers() {
     assert_int(2, global_func_ptr(1),  "Global function pointer init 1");
     assert_int(2, global_func_ptr2(1), "Global function pointer init 2");
+
     global_func_ptr = minus;
     assert_int(1, global_func_ptr(2), "Global function pointer assign 1");
     global_func_ptr = &plus;
@@ -296,25 +293,32 @@ void test_function_pointers() {
     assert_int(2, (func_ptr)(1), "Function pointer call through (ptr)");
     assert_int(2, (plus)(1), "Function pointer call through (func)");
 
-    assert_int(2, do_operation(plus,       1), "Passing function to a function accepting function 1");
-    assert_int(1, do_operation(minus,      2), "Passing function to a function accepting function 2");
-    assert_int(1, do_operation(&minus,     2), "Passing ptr to function to a function accepting function 3");
+    assert_int(2, do_operation(plus,   1), "Passing function to a function accepting function 1");
+    assert_int(1, do_operation(minus,  2), "Passing function to a function accepting function 2");
+    assert_int(1, do_operation(&minus, 2), "Passing ptr to function to a function accepting function 3");
 
-    assert_int(2, do_operation_with_ptr(plus,       1), "Passing function to a function accepting ptr to function 1");
-    assert_int(1, do_operation_with_ptr(minus,      2), "Passing function to a function accepting ptr to function 2");
-    assert_int(1, do_operation_with_ptr(&minus,     2), "Passing ptr to function to a function accepting ptr to function 3");
+    assert_int(2, do_operation_with_ptr(plus,   1), "Passing function to a function accepting ptr to function 1");
+    assert_int(1, do_operation_with_ptr(minus,  2), "Passing function to a function accepting ptr to function 2");
+    assert_int(1, do_operation_with_ptr(&minus, 2), "Passing ptr to function to a function accepting ptr to function 3");
 
-    assert_int(2, do_operation_with_ptr(plus,       1), "Passing function to a function accepting ptr to function 1");
-    assert_int(1, do_operation_with_ptr(minus,      2), "Passing function to a function accepting ptr to function 2");
-    assert_int(1, do_operation_with_ptr(&minus,     2), "Passing function to a function accepting ptr to function 3");
+    assert_int(2, do_operation_with_ptr(plus,   1), "Passing function to a function accepting ptr to function 1");
+    assert_int(1, do_operation_with_ptr(minus,  2), "Passing function to a function accepting ptr to function 2");
+    assert_int(1, do_operation_with_ptr(&minus, 2), "Passing function to a function accepting ptr to function 3");
 
     assert_int(0, do_operation_with_ptr(0,          0), "Passing zero function to a function 1");
     assert_int(0, do_operation_with_ptr((void *) 0, 0), "Passing zero function to a function 2");
 
+    int (*local_func_ptr_in_stack)(int);
+    &local_func_ptr_in_stack;
+
     assert_int(1, null_global_func_ptr == 0, "Null global pointer 1");
     assert_int(1, global_func_ptr != 0,      "Null global pointer 2");
+
     global_func_ptr = 0;
     assert_int(1, global_func_ptr == 0,      "Null global pointer 3");
+
+    local_func_ptr_in_stack = 0;
+    assert_int(1, local_func_ptr_in_stack == 0,      "Null local pointer in stack 1");
 
     int (*func_ptr2)(int) = 0;
     assert_int(1, func_ptr2 == 0, "Null pointer 1");
@@ -322,6 +326,13 @@ void test_function_pointers() {
     assert_int(1, func_ptr2 != 0, "Null pointer 2");
     func_ptr2 = 0;
     assert_int(1, func_ptr2 == 0, "Null pointer 3");
+
+    // Check for a local pointer to a function the stack
+    local_func_ptr_in_stack = plus;
+    assert_int(2, local_func_ptr_in_stack(1),  "Local function pointer in stack init 1");
+
+    local_func_ptr_in_stack = minus;
+    assert_int(1, local_func_ptr_in_stack(2), "Local function pointer in stack assign 1");
 
     // Copies
     func_ptr2 = func_ptr;
@@ -443,6 +454,7 @@ void test_sizeof_function_pointer() {
 }
 
 void *vpplus(int *i) { (*i)++; }
+
 void *cpplus(int *i) { (*i)++; }
 
 int (*gfp)(int);
@@ -490,8 +502,6 @@ int test_implicit_ints_in_globals() {
     assert_int(1, *implicit_pint_foo(), "*implicit_pint_foo()");
 }
 
-#endif
-
 // Test mixed declaration of functions and objects
 int global_func1(int a), global_func2(int a), global_object;
 
@@ -517,8 +527,6 @@ int test_s7_s9_bug() {
     // Test rcx mis allocation big due to overzealous constraint imposing
     accept_s7_s9(0, s7, s9);
 }
-
-#ifdef __x86_64__
 
 int gi = 1;
 static void func() {
@@ -555,8 +563,6 @@ int test_assigning_a_function_to_a_pointer_to_void(void){
     assert_int(1, g, "Assigning a function to a void *");
 }
 
-#endif
-
 // Test redeclaring a function without a {} doesn't mess up internal linkage
 static int static_func_declared_after_definition();
 static int static_func_declared_after_definition() {}
@@ -586,19 +592,15 @@ int main(int argc, char **argv) {
     test_func_returns_are_lvalues();
     test_open_read_write_close();
 
-    #ifdef __x86_64__
     test_function_pointers();
     test_sizeof_function_pointer();
     test_function_pointer_comparisons();
     test_implicit_ints_in_globals();
-    #endif
     test_mixed_global_declaration();
     test_s7_s9_bug();
-    #ifdef __x86__64
     test_calling_a_function_with_a_pointer_to_function_on_stack();
     test_function_returning_int();
     test_assigning_a_function_to_a_pointer_to_void();
-    #endif
     test_static_func_declared_after_definition();
 
     finalize();
