@@ -1325,6 +1325,8 @@ void add_PIC_load_and_saves(Function *function) {
 // Convert and loads of address to functions to a load the GOT, unless the
 // function has been defined.
 void convert_functions_address_of(Function *function) {
+    if (!opt_PIC) return;
+
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation.id == IR_ADDRESS_OF && tac->src1->global_symbol && tac->src1->type->type == TYPE_FUNCTION) {
 
