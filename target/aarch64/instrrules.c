@@ -107,10 +107,14 @@ int match_value_to_rule_src(Value *v, int src) {
         else {
             // Integer constant
 
-                 if (vtt == TYPE_INT   && !is_unsigned && src == CI3) return 1;
-            else if (vtt == TYPE_LONG  && !is_unsigned && src == CI4) return 1;
-            else if (vtt == TYPE_INT   &&  is_unsigned && src == CU3) return 1;
-            else if (vtt == TYPE_LONG  &&  is_unsigned && src == CU4) return 1;
+                 if (vtt == TYPE_CHAR   && !is_unsigned && src == CI3) return 1;
+            else if (vtt == TYPE_SHORT  && !is_unsigned && src == CI3) return 1;
+            else if (vtt == TYPE_CHAR   &&  is_unsigned && src == CU3) return 1;
+            else if (vtt == TYPE_SHORT  &&  is_unsigned && src == CU3) return 1;
+            else if (vtt == TYPE_INT    && !is_unsigned && src == CI3) return 1;
+            else if (vtt == TYPE_LONG   && !is_unsigned && src == CI4) return 1;
+            else if (vtt == TYPE_INT    &&  is_unsigned && src == CU3) return 1;
+            else if (vtt == TYPE_LONG   &&  is_unsigned && src == CU4) return 1;
 
             else if (vtt == TYPE_PTR && src == CI3) return 1;
             else if (vtt == TYPE_PTR && src == CI4) return 1;

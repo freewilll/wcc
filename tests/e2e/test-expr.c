@@ -857,6 +857,48 @@ static void test_integer_constant_assignments() {
     ul = 0xffffffffffff1234; assert_long(0xffffUL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0x1234UL, ul, "ul = 0xffffffffffff1234");
     ul = 0x1234ffffffffffff; assert_long(0x1234UL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0xffffUL, ul, "ul = 0x1234ffffffffffff");
     ul = 0xffff12345678ffff; assert_long(0xffffUL << 48 | 0x1234UL << 32 | 0x5678UL << 16 | 0xffffUL, ul, "ul = 0xffff12345678ffff");
+
+}
+
+void test_integer_constant_assignments_with_casts() {
+    signed char sc;
+    unsigned char uc;
+    signed short ss;
+    unsigned short us;
+    signed int si;
+    unsigned int ui;
+
+    signed long sl;
+    unsigned long ul;
+
+    #define TEST_CAST(var, assert_func, cast, value) var = (cast) value; assert_func(value, var, "signed char  = (signed char) -1 X")
+
+    TEST_CAST(sc, assert_uchar, signed char,  -1);
+    TEST_CAST(ss, assert_short, signed short, -1);
+    TEST_CAST(si, assert_int,   signed int,   -1);
+    TEST_CAST(sl, assert_long,  signed long,  -1);
+
+    TEST_CAST(sc, assert_uchar, signed char,  2);
+    TEST_CAST(ss, assert_short, signed short, 2);
+    TEST_CAST(si, assert_int,   signed int,   2);
+    TEST_CAST(sl, assert_long,  signed long,  2);
+
+    TEST_CAST(sc, assert_uchar, unsigned char,  3);
+    TEST_CAST(ss, assert_short, unsigned short, 3);
+    TEST_CAST(si, assert_int,   unsigned int,   3);
+    TEST_CAST(sl, assert_long,  unsigned long,  3);
+
+    TEST_CAST(uc, assert_uchar, signed char,  2);
+    TEST_CAST(us, assert_short, signed short, 2);
+    TEST_CAST(ui, assert_int,   signed int,   2);
+    TEST_CAST(ul, assert_long,  signed long,  2);
+
+    TEST_CAST(uc, assert_uchar, unsigned char,  3);
+    TEST_CAST(us, assert_short, unsigned short, 3);
+    TEST_CAST(ui, assert_int,   unsigned int,   3);
+    TEST_CAST(ul, assert_long,  unsigned long,  3);
+
+    #undef TEST_CAST
 }
 
 static void test_integer_constant_sizes() {
@@ -1971,6 +2013,7 @@ int main(int argc, char **argv) {
     test_conditional_jumps();
     test_pointer_comparisons();
     test_integer_constant_assignments();
+    test_integer_constant_assignments_with_casts();
     test_integer_constant_sizes();
     test_hex_and_octal_constants();
     test_constant_suffixes();
