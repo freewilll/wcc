@@ -1460,10 +1460,10 @@ static void add_bit_scan_rules(void) {
 
     // Bit scan reverse
     r = add_rule(RI3, IR_BIT_SCAN_REV, RU3,  0, 2);
-    add_op(r, X86_OP_TZCNT, DST, SRC1, 0, "tzcntl %v1l, %vdl");
+    add_op(r, X86_OP_TZCNT, DST, SRC1, 0, "tzcnt %v1l, %vdl");
 
     r = add_rule(RI3, IR_BIT_SCAN_REV, RU4,  0, 2);
-    add_op(r, X86_OP_TZCNT, DST, SRC1, 0, "tzcntq %v1q, %vdq");
+    add_op(r, X86_OP_TZCNT, DST, SRC1, 0, "tzcnt %v1q, %vdq");
 }
 
 static void add_int128_addc_rules(int type) {

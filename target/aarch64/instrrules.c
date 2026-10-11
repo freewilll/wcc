@@ -872,7 +872,7 @@ static void add_bit_scan_rules(void) {
     // Bit scan reverse
     r = add_rule(RI3, IR_BIT_SCAN_REV, RU3,  0, 2);
     add_allocate_register_in_slot(r, 1, TYPE_LONG);
-    add_op(r, AARCH64_OP_RBIT, SV1, SRC1, 0, "rbit %vdx, %v1x");
+    add_op(r, AARCH64_OP_RBIT, SV1, SRC1, 0, "rbit %vdw, %v1w");
     add_op(r, AARCH64_OP_CLZ, DST, SV1, 0, "clz %vdw, %v1w");
 
     r = add_rule(RI3, IR_BIT_SCAN_REV, RU4,  0, 2);

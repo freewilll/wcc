@@ -1957,32 +1957,88 @@ void test___signed__keyword() {
     assert_int(1, c, "__signed__ char c");
 }
 
-void test_bit_scans() {
-    // Long
-    assert_int(0,  __builtin_clzl(1L << 63),  "clzl 1 << 63");
-    assert_int(1,  __builtin_clzl(1L << 62),  "clzl 1 << 62");
-    assert_int(6,  __builtin_clzl(1L << 57),  "clzl 1 << 57");
-    assert_int(61, __builtin_clzl(4),         "clzl 3");
-    assert_int(62, __builtin_clzl(3),         "clzl 4");
+void test_bit_scans_from_constant() {
+    // Int
+    assert_int(0,  __builtin_clz(1L << 31),  "clzl constant 1 << 31");
+    assert_int(1,  __builtin_clz(1L << 30),  "clzl constant 1 << 30");
+    assert_int(6,  __builtin_clz(1L << 25),  "clzl constant 1 << 25");
+    assert_int(29, __builtin_clz(4),         "clzl constant 3");
+    assert_int(30, __builtin_clz(3),         "clzl constant 4");
 
-    assert_int(63, __builtin_ctzl(1L << 63),  "ctzl 1 << 63");
-    assert_int(62, __builtin_ctzl(1L << 62),  "ctzl 1 << 62");
-    assert_int(57, __builtin_ctzl(1L << 57),  "ctzl 1 << 56");
-    assert_int(2,  __builtin_ctzl(4),         "ctzl 4");
-    assert_int(0,  __builtin_ctzl(3),         "ctzl 3");
+    assert_int(31, __builtin_ctz(1L << 31),  "ctzl constant 1 << 31");
+    assert_int(30, __builtin_ctz(1L << 30),  "ctzl constant 1 << 30");
+    assert_int(25, __builtin_ctz(1L << 25),  "ctzl constant 1 << 25");
+    assert_int(2,  __builtin_ctz(4),         "ctzl constant 4");
+    assert_int(0,  __builtin_ctz(3),         "ctzl constant 3");
+
+    // Long
+    assert_int(0,  __builtin_clzl(1L << 63),  "clzl constant 1 << 63");
+    assert_int(1,  __builtin_clzl(1L << 62),  "clzl constant 1 << 62");
+    assert_int(6,  __builtin_clzl(1L << 57),  "clzl constant 1 << 57");
+    assert_int(61, __builtin_clzl(4),         "clzl constant 3");
+    assert_int(62, __builtin_clzl(3),         "clzl constant 4");
+
+    assert_int(63, __builtin_ctzl(1L << 63),  "ctzl constant 1 << 63");
+    assert_int(62, __builtin_ctzl(1L << 62),  "ctzl constant 1 << 62");
+    assert_int(57, __builtin_ctzl(1L << 57),  "ctzl constant 1 << 56");
+    assert_int(2,  __builtin_ctzl(4),         "ctzl constant 4");
+    assert_int(0,  __builtin_ctzl(3),         "ctzl constant 3");
 
     // Long long
-    assert_int(0,  __builtin_clzll(1L << 63),  "clzll 1 << 63");
-    assert_int(1,  __builtin_clzll(1L << 62),  "clzll 1 << 62");
-    assert_int(6,  __builtin_clzll(1L << 57),  "clzll 1 << 57");
-    assert_int(61, __builtin_clzll(4),         "clzll 3");
-    assert_int(62, __builtin_clzll(3),         "clzll 4");
+    assert_int(0,  __builtin_clzll(1L << 63),  "clzll constant 1 << 63");
+    assert_int(1,  __builtin_clzll(1L << 62),  "clzll constant 1 << 62");
+    assert_int(6,  __builtin_clzll(1L << 57),  "clzll constant 1 << 57");
+    assert_int(61, __builtin_clzll(4),         "clzll constant 3");
+    assert_int(62, __builtin_clzll(3),         "clzll constant 4");
 
-    assert_int(63, __builtin_ctzll(1L << 63),  "ctzll 1 << 63");
-    assert_int(62, __builtin_ctzll(1L << 62),  "ctzll 1 << 62");
-    assert_int(57, __builtin_ctzll(1L << 57),  "ctzll 1 << 56");
-    assert_int(2,  __builtin_ctzll(4),         "ctzll 4");
-    assert_int(0,  __builtin_ctzll(3),         "ctzll 3");
+    assert_int(63, __builtin_ctzll(1L << 63),  "ctzll constant 1 << 63");
+    assert_int(62, __builtin_ctzll(1L << 62),  "ctzll constant 1 << 62");
+    assert_int(57, __builtin_ctzll(1L << 57),  "ctzll constant 1 << 56");
+    assert_int(2,  __builtin_ctzll(4),         "ctzll constant 4");
+    assert_int(0,  __builtin_ctzll(3),         "ctzll constant 3");
+}
+
+void test_bit_scans_from_register() {
+    // Int
+    int i;
+    i = 1L << 31; assert_int(0,  __builtin_clz(i),  "clzl register 1 << 31");
+    i = 1L << 30; assert_int(1,  __builtin_clz(i),  "clzl register 1 << 30");
+    i = 1L << 25; assert_int(6,  __builtin_clz(i),  "clzl register 1 << 25");
+    i = 4;        assert_int(29, __builtin_clz(i),  "clzl register 3");
+    i = 3;        assert_int(30, __builtin_clz(i),  "clzl register 4");
+
+    i = 1L << 31; assert_int(31, __builtin_ctz(1L << 31),  "ctzl register 1 << 31");
+    i = 1L << 30; assert_int(30, __builtin_ctz(1L << 30),  "ctzl register 1 << 30");
+    i = 1L << 25; assert_int(25, __builtin_ctz(1L << 25),  "ctzl register 1 << 25");
+    i = 4;        assert_int(2,  __builtin_ctz(4),         "ctzl register 4");
+    i = 3;        assert_int(0,  __builtin_ctz(3),         "ctzl register 3");
+
+    // Long
+    long l;
+    l = 1L << 63; assert_int(0,  __builtin_clzl(l), "clzl register 1 << 63");
+    l = 1L << 62; assert_int(1,  __builtin_clzl(l), "clzl register 1 << 62");
+    l = 1L << 57; assert_int(6,  __builtin_clzl(l), "clzl register 1 << 57");
+    l = 4;        assert_int(61, __builtin_clzl(l), "clzl register 3");
+    l = 3;        assert_int(62, __builtin_clzl(l), "clzl register 4");
+
+    l = 1L << 63; assert_int(63, __builtin_ctzl(l), "ctzl register 1 << 63");
+    l = 1L << 62; assert_int(62, __builtin_ctzl(l), "ctzl register 1 << 62");
+    l = 1L << 57; assert_int(57, __builtin_ctzl(l), "ctzl register 1 << 56");
+    l = 4;        assert_int(2,  __builtin_ctzl(l), "ctzl register 4");
+    l = 3;        assert_int(0,  __builtin_ctzl(l), "ctzl register 3");
+
+    // Long long
+    l = 1L << 63; assert_int(0,  __builtin_clzll(l), "clzl register 1 << 63");
+    l = 1L << 62; assert_int(1,  __builtin_clzll(l), "clzl register 1 << 62");
+    l = 1L << 57; assert_int(6,  __builtin_clzll(l), "clzl register 1 << 57");
+    l = 4;        assert_int(61, __builtin_clzll(l), "clzl register 3");
+    l = 3;        assert_int(62, __builtin_clzll(l), "clzl register 4");
+
+    l = 1L << 63; assert_int(63, __builtin_ctzll(l), "ctzl register 1 << 63");
+    l = 1L << 62; assert_int(62, __builtin_ctzll(l), "ctzl register 1 << 62");
+    l = 1L << 57; assert_int(57, __builtin_ctzll(l), "ctzl register 1 << 56");
+    l = 4;        assert_int(2,  __builtin_ctzll(l), "ctzl register 4");
+    l = 3;        assert_int(0,  __builtin_ctzll(l), "ctzl register 3");
 }
 
 int main(int argc, char **argv) {
@@ -2067,7 +2123,8 @@ int main(int argc, char **argv) {
     test_expression_statement();
     test___func__statements();
     test___signed__keyword();
-    test_bit_scans();
+    test_bit_scans_from_constant();
+    test_bit_scans_from_register();
 
     finalize();
 }

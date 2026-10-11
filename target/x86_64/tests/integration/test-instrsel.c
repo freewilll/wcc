@@ -1733,7 +1733,7 @@ void test_bitscans() {
 
     // Bit scan reverse int
     si(function, 0, IR_BIT_SCAN_REV, vsz(2, TYPE_INT), vusz(1, TYPE_INT), 0);
-    assert_target_op("tzcntl      r1l, r2l");
+    assert_target_op("tzcnt       r1l, r2l");
 
     // Bit scan forward long
     si(function, 0, IR_BIT_SCAN_FWD, vsz(2, TYPE_INT), vusz(1, TYPE_LONG), 0);
@@ -1741,7 +1741,7 @@ void test_bitscans() {
     assert_target_op("xorq        $0x3f, r2q");
 
     si(function, 0, IR_BIT_SCAN_REV, vsz(2, TYPE_INT), vusz(1, TYPE_LONG), 0);
-    assert_target_op("tzcntq      r1q, r2q");
+    assert_target_op("tzcnt       r1q, r2q");
 }
 
 void test_long_double_to_int_move() {

@@ -994,16 +994,42 @@ static void add_function_return_moves(Function *function) {
     }
 }
 
+// Make move instrcutions to the stack from a src
+static void make_move_instructions_to_stack(Function *function, Tac *tac, int stack_offset, Value *src_low, Value *src_high) {
+    Value *dst_low = new_value();
+    dst_low->type = dup_type(src_low->type);
+    dst_low->type->type = TYPE_LONG;
+    dst_low->stack.index = stack_offset / 8 + 1; // Conventionally the first stack_index entry starts at 1
+    dst_low->stack.area = SA_FUNCTION_ARGS;
+
+    Value *dst_high = dup_value(dst_low);
+    dst_high->stack.index++;
+
+    tac->operation.id = IR_MOVE;
+    tac->dst = dst_low;
+    tac->src1 = src_low;
+    tac->src2 = 0;
+
+    new_tac_after(tac, IR_MOVE, dst_high, src_high, NULL);
+}
+
+// Add instructions to copy an int128 from a constant to the stack
+static void add_function_call_constant_arg_move_for_int128_to_stack(Function *function, Tac *tac, int stack_offset) {
+    if (debug_function_arg_mapping)
+        printf("Adding copy from constant for int128\n");
+
+    Value *src2_low = dup_value(tac->src2);
+    src2_low->type->type = TYPE_LONG; // The low value is already in int_value
+
+    Value *src2_high = dup_value(tac->src2);
+    src2_high->type->type =TYPE_LONG;
+    src2_high->int_value = src2_high->int128_value >> 64;
+
+    make_move_instructions_to_stack(function, tac, stack_offset, src2_low, src2_high);
+}
+
 // Add instructions to copy an int128 from a register/stack to the stack
-static void add_function_call_arg_move_for_int128_to_stack(Function *function, Tac *tac) {
-    if (tac->src2->stack.index)
-        panic("Got unexpected stack index %d in add_function_call_arg_move_for_int128_to_stack", tac->src2->stack.index);
-
-    Value *arg = tac->src1;
-    CallValueLocations *cvl = arg->function_call.function_call_arg_locations;
-    if (cvl->count != 1) panic("Unexpected int128 to stack move with locations->count != 1");
-    int stack_offset = cvl->locations[0].stack_offset;
-
+static void add_function_call_non_constant_arg_move_for_int128_to_stack(Function *function, Tac *tac, int stack_offset) {
     SplitVreg *split_vreg = function->int128_register_mappings[tac->src2->vreg];
     if (!split_vreg) panic("NULL pointer when fetching split vreg for int128 for vreg %d", tac->src2->vreg);
 
@@ -1018,21 +1044,23 @@ static void add_function_call_arg_move_for_int128_to_stack(Function *function, T
     src2_high->type->type =TYPE_LONG;
     src2_high->vreg = split_vreg->high;
 
-    Value *dst_low = new_value();
-    dst_low->type = dup_type(tac->src2->type);
-    dst_low->type->type = TYPE_LONG;
-    dst_low->stack.index = stack_offset / 8 + 1; // Conventionally the first stack_index entry starts at 1
-    dst_low->stack.area = SA_FUNCTION_ARGS;
+    make_move_instructions_to_stack(function, tac, stack_offset, src2_low, src2_high);
+}
 
-    Value *dst_high = dup_value(dst_low);
-    dst_high->stack.index++;
+// Add instructions to copy an int128 from a constant/register/stack to the stack
+static void add_function_call_arg_move_for_int128_to_stack(Function *function, Tac *tac) {
+    if (tac->src2->stack.index)
+        panic("Got unexpected stack index %d in add_function_call_arg_move_for_int128_to_stack", tac->src2->stack.index);
 
-    tac->operation.id = IR_MOVE;
-    tac->dst = dst_low;
-    tac->src1 = src2_low;
-    tac->src2 = 0;
+    Value *arg = tac->src1;
+    CallValueLocations *cvl = arg->function_call.function_call_arg_locations;
+    if (cvl->count != 1) panic("Unexpected int128 to stack move with locations->count != 1");
+    int stack_offset = cvl->locations[0].stack_offset;
 
-    new_tac_after(tac, IR_MOVE, dst_high, src2_high, NULL);
+    if (tac->src2->is_constant)
+        add_function_call_constant_arg_move_for_int128_to_stack(function, tac, stack_offset);
+    else
+        add_function_call_non_constant_arg_move_for_int128_to_stack(function, tac, stack_offset);
 }
 
 // Move a single register to the arg stack

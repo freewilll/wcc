@@ -1694,7 +1694,7 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
             }
             else if (src_is_int && dst_is_fp)
                 return convert_int_constant_to_floating_point(src, dst_type);
-            else if (src_is_int && dst_type->type == TYPE_INT128) {
+            else if (src_is_int && src_type->type != TYPE_INT128 && dst_type->type == TYPE_INT128) {
                 // Convert integer -> int128.
 
                 // This is necessary so that the int128 lowering code
@@ -2290,6 +2290,12 @@ static void parse_bitwise_shift(int level, int unsigned_operation, int signed_op
     check_bitwise_shift_operation_type(src1, src2);
     int operation = src1->type->is_unsigned ? unsigned_operation : signed_operation;
 
+    if (src1->is_constant && src2->is_constant) {
+        Value *result = parse_binary_constant_expression(operation, src1, src2);
+        push(result);
+        return;
+    }
+
     add_ir_op(operation, src1->type, new_vreg(), src1, src2);
 }
 
@@ -2653,42 +2659,55 @@ static void parse___builtin_inff(void) {
     push(cv);
 }
 
-static void parse_builtin_bitscan_ll(int operation, int type) {
+static void parse_builtin_bitscan(int operation, int type) {
     next();
     consume(TOK_LPAREN, "(");
     parse_expression(TOK_EQ);
     consume(TOK_RPAREN, ")");
 
-    Type *param_type = new_type(type);
-    param_type->is_unsigned = 1;
+    Type *src1_type = new_type(type);
+    src1_type->is_unsigned = 1;
 
     Value *src1 = pl();
-    // A special case for a constant, it needs to be converted.
-    // To the destination type, otherwise an incorrect instruction will
-    // be selected.
-    if (src1->is_constant && src1->type->type != type) {
-        Value *dst = new_value();
-        dst->vreg = new_vreg();
-        dst->type = new_type(TYPE_LONG);
-        add_parser_instruction(IR_MOVE, dst, src1, 0);
-        src1 = dst;
-    }
-
-    push(add_convert_type_if_needed(src1, param_type));
 
     Value *dst = new_value();
-    dst->vreg = new_vreg();
     dst->type = new_type(TYPE_INT);
-    add_parser_instruction(operation, dst, pl(), 0);
+
+    if (src1->is_constant) {
+        // Evaluate a bitscan for a constant
+
+        dst->is_constant = 1;
+
+        if (type == TYPE_INT) {
+            if (operation == IR_BIT_SCAN_FWD)
+                dst->int_value = __builtin_clz(src1->int_value);
+            else
+                dst->int_value = __builtin_ctz(src1->int_value);
+        }
+        else {
+            if (operation == IR_BIT_SCAN_FWD)
+                dst->int_value = __builtin_clzl(src1->int_value);
+            else
+                dst->int_value = __builtin_ctzl(src1->int_value);
+        }
+    }
+    else {
+        // Add an instruction for a bitscan
+
+        push(add_convert_type_if_needed(src1, src1_type));
+        dst->vreg = new_vreg();
+        add_parser_instruction(operation, dst, pl(), 0);
+    }
+
     push(dst);
 }
 
-static void parse___builtin_clz  (void) { parse_builtin_bitscan_ll(IR_BIT_SCAN_FWD, TYPE_INT);  }
-static void parse___builtin_ctz  (void) { parse_builtin_bitscan_ll(IR_BIT_SCAN_REV, TYPE_INT);  }
-static void parse___builtin_clzl (void) { parse_builtin_bitscan_ll(IR_BIT_SCAN_FWD, TYPE_LONG); }
-static void parse___builtin_ctzl (void) { parse_builtin_bitscan_ll(IR_BIT_SCAN_REV, TYPE_LONG); }
-static void parse___builtin_clzll(void) { parse_builtin_bitscan_ll(IR_BIT_SCAN_FWD, TYPE_LONG); }
-static void parse___builtin_ctzll(void) { parse_builtin_bitscan_ll(IR_BIT_SCAN_REV, TYPE_LONG); }
+static void parse___builtin_clz  (void) { parse_builtin_bitscan(IR_BIT_SCAN_FWD, TYPE_INT);  }
+static void parse___builtin_ctz  (void) { parse_builtin_bitscan(IR_BIT_SCAN_REV, TYPE_INT);  }
+static void parse___builtin_clzl (void) { parse_builtin_bitscan(IR_BIT_SCAN_FWD, TYPE_LONG); }
+static void parse___builtin_ctzl (void) { parse_builtin_bitscan(IR_BIT_SCAN_REV, TYPE_LONG); }
+static void parse___builtin_clzll(void) { parse_builtin_bitscan(IR_BIT_SCAN_FWD, TYPE_LONG); }
+static void parse___builtin_ctzll(void) { parse_builtin_bitscan(IR_BIT_SCAN_REV, TYPE_LONG); }
 
 void parse_struct_dot_arrow_expression(void) {
     // Struct/union member lookup

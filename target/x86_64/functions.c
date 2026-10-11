@@ -824,11 +824,27 @@ int *make_original_stack_indexes(Function *function) {
     return result;
 }
 
-// Add instructions to copy an int128 from a register/stack to the stack
-static void add_function_call_arg_move_for_int128_to_stack(Function *function, Tac *ir) {
-    if (ir->src2->stack.index)
-        panic("Got unexpected stack index %d in add_function_call_arg_move_for_int128_to_stack", ir->src2->stack.index);
+// Add instructions to copy an int128 from a constant  to the stack
+static void add_function_call_constant_arg_move_for_int128_to_stack(Function *function, Tac *ir) {
+    if (debug_function_arg_mapping)
+        printf("Adding copy from constant for int128\n");
 
+    Value *src2_low = dup_value(ir->src2);
+    src2_low->type->type = TYPE_LONG; // The low value is already in int_value
+
+    Value *src2_high = dup_value(ir->src2);
+    src2_high->type->type =TYPE_LONG;
+    src2_high->int_value = src2_high->int128_value >> 64;
+
+    new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_high, 1);
+    new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_low, 1);
+
+    make_instruction_a_nop(ir);
+}
+
+
+// Add instructions to copy an int128 from a register/stack to the stack
+static void add_function_call_non_constant_arg_move_for_int128_to_stack(Function *function, Tac *ir) {
     SplitVreg *split_vreg = function->int128_register_mappings[ir->src2->vreg];
     if (!split_vreg) panic("NULL pointer when fetching split vreg for int128 for vreg %d", ir->src2->vreg);
 
@@ -847,6 +863,17 @@ static void add_function_call_arg_move_for_int128_to_stack(Function *function, T
     new_tac_before(ir, IR_PUSH_ARG, 0, ir->src1, src2_low, 1);
 
     make_instruction_a_nop(ir);
+}
+
+// Add instructions to copy an int128 from a constant/register/stack to the stack
+static void add_function_call_arg_move_for_int128_to_stack(Function *function, Tac *ir) {
+    if (ir->src2->stack.index)
+        panic("Got unexpected stack index %d in add_function_call_arg_move_for_int128_to_stack", ir->src2->stack.index);
+
+    if (ir->src2->is_constant)
+        add_function_call_constant_arg_move_for_int128_to_stack(function, ir);
+    else
+        add_function_call_non_constant_arg_move_for_int128_to_stack(function, ir);
 }
 
 // Add instructions to copy a struct to the stack.

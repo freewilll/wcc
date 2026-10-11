@@ -635,11 +635,14 @@ static Tac *transform_binary_operation(Function *function, Tac *tac) {
     if (VALUE_IS_INT128_VREG(tac->dst) && VALUE_IS_INT128_VREG(tac->src1) && VALUE_IS_INT128(tac->src2) && tac->src2->is_constant) {
         return split_instruction(function, tac);
     }
+    else if (VALUE_IS_INT128_VREG(tac->dst) && VALUE_IS_INT128_VREG(tac->src2) && VALUE_IS_INT128(tac->src1) && tac->src1->is_constant) {
+        return split_instruction(function, tac);
+    }
     else if (VALUE_IS_INT128_VREG(tac->dst) && VALUE_IS_INT128_VREG(tac->src1) && VALUE_IS_INT128_VREG(tac->src2)) {
         return split_instruction(function, tac);
     }
 
-    bail_on_unimplemented_instruction(tac, "int128 IR_BOR not implemented for:");
+    bail_on_unimplemented_instruction(tac, "int128 binary operation not implemented for:");
 
     return tac;
 }
