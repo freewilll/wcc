@@ -566,12 +566,10 @@ static void test_assign_to_globals() {
     pl++; gpl = pl; assert_long(gpl, pl, "pgl = pl"); pul++; gpul = pul; assert_long(gpul, pul, "pgul = pul");
 
     // Combinations of signed/unsigned
-    #ifdef __x86_64__
     c++; guc = c; assert_long(guc, c, "guc = c"); uc++; gc = uc; assert_long(gc, uc, "gc = uc");
     s++; gus = s; assert_long(gus, s, "gus = s"); us++; gs = us; assert_long(gs, us, "gs = us");
     i++; gui = i; assert_long(gui, i, "gui = i"); ui++; gi = ui; assert_long(gi, ui, "gi = ui");
     l++; gul = l; assert_long(gul, l, "gul = l"); ul++; gl = ul; assert_long(gl, ul, "gl = ul");
-    #endif
 }
 
 static void test_add_operation_sign() {
@@ -665,8 +663,6 @@ void test_integer_sizes() {
     assert_int(8, sizeof(signed long **),      "sizeof signed long **");       assert_int(8, sizeof(unsigned long **),      "sizeof unsigned long **");
 }
 
-#ifdef __x86_64__
-
 void test_floating_point_sizes() {
     assert_int(4,  sizeof(float),          "sizeof float");
     assert_int(8,  sizeof(float *),        "sizeof float *");
@@ -678,8 +674,6 @@ void test_floating_point_sizes() {
     assert_int(8,  sizeof(long double *),  "sizeof long double *");
     assert_int(8,  sizeof(long double **), "sizeof long double **");
 }
-
-#endif
 
 void test_array_sizes() {
     assert_int(40,  sizeof(int[10]),       "sizeof int[10]");
@@ -1013,8 +1007,6 @@ void test_constant_suffixes() {
     assert_int(1, -1ul > 0,     "Constant suffix lowercase ul");
     assert_int(8, sizeof(1llu), "Constant suffix lowercase llu");
 }
-#ifdef __x86_64__
-
 void test_unary_plus() {
     char c;
     short s;
@@ -1102,8 +1094,6 @@ void test_unary_minus() {
     d  = 1; assert_double(     -1.0,       -d,  "d = 1; -d");
     ld = 1; assert_long_double(-1.0,       -ld, "ld = 1; -ld");
 }
-
-#endif
 
 void test_80000000_addition_and_subtraction() {
     long l = 0x80000000;
@@ -1508,8 +1498,6 @@ static void test_constant_assignment_to_global() {
     gl = 0x7fffffff;         assert_long(0x7fffffff,         gl, "gl = 0x7fffffff;        ");
 }
 
-#ifdef __x86_64__
-
 static int test_logical_not() {
     char c;
     short s;
@@ -1535,8 +1523,6 @@ static int test_logical_not() {
     d  = 0; assert_int(1, !d,  "!d" ); d  = 1; assert_int(0, !d,  "!d");
     ld = 0; assert_int(1, !ld, "!ld"); ld = 1; assert_int(0, !ld, "!ld");
 }
-
-#endif
 
 static int test_bitwise_not() {
     char c;
@@ -1713,7 +1699,6 @@ int test_constant_expression_uses() {
 }
 
 int test_constant_casting() {
-#ifdef __x86_64__
     // FP -> FP
     assert_float(1.1f, (float)       1.1f, "Casting float -> float");
     assert_float(1.1f, (double)      1.1f, "Casting float -> double");
@@ -1753,17 +1738,16 @@ int test_constant_casting() {
     assert_float(1, (double)      1, "Casting int -> double");
     assert_float(1, (long double) 1, "Casting int -> long double");
 
-#endif
     // Integer -> integer
     assert_int(255,                  (unsigned char)  -1L, "Casting to unsigned char");
     assert_int(-1,                   (signed char)    -1L, "Casting to signed char");
+
 #ifdef __x86_64__
     assert_int(-1,                   (char)           -1L, "Casting to char in x86_64"); // In x86_64, a char is signed by default
 #else if defined __aarch64__
     assert_int(255,                  (char)           -1L, "Casting to char in aarch64"); // In aarch64, a char is unsigned by default
 #endif
 
-#ifdef __x86_64__
     assert_int(0xffff,               (unsigned short) -1L, "Casting to unsigned short");
     assert_int(-1,                   (short)          -1L, "Casting to short");
     assert_int(0xffffffffL,          (unsigned int)   -1L, "Casting to unsigned int");
@@ -1780,7 +1764,6 @@ int test_constant_casting() {
     // leading to the (long) cast getting ignored.
     // 0x8000000000000000LL lexes to an unsigned long.
     assert_int(1, ((long) 0x8000000000000000LL) < 0, "Casting unsigned long literal to long");
-#endif
 }
 
 static long bswap64(long i) {
@@ -1800,7 +1783,6 @@ void test_bswap64() {
     assert_long(0x8877665544332211UL, bswap64(0x1122334455667788UL), "bswap64");
 }
 
-#ifdef __x86_64__
 void test_extern_function_returning_pointer_to_struct_bug() {
     // Tests bug where an extern storage class specifier was being applied to a struct
     // instead of to a function returning a pointer to struct
@@ -1809,8 +1791,6 @@ void test_extern_function_returning_pointer_to_struct_bug() {
     time(&rawtime);
     struct tm *info = localtime(&rawtime);
 }
-
-#endif
 
 void test_BSHR_conversion_bug() {
     // If both operands to a division are constants, and the first one is a power of 2,
@@ -2058,9 +2038,7 @@ int main(int argc, char **argv) {
     test_composite_assign();
     test_assign_to_globals();
     test_integer_sizes();
-#ifdef __x86_64__
     test_floating_point_sizes();
-#endif
     test_array_sizes();
     test_combination_sizes();
     test_add_operation_sign();
@@ -2073,10 +2051,8 @@ int main(int argc, char **argv) {
     test_integer_constant_sizes();
     test_hex_and_octal_constants();
     test_constant_suffixes();
-#ifdef __x86_64__
     test_unary_plus();
     test_unary_minus();
-#endif // __x86_64__
     test_80000000_addition_and_subtraction();
     test_80000000_unary_minus();
     test_80000000_cmp();
@@ -2090,10 +2066,7 @@ int main(int argc, char **argv) {
     test_uint_uint_assignment(1);
     test_uint_uint_assignment(-1);
     test_constant_encodings();
-    test_constant_assignment_to_global();
-#ifdef __x86_64__
     test_logical_not();
-#endif
     test_sign_extend_globals();
     test_bitwise_not();
     test_scopes();
@@ -2107,9 +2080,7 @@ int main(int argc, char **argv) {
     test_constant_expression_uses();
     test_constant_casting();
     test_bswap64();
-#ifdef __x86_64__
     test_extern_function_returning_pointer_to_struct_bug();
-#endif
     test_BSHR_conversion_bug();
     test_cast_to_void();
     test_offsetof();

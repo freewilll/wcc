@@ -25,8 +25,6 @@ struct s1 { int i; float f; double d; };
 struct sf { float f; int i; };
 struct sd { double d; int i; };
 
-#ifdef __x86_64__
-
 void assert_ld_string(long double ld, char *expected, char *message) {
     char *buffer = malloc(100);
 
@@ -36,8 +34,6 @@ void assert_ld_string(long double ld, char *expected, char *message) {
     if (!matches) printf("Expected \"%s\", got \"%s\"\n", expected, buffer);
     assert_int(1, matches, message);
 }
-
-#endif
 
 void test_constant_assignment() {
     char *buffer;
@@ -225,8 +221,6 @@ void test_conversion_fp_to_int() {
     gd = 8.1; assert_long(8, (unsigned long)  gd, "double on stack to unsigned long  in register");
 }
 
-#ifdef __x86_64__
-
 void test_conversion_fp_cst_to_long_double() {
     float f;
     double d;
@@ -248,8 +242,6 @@ int test_conversion_fp_to_long_double() {
     gf = 1.1; assert_long_double(1.1, (long double) gf,"float  in register to long double");
     gd = 2.1; assert_long_double(2.1, (long double) gd,"double in register to long double");
 }
-
-#endif
 
 void test_conversion_int_to_fp() {
     float f;
@@ -316,8 +308,6 @@ void test_conversion_int_to_fp() {
     gl = -8; gd = gl; assert_float(-8.0, gd, "negative long  in memory to double in memory");
 }
 
-#ifdef __x86_64__
-
 void test_conversion_long_double_to_fp() {
     long double ld;
     float f;
@@ -331,8 +321,6 @@ void test_conversion_long_double_to_fp() {
     ld = 1.1; gf = ld; assert_float( 1.1, gf, "long double to float  in memory");
     ld = 2.1; gd = ld; assert_double(2.1, gd, "long double to double in memory");
 }
-
-#endif
 
 void test_spilling_mix() {
     // All four types are spilled, due to the double function call
@@ -463,8 +451,6 @@ void test_spilling_doubles() {
     assert_double(810.0, x1, "Spilling doubles");
 }
 
-#ifdef __x86_64__
-
 void test_long_double_constant_promotion_in_arithmetic() {
     long double ld;
 
@@ -472,8 +458,6 @@ void test_long_double_constant_promotion_in_arithmetic() {
     assert_ld_string(ld * 1.0f, "1.00000", "constant float promotion to long double in arithmetic");
     assert_ld_string(ld * 1.0,  "1.00000", "constant double promotion to long double in arithmetic");
 }
-
-#endif
 
 void test_constants_in_function_calls() {
     // Test function calls with different typed constants
@@ -1111,6 +1095,8 @@ void test_pointers() {
     gpd = 0ul;
 }
 
+#endif
+
 // The following code is the fast inverse square root implementation from Quake III Arena,
 // stripped of C preprocessor directives, but including the exact original comment text
 // See https://en.wikipedia.org/wiki/Fast_inverse_square_root
@@ -1185,7 +1171,6 @@ void test_structs() {
     sd->d = 2.1; s1->d = sd->d; assert_double(2.1, s1->d, "s1->d");
 }
 
-#endif
 void test_inc_dec() {
     float f = 1.0;
 
@@ -1213,7 +1198,7 @@ void test_inc_dec() {
     gd++; assert_double(3.0, gd, "Global double postfix ++");
     gd--; assert_double(2.0, gd, "Global double postfix --");
 }
-#ifdef __x86_64__
+
 // Test bug where a 4 bytes were allocated on the stack instead of 8 when converting
 // a long double to a double
 int test_stack_smashing_bug() {
@@ -1229,8 +1214,6 @@ int test_stack_smashing_bug() {
     assert_long(-1, l, "LD -> float/double conversion allocation bug 3");
     assert_long(-1, m, "LD -> float/double conversion allocation bug 4");
 }
-
-#endif
 
 // Test floating point division by zero makes an infinity
 void test_division_by_zero() {
@@ -1256,20 +1239,14 @@ int main(int argc, char **argv) {
     test_assignment();
     test_conversion_fp_cst_to_int();
     test_conversion_fp_to_int();
-    #ifdef __x86_64__
     test_conversion_fp_cst_to_long_double();
     test_conversion_fp_to_long_double();
-    #endif
     test_conversion_int_to_fp();
-    #ifdef __x86_64__
     test_conversion_long_double_to_fp();
-    #endif
     test_spilling_mix();
     test_spilling_floats();
     test_spilling_doubles();
-    #ifdef __x86_64__
     test_long_double_constant_promotion_in_arithmetic();
-    #endif
     test_constants_in_function_calls();
     test_constant_arithmetic_combinations();
     test_constant_relops();
@@ -1280,14 +1257,14 @@ int main(int argc, char **argv) {
     test_arrays();
     #ifdef __x86_64__
     test_pointers();
+    #endif
     test_test_carmacks_inverse_square_root();
     test_pointer_arithmetic();
     test_pointer_casting();
     test_structs();
-    #endif
     test_inc_dec();
-    #ifdef __x86_64__
     test_stack_smashing_bug();
+    #ifdef __x86_64__
     test_division_by_zero();
     #endif
 

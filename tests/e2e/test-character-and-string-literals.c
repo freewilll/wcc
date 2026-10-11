@@ -106,7 +106,6 @@ static void test_char_literal_lexer() {
     assert_int(2113,        '\10A',              "Char literal octal 27");
 }
 
-#ifdef __x86_64__
 
 static void test_string_literal_lexer() {
     assert_string("foobar", "foo" "bar", "Adjacent string literals 1");
@@ -115,7 +114,7 @@ static void test_string_literal_lexer() {
     assert_string("foobarbaz", "foo"
                             "bar" "baz", "Adjacent string literals 2");
 
-    char *foon = "foo\n";
+    signed char *foon = "foo\n";
     assert_int(4, strlen(foon), "String literal escapes \\n 1");
     assert_int('f',  foon[0],  "String literal escapes \\n 2");
     assert_int('o',  foon[1],  "String literal escapes \\n 3");
@@ -163,7 +162,7 @@ static void test_string_literal_lexer() {
     assert_int('A',   "\10A"[1],                    "String literal octal 3b");
 
     // Test escaping of a string literal in the assembly output by using a variable
-    char *s = "\'\"\?\\\a\b\f\n\r\t\v\e\x80\xff";
+    signed char *s = "\'\"\?\\\a\b\f\n\r\t\v\e\x80\xff";
     assert_int(14, strlen(s), "String escaping in codegen 1");
     assert_int(39,   s[0],    "String escaping in codegen 1 0");
     assert_int(34,   s[1],    "String escaping in codegen 1 1");
@@ -200,8 +199,6 @@ static void test_string_literal_lexer() {
     assert_int(0,  s[3], "String escaping in codegen 4 3");
 }
 
-#endif
-
 int test_wide_char_char_literal_lexer() {
     assert_int(255,      L'\xff',         "wchar_t char 1");
     assert_int(4095,     L'\xfff',        "wchar_t char 2");
@@ -218,7 +215,6 @@ int test_wide_char_char_literal_lexer() {
 
 int test_wide_char_string_literal_lexer() {
     wchar_t *wc = L"ab";
-#ifdef __x86_64__
     assert_int(4, sizeof(wc[0]), "wchar_t string literal char size");
     assert_int(97, wc[0], "wchar_t string literal s[0]");
     assert_int(98, wc[1], "wchar_t string literal s[1]");
@@ -238,7 +234,6 @@ int test_wide_char_string_literal_lexer() {
     assert_int(32, sizeof( "foo" L"bars"), "Sizeof split strings .L");
     assert_int(32, sizeof(L"foo"  "bars"), "Sizeof split strings L.");
     assert_int(32, sizeof(L"foo" L"bars"), "Sizeof split strings LL");
-#endif
 }
 
 void test___CHAR_UNSIGNED___value(void) {
@@ -260,13 +255,9 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     test_char_literal_lexer();
-    #ifdef __x86_64__
     test_string_literal_lexer();
-    #endif
     test_wide_char_char_literal_lexer();
-    #ifdef __x86_64__
     test_wide_char_string_literal_lexer();
-    #endif
     test___CHAR_UNSIGNED___value();
 
     finalize();

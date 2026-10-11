@@ -91,17 +91,13 @@ typedef long double LD;
 
 int   add_ini(int   c, ...) { va_list ap; va_start(ap, c); int   r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, int   ); va_end(ap); return r; }
 float add_fli(int   c, ...) { va_list ap; va_start(ap, c); float r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, double); va_end(ap); return r; }
-#ifdef __x86_64__
 LD    add_ldi(int   c, ...) { va_list ap; va_start(ap, c); LD    r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, LD    ); va_end(ap); return r; }
-#endif
 int   add_inf(float c, ...) { va_list ap; va_start(ap, c); int   r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, int   ); va_end(ap); return r; }
 float add_flf(float c, ...) { va_list ap; va_start(ap, c); float r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, double); va_end(ap); return r; }
-#ifdef __x86_64__
 LD    add_ldf(float c, ...) { va_list ap; va_start(ap, c); LD    r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, LD    ); va_end(ap); return r; }
 int   add_inl(LD    c, ...) { va_list ap; va_start(ap, c); int   r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, int   ); va_end(ap); return r; }
 float add_fll(LD    c, ...) { va_list ap; va_start(ap, c); float r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, double); va_end(ap); return r; }
 LD    add_ldl(LD    c, ...) { va_list ap; va_start(ap, c); LD    r = 0; for (int i = 0; i < c; i++) r += va_arg(ap, LD    ); va_end(ap); return r; }
-#endif
 
 void test_additions() {
     // With an integer as a parameter
@@ -130,7 +126,6 @@ void test_additions() {
     assert_float(56.0, add_fli(10, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1),       "add_fli 56");
     assert_float(67.1, add_fli(11, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1), "add_fli 67");
 
-    #ifdef __x86_64__
     assert_long_double(0.0,  add_ldi(0),                                                               "add_ldi 0");
     assert_long_double(1.1,  add_ldi(1,  1.1L),                                                        "add_ldi 1");
     assert_long_double(3.2,  add_ldi(2,  1.1L, 2.1L),                                                  "add_ldi 3");
@@ -142,7 +137,6 @@ void test_additions() {
     assert_long_double(36.8, add_ldi(8,  1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L),              "add_ldi 36");
     assert_long_double(45.9, add_ldi(9,  1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L),        "add_ldi 45");
     assert_long_double(56.0, add_ldi(10, 1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L, 10.1L), "add_ldi 56");
-    #endif
 
     // With a float as a parameter
     assert_int(0,  add_inf(0),                                 "add_inf 0");
@@ -169,8 +163,6 @@ void test_additions() {
     assert_float(45.9, add_flf(9,  1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1),             "add_flf 45");
     assert_float(56.0, add_flf(10, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1),       "add_flf 56");
     assert_float(67.1, add_flf(11, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1), "add_flf 67");
-
-    #ifdef __x86_64__
 
     assert_long_double(0.0,  add_ldf(0),                                                               "add_ldf 0");
     assert_long_double(1.1,  add_ldf(1,  1.1L),                                                        "add_ldf 1");
@@ -221,8 +213,6 @@ void test_additions() {
     assert_long_double(36.8, add_ldl(8,  1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L),              "add_ldl 36");
     assert_long_double(45.9, add_ldl(9,  1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L),        "add_ldl 45");
     assert_long_double(56.0, add_ldl(10, 1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 7.1L, 8.1L, 9.1L, 10.1L), "add_ldl 56");
-
-    #endif
 }
 
 void run_va_to_scalar_in_stack(int c, ...) {
@@ -284,9 +274,7 @@ int test_va_arg_sizes(int i, ...) {
     assert_int(1, sizeof(va_arg(ap, char)),         "Varargs va_arg size 1");
     assert_int(2, sizeof(va_arg(ap, short)),        "Varargs va_arg size 2");
     assert_int(4, sizeof(va_arg(ap, int)),          "Varargs va_arg size 3");
-    #ifdef __x86_64__
     assert_int(3, sizeof(va_arg(ap, struct sca)),   "Varargs va_arg size 4");
-    #endif
     va_end(ap);
 }
 
@@ -319,8 +307,6 @@ static void test_vadd_ints() {
     assert_int(28, vadd_ints2(7, 1, 2, 3, 4, 5, 6, 7),    "Varargs passing va_list as an argument with ints 7");
     assert_int(36, vadd_ints2(8, 1, 2, 3, 4, 5, 6, 7, 8), "Varargs passing va_list as an argument with ints 8");
 }
-
-#ifdef __x86_64__
 
 static float vadd_floats1(int count, va_list ap) {
     float result = 0;
@@ -584,9 +570,11 @@ void big_struct(int i, ...) {
     va_list ap;
     va_start(ap, i);
     struct ld3 ld3 = va_arg(ap, struct ld3);
+    #ifdef __x86__64__
     assert_int(1.1, ld3.ld1, "Big struct 1");
     assert_int(1.2, ld3.ld2, "Big struct 2");
     assert_int(1.3, ld3.ld3, "Big struct 3");
+    #endif
 }
 
 int test_big_struct() {
@@ -606,6 +594,8 @@ int test_assignment_after_va_arg() {
     assignment_after_va_arg(1, pi);
     assert_int(2, pi[0], "va_arg(ap, int*)[0] = 2");
 }
+
+#ifdef __x86_64__
 
 int call_function_in_vararg(int i, ...) {
     va_list ap;
@@ -896,13 +886,13 @@ int main(int argc, char **argv) {
     test_struct_return();
     test_va_arg_sizes(1, 2, 3, 4, 5, 6);
     test_vadd_ints();
-    #ifdef __x86_64__
     test_vadd_floats();
     test_long_double_alignment();
     test_structs();
     test_va_mixed_types();
     test_default_argument_promotions();
     test_big_struct();
+    #ifdef __x86_64__
     test_function_in_vararg();
     #endif
     test_va_aarch64_hfa_structs();

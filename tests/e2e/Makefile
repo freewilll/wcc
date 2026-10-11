@@ -44,18 +44,24 @@ WCC_TESTS=\
 	function-call-args \
 	func-calls \
 	pointers \
+	arrays \
 	memory-functions \
 	inc-dec \
-	pointer-arithmetic \
+	conditionals \
 	structs \
+	pointer-arithmetic \
+	loops \
+	enums \
 	regressions \
 	ifdef \
 	long-doubles \
 	floats-and-doubles \
+	typedefs \
 	switch \
 	character-and-string-literals \
 	varargs \
 	initializers \
+	extension-keyword \
 	int128
 endif
 

@@ -490,6 +490,8 @@ int test_implicit_ints_in_globals() {
     assert_int(1, *implicit_pint_foo(), "*implicit_pint_foo()");
 }
 
+#endif
+
 // Test mixed declaration of functions and objects
 int global_func1(int a), global_func2(int a), global_object;
 
@@ -515,6 +517,8 @@ int test_s7_s9_bug() {
     // Test rcx mis allocation big due to overzealous constraint imposing
     accept_s7_s9(0, s7, s9);
 }
+
+#ifdef __x86_64__
 
 int gi = 1;
 static void func() {
@@ -551,6 +555,8 @@ int test_assigning_a_function_to_a_pointer_to_void(void){
     assert_int(1, g, "Assigning a function to a void *");
 }
 
+#endif
+
 // Test redeclaring a function without a {} doesn't mess up internal linkage
 static int static_func_declared_after_definition();
 static int static_func_declared_after_definition() {}
@@ -559,8 +565,6 @@ static int static_func_declared_after_definition();
 int test_static_func_declared_after_definition() {
     static_func_declared_after_definition();
 }
-
-#endif
 
 int main(int argc, char **argv) {
     passes = 0;
@@ -587,13 +591,15 @@ int main(int argc, char **argv) {
     test_sizeof_function_pointer();
     test_function_pointer_comparisons();
     test_implicit_ints_in_globals();
+    #endif
     test_mixed_global_declaration();
     test_s7_s9_bug();
+    #ifdef __x86__64
     test_calling_a_function_with_a_pointer_to_function_on_stack();
     test_function_returning_int();
     test_assigning_a_function_to_a_pointer_to_void();
-    test_static_func_declared_after_definition();
     #endif
+    test_static_func_declared_after_definition();
 
     finalize();
 }

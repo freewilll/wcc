@@ -408,8 +408,6 @@ void test_sizeof() {
     assert_int(16, sizeof(struct {long x; char y;}    ), "sizeof struct {long x; char y;}");
 }
 
-#ifdef __x86_64__
-
 void test_struct_member_alignment() {
     struct cc  *vc;
     struct cs  *vs;
@@ -471,8 +469,6 @@ void test_struct_member_alignment() {
     assert_int(16, (long) &(vld->ld1) - (long) &(vld->c1), "struct member alignment ld");
     assert_int(8,  (long) &(vla->l1)  - (long) &(vla->c1), "struct member alignment la");
 }
-
-#endif
 
 void test_struct_indirect_sizes() {
     struct ccc *ccc;
@@ -861,8 +857,6 @@ int test_nested_structs_and_unions() {
     assert_int(0, (int) &v4.u2.d -   (int) &v4,  "Anonymous u/u 8");
 }
 
-#ifdef __x86_64__
-
 void assert_ds(struct ds *ds) {
     assert_int(        1,   ds->c,    "ds c");
     assert_int(        2,   ds->s,    "ds s");
@@ -913,8 +907,6 @@ int test_struct_long_double_temporary_bug() {
     assert_long_double(1.1, sld.ld, "Long double/temporary bug 1");
     assert_int(6, sld.s, "Long double/temporary bug 2");
 }
-
-#endif
 
 struct gs { int i; };
 
@@ -1408,8 +1400,6 @@ void test_anonymous_struct_flattening() {
     assert_int(2, v.b, "Anonymous struct flattening 7");
 }
 
-#ifdef __x86_64__
-
 struct s { float f1, f2; } gst = { 1.1, 1.2 };
 struct s return_gst(void) { return gst; }
 
@@ -1417,8 +1407,6 @@ int test_temporary_struct_member_lookup() {
     assert_float(1.1, return_gst().f1, "Temporary struct member lookup 1");
     assert_float(1.2, return_gst().f2, "Temporary struct member lookup 2");
 }
-
-#endif
 
 int test_zero_length_arrays() {
     struct { char c; short sa[0]; } s1;
@@ -1447,9 +1435,7 @@ int main(int argc, char **argv) {
     test_stack_loads_and_stores();
     test_simple_struct();
     test_sizeof();
-#ifdef __x86_64__
     test_struct_member_alignment();
-#endif
     test_struct_indirect_sizes();
     test_struct_alignment_bug();
     test_struct_alignment_bug2();
@@ -1469,10 +1455,8 @@ int main(int argc, char **argv) {
     test_sub_struct();
     test_unions();
     test_nested_structs_and_unions();
-#ifdef __x86_64__
     test_direct_structs();
     test_struct_long_double_temporary_bug();
-#endif
     test_scoped_struct_tags();
     test_declaration_without_definition();
     test_copy();
@@ -1483,9 +1467,7 @@ int main(int argc, char **argv) {
     test_bit_field_saving();
     test_array_member_array_lookup();
     test_anonymous_struct_flattening();
-#ifdef __x86_64__
     test_temporary_struct_member_lookup();
-#endif
     test_zero_length_arrays();
 
     finalize();

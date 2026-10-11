@@ -20,8 +20,6 @@ struct ups {
     int i, j;
 };
 
-#ifdef __x86_64__
-
 // Create an expression which undoubtedly will exhaust all registers, forcing
 // the spilling code into action
 void test_spilling_stress() {
@@ -171,8 +169,8 @@ void rssa2(int nt) {
     wasprintf(&buf, "nt%03d", nt);
     assert_string("nt001", buf, "Return statement stack alignment 1");
 }
-
 void test_return_statement_stack_alignment() {
+
     // Test but where return statements would lead to an invalid push count
     rssa1(1);
     rssa2(1);
@@ -351,8 +349,6 @@ int test_shift_c_register_clobber() {
     assert_int(1114112, run_shift_c_register_clobber(16, 17), "Shift %cl register clobber shift result");
 }
 
-#endif
-
 void test_function_without_regs_function(int i, double d) {
     assert_int(1, i, "Function without regs with an int and double arg 1");
     assert_double(3.14, d, "Function without regs with an int and double arg 2");
@@ -390,7 +386,6 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv);
 
-    #ifdef __x86_64__
     test_spilling_stress();
     test_callee_saved_registers();
     test_variadic_arg_bug();
@@ -412,7 +407,6 @@ int main(int argc, char **argv) {
     test_register_reuse_in_function_calls();
     test_double_offset_bug();
     test_shift_c_register_clobber();
-    #endif
     test_function_without_regs();
     test_overlapping_structs_in_function_return_value();
 

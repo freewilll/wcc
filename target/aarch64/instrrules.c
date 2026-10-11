@@ -1034,8 +1034,10 @@ void define_rules(void) {
     // Jump rules
     r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, AARCH64_OP_B, 0, SRC1, 0, "b %v1"); fin_rule(r);
 
-    add_conditional_zero_jump_rule(IR_JZ,  XR, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "beq %v1");
-    add_conditional_zero_jump_rule(IR_JNZ, XR, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "bne %v1");
+    add_conditional_zero_jump_rule(IR_JZ,  XR,  LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "beq %v1");
+    add_conditional_zero_jump_rule(IR_JZ,  XRP, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "beq %v1");
+    add_conditional_zero_jump_rule(IR_JNZ, XR,  LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "bne %v1");
+    add_conditional_zero_jump_rule(IR_JNZ, XRP, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "bne %v1");
 
     add_bit_scan_rules();
     add_int128_rules();

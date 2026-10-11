@@ -487,8 +487,6 @@ void test_comparisons() {
     if ((void *) i != (char *) k); else assert_int(0, 1, "(void *) i != (char *) k) in if");
 }
 
-#ifdef __x86_64__
-
 void assert_pi(int expected, int *pi, char *message) {
     assert_int(expected, *pi, message);
 }
@@ -567,8 +565,6 @@ int test_address_of_function_parameters() {
         c, s, i, l, f, d, st);
 }
 
-#endif
-
 int test_string_literal_in_eq() {
     assert_int(0, "abc" == (void *) 0, "Compare a string literal to NULL");
 }
@@ -636,9 +632,7 @@ int main(int argc, char **argv) {
     test_scaled_indirects();
     test_null_pointer();
     test_comparisons();
-    #ifdef __x86_64__
     test_address_of_function_parameters();
-    #endif
     test_string_literal_in_eq();
     test_dereferencing_an_array();
     test_subtraction_with_different_sizes();
