@@ -273,6 +273,14 @@ Value *make_string_literal_value_from_cur_string_literal(void) {
     Value *value = new_value();
 
     value->type = make_array(new_type(cur_string_literal.is_wide_char ? TYPE_INT : TYPE_CHAR), cur_string_literal.size);
+
+    // If __CHAR_UNSIGNED__ is set, then the char type defaults to being unsigned.
+    #ifdef __CHAR_UNSIGNED__
+    value->type->target->is_unsigned = 1;
+    #else
+    value->type->target->is_unsigned = 0;
+    #endif
+
     value->string_literal_index = string_literal_count;
     value->is_string_literal = 1;
     if (string_literal_count > MAX_STRING_LITERALS) panic_with_line_number("Exceeded max string literals %d", MAX_STRING_LITERALS);

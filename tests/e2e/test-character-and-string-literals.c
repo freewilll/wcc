@@ -136,32 +136,37 @@ static void test_string_literal_lexer() {
     assert_int(11, "\v"[0], "String literal escapes \\v");
     assert_int(27, "\e"[0], "String literal escapes \\e");
 
-    // Hex escapes
-    #ifdef __x86_64__
-    assert_string("fooA",       "foo\x41",          "String literal hex 1");
-    assert_string("fooB",       "foo\x4142",        "String literal hex 2");
-    assert_string("fooAB",      "foo\x41\x42",      "String literal hex 3");
-    assert_string("fooAB\a",    "foo\x41\x42\x07",  "String literal hex 4");
-    assert_string("fooAG",      "foo\x41G",         "String literal hex 5");
-    assert_int(9,    "\x9"[0],                      "String literal hex 6");
-    assert_int(31,    "\x41F"[0],                   "String literal hex 7");
-    assert_int(120,   "\x12345678"[0],              "String literal hex 8");
-    assert_int(-128,  "\x80"[0],                    "String literal hex 9");
-    assert_int(-112,  "\x1234567890"[0],            "String literal hex 10");
-    assert_int(-1,    "\x123456789ff"[0],           "String literal hex 11");
-    assert_int(-1,    "\x123456789ffg"[0],          "String literal hex 12");
-    assert_int('g',    "\x123456789ffg"[1],         "String literal hex 13");
-    assert_int(1,     "\x1"[0],                     "String literal hex 14");
-    assert_int(-1,    "\xFF"[0],                    "String literal hex 15");
-
-    assert_int('A',    "A\777B"[0],                 "String literal octal 1a");
-    assert_int(-1,     "A\777B"[1],                 "String literal octal 1b");
+    // Set an unsigned char offset (UCO)  to make assertions work on
+    // platforms with unsigned and signed chars
+    #ifdef __CHAR_UNSIGNED__
+    #define UCO 256
+    #else
+    #define UCO 0
     #endif
-    assert_int('B',    "A\777B"[2],                 "String literal octal 1c");
-    assert_int('A',    "\101\102"[0],               "String literal octal 2a");
-    assert_int('B',    "\101\102"[1],               "String literal octal 2b");
-    assert_int(8,     "\10A"[0],                    "String literal octal 3a");
-    assert_int('A',   "\10A"[1],                    "String literal octal 3b");
+
+    // Hex escapes
+    assert_string("fooA",       "foo\x41",           "String literal hex 1");
+    assert_string("fooB",       "foo\x4142",         "String literal hex 2");
+    assert_string("fooAB",      "foo\x41\x42",       "String literal hex 3");
+    assert_string("fooAB\a",    "foo\x41\x42\x07",   "String literal hex 4");
+    assert_string("fooAG",      "foo\x41G",          "String literal hex 5");
+    assert_int(9,               "\x9"[0],            "String literal hex 6");
+    assert_int(31,              "\x41F"[0],          "String literal hex 7");
+    assert_int(120,             "\x12345678"[0],     "String literal hex 8");
+    assert_int(UCO -128,        "\x80"[0],           "String literal hex 9");
+    assert_int(UCO -112,        "\x1234567890"[0],   "String literal hex 10");
+    assert_int(UCO -1,          "\x123456789ff"[0],  "String literal hex 11");
+    assert_int(UCO -1,          "\x123456789ffg"[0], "String literal hex 12");
+    assert_int('g',             "\x123456789ffg"[1], "String literal hex 13");
+    assert_int(1,               "\x1"[0],            "String literal hex 14");
+    assert_int(UCO -1,          "\xFF"[0],           "String literal hex 15");
+    assert_int('A',             "A\777B"[0],         "String literal octal 1a");
+    assert_int(UCO -1,          "A\777B"[1],         "String literal octal 1b");
+    assert_int('B',             "A\777B"[2],         "String literal octal 1c");
+    assert_int('A',             "\101\102"[0],       "String literal octal 2a");
+    assert_int('B',             "\101\102"[1],       "String literal octal 2b");
+    assert_int(8,               "\10A"[0],           "String literal octal 3a");
+    assert_int('A',             "\10A"[1],           "String literal octal 3b");
 
     // Test escaping of a string literal in the assembly output by using a variable
     signed char *s = "\'\"\?\\\a\b\f\n\r\t\v\e\x80\xff";
