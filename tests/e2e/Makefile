@@ -168,7 +168,6 @@ ${BUILD_DIR}/tests/e2e/test-abi-wcc-wcc: ${ABI_LINK_OBJECTS} ${BUILD_DIR}/tests/
 
 run-test-abi: ${BUILD_DIR}/tests/e2e/test-abi-gcc-gcc ${BUILD_DIR}/tests/e2e/test-abi-wcc-gcc ${BUILD_DIR}/tests/e2e/test-abi-gcc-wcc ${BUILD_DIR}/tests/e2e/test-abi-wcc-wcc
 	cd ${TEST_BUILD_DIR} && ./test-abi-gcc-gcc
-# TODO aarch64 run these tests
 	cd ${TEST_BUILD_DIR} && ./test-abi-wcc-gcc
 	cd ${TEST_BUILD_DIR} && ./test-abi-gcc-wcc
 	cd ${TEST_BUILD_DIR} && ./test-abi-wcc-wcc
