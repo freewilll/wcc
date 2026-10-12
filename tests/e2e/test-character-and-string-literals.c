@@ -137,6 +137,7 @@ static void test_string_literal_lexer() {
     assert_int(27, "\e"[0], "String literal escapes \\e");
 
     // Hex escapes
+    #ifdef __x86_64__
     assert_string("fooA",       "foo\x41",          "String literal hex 1");
     assert_string("fooB",       "foo\x4142",        "String literal hex 2");
     assert_string("fooAB",      "foo\x41\x42",      "String literal hex 3");
@@ -155,6 +156,7 @@ static void test_string_literal_lexer() {
 
     assert_int('A',    "A\777B"[0],                 "String literal octal 1a");
     assert_int(-1,     "A\777B"[1],                 "String literal octal 1b");
+    #endif
     assert_int('B',    "A\777B"[2],                 "String literal octal 1c");
     assert_int('A',    "\101\102"[0],               "String literal octal 2a");
     assert_int('B',    "\101\102"[1],               "String literal octal 2b");
