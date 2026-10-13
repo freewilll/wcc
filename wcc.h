@@ -1634,6 +1634,11 @@ void transform_int128_instructions(Function *function);
 
 // Target specific code
 // ------------------------------------------------
+typedef enum {
+    LD_FORMAT_BINARY128,          // aarch64
+    LD_FORMAT_X87_EXTENDED80,     // x86_64
+} LongDoubleFormat;
+
 extern int char_is_unsigned_by_default;
 
 extern int physical_register_count;
@@ -1645,6 +1650,8 @@ extern int total_function_stack_size_alignment; // The amount to align the total
 extern int long_doubles_are_in_the_stack;
 
 extern char *data_keywords[]; // Output keywords for global symbol definitions with data
+
+extern LongDoubleFormat long_double_format;
 
 char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);

@@ -7,6 +7,7 @@
 int char_is_unsigned_by_default = 1;
 int total_function_stack_size_alignment = 16;
 int long_doubles_are_in_the_stack = 0;
+LongDoubleFormat long_double_format = LD_FORMAT_BINARY128;
 
 char size_to_aarch64_integer_register_size(int size) {
     switch (size) {

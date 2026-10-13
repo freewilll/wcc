@@ -628,8 +628,6 @@ void test_function_call_argument_conversions() {
 }
 
 
-#ifdef __x86_64__
-
 void test___builtin_nanf() {
     float f = __builtin_nanf("");
     assert_int(0x7fc00000, *(int *) &f, "__builtin_nanf");
@@ -638,8 +636,13 @@ void test___builtin_nanf() {
     assert_long(0x7ff8000000000000, *(long *) &d, "__builtin_nanf converted to double");
 
     long double ld = __builtin_nanf("");
+    #ifdef __x86_64__
     assert_long(0xc000000000000000, ((long * ) &ld)[0], "__builtin_nanf converted to long double 1");
     assert_int(0x7fff,              ((short *) &ld)[4], "__builtin_nanf converted to long double 2");
+    #else
+    assert_long(0x0000000000000000, ((long *) &ld)[0], "__builtin_nanf converted to long double 1");
+    assert_long(0x7fff800000000000, ((long *) &ld)[1], "__builtin_nanf converted to long double 2");
+    #endif
 }
 
 void test___builtin_inff() {
@@ -650,11 +653,14 @@ void test___builtin_inff() {
     assert_long(0x7ff0000000000000, *(long *) &d, "__builtin_inff converted to double");
 
     long double ld = __builtin_inff();
+    #ifdef __x86_64__
     assert_long(0x8000000000000000, ((long *)  &ld)[0], "__builtin_inff converted to long double 1");
     assert_int(0x7fff,              ((short *) &ld)[4], "__builtin_inff converted to long double 2");
+    #else
+    assert_long(0x0000000000000000, ((long *) &ld)[0], "__builtin_nanf converted to long double 1");
+    assert_long(0x7fff000000000000, ((long *) &ld)[1], "__builtin_nanf converted to long double 2");
+    #endif
 }
-
-#endif
 
 int main(int argc, char **argv) {
     passes = 0;
@@ -677,10 +683,8 @@ int main(int argc, char **argv) {
     test_int_long_double_type_changes();
     test_long_double_type_int_changes();
     test_function_call_argument_conversions();
-    #ifdef __x86_64__
     test___builtin_nanf();
     test___builtin_inff();
-    #endif
 
     finalize();
 }

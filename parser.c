@@ -2642,8 +2642,19 @@ static void parse____builtin_nanf(void) {
     cv->is_constant = 1;
 
     long double ld;
-    ((long *)&ld)[0] = (1ULL << 63) | (1ULL << 62);
-    ((short *)&ld)[4] = 0x7fff;
+
+    if (long_double_format == LD_FORMAT_BINARY128) {
+        ((long *) &ld)[0] = 0;
+        ((long *) &ld)[1] = 0x7fff800000000000;
+    }
+    else if (long_double_format == LD_FORMAT_X87_EXTENDED80) {
+        ((long *)  &ld)[0] = (1ULL << 63) | (1ULL << 62);
+        ((short *) &ld)[4] = 0x7fff;
+    }
+    else {
+        panic("Unknown long double format %d", long_double_format);
+    }
+
     cv->fp_value = ld;
 
     push(cv);
@@ -2660,8 +2671,19 @@ static void parse___builtin_inff(void) {
     cv->is_constant = 1;
 
     long double ld;
-    ((long *)&ld)[0] = 1ULL << 63;
-    ((short *)&ld)[4] = 0x7fff;
+
+    if (long_double_format == LD_FORMAT_BINARY128) {
+        ((long *) &ld)[0] = 0;
+        ((long *) &ld)[1] = 0x7fff000000000000;
+    }
+    else if (long_double_format == LD_FORMAT_X87_EXTENDED80) {
+        ((long *)  &ld)[0] = 1ULL << 63;
+        ((short *) &ld)[4] = 0x7fff;
+    }
+    else {
+        panic("Unknown long double format %d", long_double_format);
+    }
+
     cv->fp_value = ld;
 
     push(cv);
