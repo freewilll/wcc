@@ -455,6 +455,11 @@ static void add_pointer_sub_rules(void) {
     r = add_sub_rule(XRP, XRP, RI4); fin_rule(r);
     r = add_sub_rule(XRP, XRP, RU4); fin_rule(r);
 
+    r = add_sub_rule(RP5, RP5, RI3); fin_rule(r);
+    r = add_sub_rule(RP5, RP5, RU3); fin_rule(r);
+    r = add_sub_rule(RP5, RP5, RI4); fin_rule(r);
+    r = add_sub_rule(RP5, RP5, RU4); fin_rule(r);
+
     add_sub_rule(XRP, XRP, CADDSUB);
 
     // Pointer - pointer subtraction
@@ -676,10 +681,14 @@ static void add_pointer_rules() {
 
     // Register -> Memory rules
     r = add_rule(MSPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
+    r = add_rule(MSPV, IR_MOVE, XRI, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
+    r = add_rule(MSPV, IR_MOVE, XRU, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
     r = add_rule(MSPV, IR_MOVE, RP5, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
-    r = add_rule(MGPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
-    r = add_rule(MGPV, IR_MOVE, RP5, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
     r = add_rule(MSPF, IR_MOVE, RPF, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
+    r = add_rule(MGPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
+    r = add_rule(MGPV, IR_MOVE, XRI, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
+    r = add_rule(MGPV, IR_MOVE, XRU, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
+    r = add_rule(MGPV, IR_MOVE, RP5, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
     r = add_rule(MGPF, IR_MOVE, RPF, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]");
 
     add_indirect_rules();
@@ -727,6 +736,7 @@ static void add_pointer_rules() {
     add_load_global_address_rule(RP3, MGSA, IR_ADDRESS_OF);
     add_load_global_address_rule(RP4, MGSA, IR_ADDRESS_OF);
     add_load_global_address_rule(RP5, MGSA, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP5, MGO5, IR_ADDRESS_OF);
 
     add_load_global_address_rule(RPF, FUN,  IR_ADDRESS_OF); // Address of a pointer to a function
     add_load_global_address_rule(RPF, FUN,  IR_MOVE);       // Address of a function

@@ -257,8 +257,6 @@ void test_arrays() {
     assert_long_double(1.2f, ld[1], "Local long double array assignment and lookup 1");
 }
 
-#ifdef __x86_64__
-
 void test_pointers() {
     long double ld, *pld;
     char *buffer = malloc(100);
@@ -366,8 +364,6 @@ void test_pointer_casting() {
     *((long *) &s1->ld);
     *((long *) &s1->ld + 1);
 }
-
-#endif
 
 void test_structs() {
     struct s1 *s1 = malloc(sizeof(struct s1));
@@ -672,11 +668,9 @@ int main(int argc, char **argv) {
     test_comparison_conditional_jump();
     test_jz_jnz();
     test_arrays();
-    #ifdef __x86_64__
     test_pointers();
     test_pointer_arithmetic();
     test_pointer_casting();
-    #endif
     test_structs();
     test_constant_operations();
     test_inc_dec();
