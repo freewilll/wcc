@@ -982,8 +982,6 @@ void test_arrays() {
     assert_double(1.4f, d[1], "Local double array assignment and lookup 1");
 }
 
-#ifdef __x86_64__
-
 void test_pointers() {
     float f, *pf;
     double d, *pd;
@@ -1009,6 +1007,7 @@ void test_pointers() {
     assert_double(3.1f, *pd,     "Local -> local double deref");
     assert_double(4.1f, *pd + 1, "Local -> local double deref + 1");
 
+    #ifdef __x86_64__
     // Local pointer to global
     pf = &gf; pd = &gd;
     assert_float (2.1, *pf, "Local -> global float deref");
@@ -1093,16 +1092,17 @@ void test_pointers() {
     gpf = 0ul;
     gpd = 0;
     gpd = 0ul;
+    #endif
 }
-
-#endif
 
 // The following code is the fast inverse square root implementation from Quake III Arena,
 // stripped of C preprocessor directives, but including the exact original comment text
 // See https://en.wikipedia.org/wiki/Fast_inverse_square_root
 float Q_rsqrt( float number )
 {
-    long i;
+    // In the original code, i was a long, which was 32-bit. This was changed to an int
+    // to work on 64-bit machines
+    int i;
     float x2, y;
     float threehalfs = 1.5F;
 
@@ -1255,9 +1255,7 @@ int main(int argc, char **argv) {
     test_comparison_conditional_jump();
     test_jz_jnz();
     test_arrays();
-    #ifdef __x86_64__
     test_pointers();
-    #endif
     test_test_carmacks_inverse_square_root();
     test_pointer_arithmetic();
     test_pointer_casting();
