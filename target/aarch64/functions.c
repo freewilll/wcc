@@ -466,6 +466,8 @@ static Tac *add_function_va_arg_scalar_read(Function *function, Tac *ir, Type *t
     // Add the done label
     ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
     ir->label = ldone->label;
+
+    return ir;
 }
 
 // Read an HFA struct/union from the HFA area into dst.
