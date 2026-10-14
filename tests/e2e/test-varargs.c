@@ -570,11 +570,9 @@ void big_struct(int i, ...) {
     va_list ap;
     va_start(ap, i);
     struct ld3 ld3 = va_arg(ap, struct ld3);
-    #ifdef __x86__64__
     assert_int(1.1, ld3.ld1, "Big struct 1");
     assert_int(1.2, ld3.ld2, "Big struct 2");
     assert_int(1.3, ld3.ld3, "Big struct 3");
-    #endif
 }
 
 int test_big_struct() {
