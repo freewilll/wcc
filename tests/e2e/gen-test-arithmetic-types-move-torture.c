@@ -41,6 +41,8 @@ char *get_outcome(int dst, int src) {
 int skip(int dst, int src) {
     if (is_ptr[dst] && is_float[src]) return 1;
     if (is_ptr[src] && is_float[dst]) return 1;
+    if (is_signed[src] && !is_signed[dst]) return 1;
+
     return 0;
 }
 
@@ -57,10 +59,10 @@ int main() {
     format_str = malloc(sizeof(char *) * COUNT * 2);
     asserts = malloc(sizeof(char *) * COUNT * 2);
 
-    types[0]  = "char";           vars[0]  = "c";  is_float[0]  = 0; is_sse[0]  = 0;  format_str[0]  = "%d";  is_signed[0]  = 1; sizes[0]  = 1;   asserts[0]  = "assert_long";
-    types[1]  = "short";          vars[1]  = "s";  is_float[1]  = 0; is_sse[1]  = 0;  format_str[1]  = "%d";  is_signed[1]  = 1; sizes[1]  = 2;   asserts[1]  = "assert_long";
-    types[2]  = "int";            vars[2]  = "i";  is_float[2]  = 0; is_sse[2]  = 0;  format_str[2]  = "%d";  is_signed[2]  = 1; sizes[2]  = 3;   asserts[2]  = "assert_long";
-    types[3]  = "long";           vars[3]  = "l";  is_float[3]  = 0; is_sse[3]  = 0;  format_str[3]  = "%ld"; is_signed[3]  = 1; sizes[3]  = 4;   asserts[3]  = "assert_long";
+    types[0]  = "signed char";    vars[0]  = "sc"; is_float[0]  = 0; is_sse[0]  = 0;  format_str[0]  = "%d";  is_signed[0]  = 1; sizes[0]  = 1;   asserts[0]  = "assert_long";
+    types[1]  = "signed short";   vars[1]  = "ss"; is_float[1]  = 0; is_sse[1]  = 0;  format_str[1]  = "%d";  is_signed[1]  = 1; sizes[1]  = 2;   asserts[1]  = "assert_long";
+    types[2]  = "signed int";     vars[2]  = "si"; is_float[2]  = 0; is_sse[2]  = 0;  format_str[2]  = "%d";  is_signed[2]  = 1; sizes[2]  = 3;   asserts[2]  = "assert_long";
+    types[3]  = "signed long";    vars[3]  = "sl"; is_float[3]  = 0; is_sse[3]  = 0;  format_str[3]  = "%ld"; is_signed[3]  = 1; sizes[3]  = 4;   asserts[3]  = "assert_long";
     types[4]  = "unsigned char";  vars[4]  = "uc"; is_float[4]  = 0; is_sse[4]  = 0;  format_str[4]  = "%d";  is_signed[4]  = 0; sizes[4]  = 1;   asserts[4]  = "assert_long";
     types[5]  = "unsigned short"; vars[5]  = "us"; is_float[5]  = 0; is_sse[5]  = 0;  format_str[5]  = "%d";  is_signed[5]  = 0; sizes[5]  = 2;   asserts[5]  = "assert_long";
     types[6]  = "unsigned int";   vars[6]  = "ui"; is_float[6]  = 0; is_sse[6]  = 0;  format_str[6]  = "%d";  is_signed[6]  = 0; sizes[6]  = 3;   asserts[6]  = "assert_long";
@@ -69,10 +71,10 @@ int main() {
     types[9]  = "double";         vars[9]  = "d";  is_float[9]  = 1; is_sse[9]  = 1;  format_str[9]  = "%f";  is_signed[9]  = 1; sizes[9]  = -1;  asserts[9]  = "assert_double";
     types[10] = "long double";    vars[10] = "ld"; is_float[10] = 1; is_sse[10] = 0;  format_str[10] = "%Lf"; is_signed[10] = 1; sizes[10] = -1;  asserts[10] = "assert_long_double";
 
-    types[11] = "char *";           vars[11] = "pc";  is_float[11]  = 0; is_sse[11]  = 0;  format_str[11]  = "%p"; is_signed[11]  = 0; sizes[11]  = 4;  asserts[11]  = "assert_long";
-    types[12] = "short *";          vars[12] = "ps";  is_float[12]  = 0; is_sse[12]  = 0;  format_str[12]  = "%p"; is_signed[12]  = 0; sizes[12]  = 4;  asserts[12]  = "assert_long";
-    types[13] = "int *";            vars[13] = "pi";  is_float[13]  = 0; is_sse[13]  = 0;  format_str[13]  = "%p"; is_signed[13]  = 0; sizes[13]  = 4;  asserts[13]  = "assert_long";
-    types[14] = "long *";           vars[14] = "pl";  is_float[14]  = 0; is_sse[14]  = 0;  format_str[14]  = "%p"; is_signed[14]  = 0; sizes[14]  = 4;  asserts[14]  = "assert_long";
+    types[11] = "signed char *";    vars[11] = "psc"; is_float[11]  = 0; is_sse[11]  = 0;  format_str[11]  = "%p"; is_signed[11]  = 0; sizes[11]  = 4;  asserts[11]  = "assert_long";
+    types[12] = "signed short *";   vars[12] = "pss"; is_float[12]  = 0; is_sse[12]  = 0;  format_str[12]  = "%p"; is_signed[12]  = 0; sizes[12]  = 4;  asserts[12]  = "assert_long";
+    types[13] = "signed int *";     vars[13] = "psi"; is_float[13]  = 0; is_sse[13]  = 0;  format_str[13]  = "%p"; is_signed[13]  = 0; sizes[13]  = 4;  asserts[13]  = "assert_long";
+    types[14] = "signed long *";    vars[14] = "psl"; is_float[14]  = 0; is_sse[14]  = 0;  format_str[14]  = "%p"; is_signed[14]  = 0; sizes[14]  = 4;  asserts[14]  = "assert_long";
     types[15] = "unsigned char *";  vars[15] = "puc"; is_float[15]  = 0; is_sse[15]  = 0;  format_str[15]  = "%p"; is_signed[15]  = 0; sizes[15]  = 4;  asserts[15]  = "assert_long";
     types[16] = "unsigned short *"; vars[16] = "pus"; is_float[16]  = 0; is_sse[16]  = 0;  format_str[16]  = "%p"; is_signed[16]  = 0; sizes[16]  = 4;  asserts[16]  = "assert_long";
     types[17] = "unsigned int *";   vars[17] = "pui"; is_float[17]  = 0; is_sse[17]  = 0;  format_str[17]  = "%p"; is_signed[17]  = 0; sizes[17]  = 4;  asserts[17]  = "assert_long";
