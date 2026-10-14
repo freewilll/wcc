@@ -626,7 +626,7 @@ static void add_global_memory_into_register_rule(int dst, int src1, char *templa
 }
 
 static void add_pointer_move_rule(int dst, int src1, int operation) {
-    Rule *r = add_rule(dst,  IR_MOVE, src1, 0, 1);
+    Rule *r = add_rule(dst, IR_MOVE, src1, 0, 1);
     add_op(r, AARCH64_OP_MOV,  DST, SRC1, operation, "mov %vdx, %v1x");
 }
 
@@ -660,7 +660,11 @@ static void add_indirect_rules(void) {
     r = add_rule(RO5, IR_INDIRECT, RP5, 0, 2); add_op(r, AARCH64_OP_LDR, DST, SRC1, 0, "ldr %vdQ, [%v1x]");
 
     // Pointer to pointer
-    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RP1 + dst, RP4, 1);
+    for (int i = 0; i < 4; i++) {
+        add_int_indirect_rule(RP1 + i, RP4, 1);
+        add_int_indirect_rule(RU4, RP1 + i, 1);
+    }
+
     add_int_indirect_rule(RP5, RP4, 1);
     add_int_indirect_rule(RPF, RP4, 1);
 }

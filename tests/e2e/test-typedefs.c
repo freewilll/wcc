@@ -25,8 +25,6 @@ static int process_anonymous_struct(args_t args) {
 
 void *function_returning_void() {}
 
-#ifdef __x86_64__
-
 static void test_typedef_functions() {
     altint i;
     i = 1;
@@ -58,8 +56,6 @@ static void test_typedef_functions() {
     f_t f = function_returning_void;
     f();
 }
-
-#endif
 
 static void test_arrays_of_typedefs() {
     altint ia2[3];
@@ -221,9 +217,7 @@ static void test_typedef_of_function_returning_int() {
 int main(int argc, char **argv) {
     parse_args(argc, argv);
 
-    #ifdef __x86_64__
     test_typedef_functions();
-    #endif
     test_arrays_of_typedefs();
     test_typedef_scopes();
     test_typedef_combinations();
