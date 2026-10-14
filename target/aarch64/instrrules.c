@@ -450,15 +450,21 @@ static void add_pointer_sub_rules(void) {
         add_sub_rule(i, i, XRI);
         add_sub_rule(i, i, XRU);
     }
+
+    r = add_sub_rule(XRP, XRP, RI1); fin_rule(r);
+    r = add_sub_rule(XRP, XRP, RU1); fin_rule(r);
+    r = add_sub_rule(XRP, XRP, RI2); fin_rule(r);
+    r = add_sub_rule(XRP, XRP, RU2); fin_rule(r);
     r = add_sub_rule(XRP, XRP, RI3); fin_rule(r);
     r = add_sub_rule(XRP, XRP, RU3); fin_rule(r);
     r = add_sub_rule(XRP, XRP, RI4); fin_rule(r);
     r = add_sub_rule(XRP, XRP, RU4); fin_rule(r);
-
     r = add_sub_rule(RP5, RP5, RI3); fin_rule(r);
     r = add_sub_rule(RP5, RP5, RU3); fin_rule(r);
     r = add_sub_rule(RP5, RP5, RI4); fin_rule(r);
     r = add_sub_rule(RP5, RP5, RU4); fin_rule(r);
+    r = add_sub_rule(RI4, XRP, RI4); fin_rule(r);
+    r = add_sub_rule(RI4, XRP, RU4); fin_rule(r);
 
     add_sub_rule(XRP, XRP, CADDSUB);
 
