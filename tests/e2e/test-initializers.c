@@ -1347,9 +1347,7 @@ void test_global_initialization() {
 
     assert_float(1.1, gf, "Global float initialization");
     assert_float(1.2, gd, "Global double initialization");
-    #ifdef __x86_64__
     assert_float(1.3, gld, "Global long double initialization");
-    #endif
 
     assert_int(0,   gpv1,       "Global pointer to void 1a");
     assert_int(0,   gpv2,       "Global pointer to void 1b");

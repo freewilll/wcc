@@ -238,8 +238,8 @@ void output_defined_object_symbol(Symbol *symbol) {
                 // Long double
                 fprintf(output_file, "    .%s  %d\n", data_keywords[3], (((int *) in->data))[0]);
                 fprintf(output_file, "    .%s  %d\n", data_keywords[3], (((int *) in->data))[1]);
-                fprintf(output_file, "    .%s  %d\n", data_keywords[3], (((int *) in->data))[2] & 0xffff);
-                fprintf(output_file, "    .%s  0\n",  data_keywords[3]);
+                fprintf(output_file, "    .%s  %d\n", data_keywords[3], (((int *) in->data))[2]);
+                fprintf(output_file, "    .%s  %d\n", data_keywords[3], (((int *) in->data))[3]);
             }
             else panic("Unknown initializer size=%d data=%p\n", in->size, in->data);
             size -= in->size;
