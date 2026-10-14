@@ -51,12 +51,10 @@ void test_constant_assignment() {
     double d2 = 3.0f;           assert_double(3.0, d2, "double constant assignment from float");
     double d3 = 3.0;            assert_double(3.0, d3, "double constant assignment from double");
     double d4 = 3.0l;           assert_double(3.0, d4, "double constant assignment from LD");
-    #ifdef __x86_64__
     long double ld1 = 4;        assert_ld_string(ld1, "4.00000", "constant assignment int    -> ld");
     long double ld2 = 4.0f;     assert_ld_string(ld2, "4.00000", "constant assignment float  -> ld");
     long double ld3 = 4.0;      assert_ld_string(ld3, "4.00000", "constant assignment double -> ld");
     long double ld4 = 4.0l;     assert_ld_string(ld4, "4.00000", "constant assignment ld     -> ld");
-    #endif
 }
 
 void test_assignment() {
@@ -464,25 +462,19 @@ void test_constants_in_function_calls() {
     assert_int        (1,    1,    "int    -> int");
     assert_int        (2,    2.0f, "float  -> int");
     assert_int        (3,    3.0,  "double -> int");
-    #ifdef __x86_64__
     assert_int        (4,    4.0l, "ld     -> int");
-    #endif
     assert_float      (1.0f, 1,    "int    -> float");
     assert_float      (2.0f, 2.0f, "float  -> float");
     assert_float      (3.0f, 3.0,  "double -> float");
-    #ifdef __x86_64__
     assert_float      (4.0f, 4.0l, "ld     -> float");
-    #endif
     assert_double     (1.0,  1,    "int    -> double");
     assert_double     (2.0,  2.0f, "float  -> double");
     assert_double     (3.0,  3.0,  "double -> double");
-    #ifdef __x86_64__
     assert_double     (4.0,  4.0l, "ld     -> double");
     assert_long_double(1.0l, 1,    "int    -> long double");
     assert_long_double(2.0l, 2.0f, "float  -> long double");
     assert_long_double(3.0l, 3.0,  "double -> long double");
     assert_long_double(4.0l, 4.0l, "ld     -> long double");
-    #endif
 }
 
 void test_constant_arithmetic_combinations() {
@@ -490,26 +482,19 @@ void test_constant_arithmetic_combinations() {
     assert_int        (2,   1    + 1,    "1    + 1,  ");
     assert_float      (2.1, 1    + 1.1f, "1    + 1.1f");
     assert_float      (2.1, 1    + 1.1,  "1    + 1.1,");
-    #ifdef __x86_64__
     assert_long_double(2.1, 1    + 1.1l, "1    + 1.1l");
-    #endif
     assert_float      (2.1, 1.1f + 1,    "1.1f + 1   ");
     assert_float      (2.2, 1.1f + 1.1f, "1.1f + 1.1f");
     assert_float      (2.2, 1.1f + 1.1,  "1.1f + 1.1,");
-    #ifdef __x86_64__
     assert_long_double(2.2, 1.1f + 1.1l, "1.1f + 1.1l");
-    #endif
     assert_float      (2.1, 1.1  + 1,    "1.1  + 1   ");
     assert_float      (2.2, 1.1  + 1.1f, "1.1  + 1.1f");
     assert_float      (2.2, 1.1  + 1.1,  "1.1  + 1.1,");
-    #ifdef __x86_64__
     assert_long_double(2.2, 1.1  + 1.1l, "1.1  + 1.1l");
     assert_long_double(2.1, 1.1l + 1,    "1.1l + 1   ");
     assert_long_double(2.2, 1.1l + 1.1f, "1.1l + 1.1f");
     assert_long_double(2.2, 1.1l + 1.1,  "1.1l + 1.1,");
     assert_long_double(2.2, 1.1l + 1.1l, "1.1l + 1.1l");
-    #endif
-
 }
 
 void test_constant_relops() {
@@ -578,7 +563,6 @@ void test_constant_relops() {
     assert_int(1, 1.0f >= 1.0, "1.0f >= 1.0");
 
     // Float vs long double
-    #ifdef __x86_64__
     assert_int(1, 1.0f == 1.0L, "1.0f == 1.0L");
     assert_int(0, 1.0f != 1.0L, "1.0f != 1.0L");
     assert_int(1, 1.0f <  2.0L, "1.0f <  2.0L");
@@ -593,10 +577,7 @@ void test_constant_relops() {
     assert_int(1, 1.0f <= 1.0L, "1.0f <= 1.0L");
     assert_int(1, 1.0f >= 1.0L, "1.0f >= 1.0L");
     assert_int(1, 1.0f >= 1.0L, "1.0f >= 1.0L");
-    #endif
 }
-
-#ifdef __x86_64__
 
 long double test_arithmetic_cocktail1(int i, float f, double d, long double ld) {
     return i * 1000 + f * 100 + d * 10 + ld;
@@ -605,8 +586,6 @@ long double test_arithmetic_cocktail1(int i, float f, double d, long double ld) 
 long double test_arithmetic_cocktail2(int i, float f, double d, long double ld) {
     return i + f * 10 + d * 100 + ld * 1000;
 }
-
-#endif
 
 void test_arithmetic() {
     // These tests are complimented by the arithmetic torture tests
@@ -657,15 +636,11 @@ void test_arithmetic() {
     f3 = 3.0L;
     assert_float(1199.072144, -f1 * (f2 + f3) * (f1 + f2) * (f2 - f1) / f3, "Float combination");
 
-    #ifdef __x86_64__
     assert_long_double(4.6l, 1 + 1.1f + 1.2 + 1.3l, "constant int + float + double + long double");
-    #endif
     assert_double     (3.3,  1 + 1.1f + 1.2,        "constant int + float + double");
 
-    #ifdef __x86_64__
     assert_long_double(1234.0, test_arithmetic_cocktail1(1, 2, 3, 4), "Arithmetic cocktail 1");
     assert_long_double(4321.0, test_arithmetic_cocktail2(1, 2, 3, 4), "Arithmetic cocktail 2");
-    #endif
 }
 
 void test_comparison_assignment() {
@@ -867,9 +842,7 @@ void test_comparison_assignment() {
     // Combinations of types
     i = 1; f1 = 2.0; assert_int(1, i < f1, "i < f1");
     f1 = 1; d1 = 2.0; assert_int(1, f1 < d1, "f1 < d1");
-    #ifdef __x86_64__#endif
-    // d1 = 1; ld = 2.0; assert_int(1, d1 < ld, "d1 < ld");
-    #endif
+    d1 = 1; ld = 2.0; assert_int(1, d1 < ld, "d1 < ld");
 }
 
 void test_comparison_conditional_jump() {
@@ -1007,7 +980,6 @@ void test_pointers() {
     assert_double(3.1f, *pd,     "Local -> local double deref");
     assert_double(4.1f, *pd + 1, "Local -> local double deref + 1");
 
-    #ifdef __x86_64__
     // Local pointer to global
     pf = &gf; pd = &gd;
     assert_float (2.1, *pf, "Local -> global float deref");
@@ -1092,7 +1064,6 @@ void test_pointers() {
     gpf = 0ul;
     gpd = 0;
     gpd = 0ul;
-    #endif
 }
 
 // The following code is the fast inverse square root implementation from Quake III Arena,
@@ -1223,10 +1194,8 @@ void test_division_by_zero() {
     double d = 1.0 / 0.0;
     assert_float(INFINITY, d, "Double division by zero");
 
-    #ifdef _x86_64__
     long double ld = 1.0L / 0.0;
     assert_float(INFINITY, ld, "Long double division by zero");
-    #endif
 }
 
 int main(int argc, char **argv) {
@@ -1262,9 +1231,7 @@ int main(int argc, char **argv) {
     test_structs();
     test_inc_dec();
     test_stack_smashing_bug();
-    #ifdef __x86_64__
     test_division_by_zero();
-    #endif
 
     finalize();
 }

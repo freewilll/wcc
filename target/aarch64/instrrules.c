@@ -736,6 +736,8 @@ static void add_pointer_rules() {
     add_load_global_address_rule(RP3, MGSA, IR_ADDRESS_OF);
     add_load_global_address_rule(RP4, MGSA, IR_ADDRESS_OF);
     add_load_global_address_rule(RP5, MGSA, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP3, MGO3, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP4, MGO4, IR_ADDRESS_OF);
     add_load_global_address_rule(RP5, MGO5, IR_ADDRESS_OF);
 
     add_load_global_address_rule(RPF, FUN,  IR_ADDRESS_OF); // Address of a pointer to a function
