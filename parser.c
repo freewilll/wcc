@@ -274,12 +274,10 @@ Value *make_string_literal_value_from_cur_string_literal(void) {
 
     value->type = make_array(new_type(cur_string_literal.is_wide_char ? TYPE_INT : TYPE_CHAR), cur_string_literal.size);
 
-    // If __CHAR_UNSIGNED__ is set, then the char type defaults to being unsigned.
-    #ifdef __CHAR_UNSIGNED__
-    value->type->target->is_unsigned = 1;
-    #else
-    value->type->target->is_unsigned = 0;
-    #endif
+    if (char_is_unsigned_by_default)
+        value->type->target->is_unsigned = 1;
+    else
+        value->type->target->is_unsigned = 0;
 
     value->string_literal_index = string_literal_count;
     value->is_string_literal = 1;
