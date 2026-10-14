@@ -462,8 +462,6 @@ void accept_f5sfa4f1(float f1, float f2, float f3, float f4, float f5, struct sf
     assert_float(10.1, sfa4.f[3], "accept_f5sfa4f1 10");
 }
 
-#ifdef __x86_64__
-
 void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2) {
     assert_int(1, i1, "accept_i7sld2 1");
     assert_int(2, i2, "accept_i7sld2 2");
@@ -475,8 +473,6 @@ void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struc
     assert_long_double(8.1, sld2.ld1, "accept_i7sld2 8");
     assert_long_double(9.1, sld2.ld2, "accept_i7sld2 9");
 }
-
-#endif
 
 void accept_sda2_2(struct sda2 sda21, struct sda2 sda22) {
     assert_double(1.1, sda21.d[0], "accept_sda2_2 1");
@@ -631,8 +627,6 @@ void accept_array(int a[4]) {
     assert_int(4, a[3], "Accept array 4");
 }
 
-#ifdef __x86_64__
-
 int linked_object;
 
 static int unlinked_object;
@@ -658,8 +652,6 @@ int extern_renamed_func(int i) {
 }
 
 extern int extern_func(int i) { return i + 1; }
-
-#endif
 
 void test_bitfield_struct_fields(struct bfs *bfs) {
     assert_int(1,  bfs->i1, "Test bfs 1");

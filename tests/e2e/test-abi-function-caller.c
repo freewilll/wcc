@@ -84,12 +84,8 @@ void test_struct_params() {
 
     struct sc3f sc3f = {1, 2, 3, 4.1}; accept_sc3f(sc3f);
 
-    #ifdef __x86_64__
-
     // From lvalue in register
     accept_sc9(*&sc9);
-
-    #endif
 
     // Local in stack
     test_struct_in_stack_with_zero_offset();
@@ -102,13 +98,9 @@ void test_struct_params() {
 
     gsi9.i1 = 1; gsi9.i2 = 2; gsi9.i3 = 3; gsi9.i4 = 4; gsi9.i5 = 5; gsi9.i6 = 6; gsi9.i7 = 7; gsi9.i8 = 8; gsi9.i9 = 9; accept_si9(gsi9);
 
-    #ifdef __x86_64__
-
     // From lvalue in register
     accept_si5(*&gsi5); // <= 32 bytes, done with registers
     accept_si9(*&gsi9); // > 32 bytes, done with memcpy
-
-    #endif
 
     // Forcing of si4 onto the stack due to partial register exhaustion
     struct si4 si4; si4.i1 = 6; si4.i2 = 7; si4.i3 = 8; si4.i4 = 9;
@@ -147,12 +139,8 @@ void test_struct_params() {
     sfa4.f[0] = 7.1; sfa4.f[1] = 8.1; sfa4.f[2] = 9.1; sfa4.f[3] = 10.1;
     accept_f5sfa4f1(1.1, 2.1, 3.1, 4.1, 5.1, sfa4, 6.1);
 
-    #ifdef __x86_64__
-
     // Alignment 16 struct with 8 bytes on the stack underneath it
     struct sld2 sld2; sld2.ld1 = 8.1; sld2.ld2 = 9.1; accept_i7sld2(1, 2, 3, 4, 5, 6, 7, sld2);
-
-    #endif
 
     struct slda4 slda4;
     slda4.ld[0] = 6.1; slda4.ld[1] = 7.1; slda4.ld[2] = 8.1; slda4.ld[3] = 9.1;
@@ -312,8 +300,6 @@ void test_arrays() {
     accept_array(a);
 }
 
-#ifdef __x86_64__
-
 extern int linked_object;
 static int unlinked_object;
 static int initialized_unlinked_object = 1;
@@ -381,8 +367,6 @@ void test_extern_func() {
     assert_int(2, extern_func(1), "calling extern func in another translation unit");
 }
 
-#endif
-
 void test_bit_fields() {
     struct bfs bfs = { 1, 2, 3, 4, 5, 6, 7, 8 };
     test_bitfield_struct_fields(&bfs);
@@ -415,12 +399,10 @@ int main(int argc, char **argv) {
     test_struct_params();
     test_struct_return_values();
     test_arrays();
-    #ifdef __x86_64__
     test_global_object_linkage();
     test_block_extern_object_linkage();
     test_extern_renamed_func();
     test_extern_func();
-    #endif
     test_bit_fields();
     test_int128();
     test_int128_return();

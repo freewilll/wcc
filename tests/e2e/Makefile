@@ -53,6 +53,7 @@ WCC_TESTS=\
 	loops \
 	enums \
 	regressions \
+	arithmetic-torture \
 	ifdef \
 	long-doubles \
 	floats-and-doubles \
