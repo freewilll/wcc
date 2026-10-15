@@ -386,8 +386,8 @@ static void add_int_mod_rules(void) {
         int base = is_signed ? RI1 : RU1;
         for (int i = 0; i < 4; i++) {
             char *div_template = is_signed
-                ? add_size_to_template("sdiv %vdw, %v1, %v2", i + 1)
-                : add_size_to_template("udiv %vdw, %v1, %v2", i + 1);
+                ? add_size_to_template("sdiv %vd, %v1, %v2", i + 1)
+                : add_size_to_template("udiv %vd, %v1, %v2", i + 1);
 
             Rule *r = add_rule(base + i, IR_MOD, base + i, base + i, 50);
             add_allocate_register_in_slot(r, 1, TYPE_CHAR + i);

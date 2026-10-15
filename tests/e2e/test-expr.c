@@ -428,6 +428,13 @@ void test_mixed_sign_operations() {
     assert_int(0,   i <= ui,  "mixed signs <=");
 }
 
+void test_different_sized_modulos() {
+    char c1  = 10; char c2  = 3; assert_uchar(1, c1 % c2, "char 10 % 3");
+    short s1 = 10; short s2 = 3; assert_short(1, s1 % s2, "short 10 % 3");
+    int i1   = 10; int i2   = 3; assert_int(  1, i1 % i2, "int 10 % 3");
+    long l1  = 10; long l2  = 3; assert_long( 1, l1 % l2, "long 10 % 3");
+}
+
 void test_local_comma_var_declarations() {
     int i, *pi;
     i = 1;
@@ -2032,6 +2039,7 @@ int main(int argc, char **argv) {
     test_int_expr();
     test_uint_expr();
     test_mixed_sign_operations();
+    test_different_sized_modulos();
     test_local_comma_var_declarations();
     test_global_comma_var_declarations();
     test_double_assign();
