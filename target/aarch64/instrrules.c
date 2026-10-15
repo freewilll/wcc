@@ -192,67 +192,68 @@ static TargetOperation *add_convert_move_op(Rule *r, int operation, int dst, int
     return op;
 }
 
-static void add_int_register_move_rules(void) {
+static void add_int_register_move_rule(int dst, int src) {
     Rule *r;
 
-    for (int dst = RI1; dst <= RU4; dst++) {
-        for (int src = RI1; src <= RU4; src++) {
-            int src_size = make_target_size_from_non_terminal(src);
-            int dst_size = make_target_size_from_non_terminal(dst);
+    int src_size = make_target_size_from_non_terminal(src);
+    int dst_size = make_target_size_from_non_terminal(dst);
 
-            // If the size is staying the same or going down, then a straight move will do.
-            // The upper bits may contain garbage, but that's ok.
-            if (dst_size <= src_size) {
-                int size = src_size >= dst_size ? src_size : dst_size;
-                char *template = size < 4 ? "mov %vdw, %v1w" : "mov %vdx, %v1x";
-                r = add_rule(dst,  IR_MOVE, src, 0, 1);
-                add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, template);
-                continue;
-            }
-
-            // Implicit else: dst_size > src_size
-            int src_is_unsigned = src >= RU1;
-            int dst_is_32_bit = dst_size < 4;
-
-            // If both arguments are signed, then the move must be sign extended
-            if (!src_is_unsigned) {
-                if (src_size == 1) {
-                    r = add_rule(dst, IR_MOVE, src, 0, 1);
-                    add_convert_move_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, dst_is_32_bit ? "sxtb %vdw, %v1w" : "sxtb %vdx, %v1w");
-                }
-                else if (src_size == 2) {
-                    r = add_rule(dst, IR_MOVE, src, 0, 1);
-                    add_convert_move_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, dst_is_32_bit ? "sxth %vdw, %v1w" : "sxth %vdx, %v1w");
-                }
-                else if (src_size == 3) {
-                    r = add_rule(dst, IR_MOVE, src, 0, 1);
-                    add_convert_move_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, dst_is_32_bit ? "sxtw %vdw, %v1w" : "sxtw %vdx, %v1w");
-
-                }
-                else if (src_size == 4)
-                    panic("Bug in add_int_register_move_rules()");
-            }
-
-            // Truncate the destination to the src size
-            else {
-                if (src_size == 1) {
-                    r = add_rule(dst, IR_MOVE, src, 0, 1);
-                    add_convert_move_op(r, AARCH64_OP_BAND,  DST, SRC1, 0, dst_is_32_bit ? "and %vdw, %v1w, 255" : "and %vdx, %v1x, 255");
-                }
-                else if (src_size == 2) {
-                    r = add_rule(dst, IR_MOVE, src, 0, 1);
-                    add_convert_move_op(r, AARCH64_OP_BAND,  DST, SRC1, 0, dst_is_32_bit ? "and %vdw, %v1w, 65535" : "and %vdx, %v1x, 65535");
-                }
-                else if (src_size == 3) {
-                    r = add_rule(dst, IR_MOVE, src, 0, 1);
-                    add_convert_move_op(r, AARCH64_OP_BAND,  DST, SRC1, 0, dst_is_32_bit ? "mov %vdw, %v1w" : "mov %vdw, %v1w");
-
-                }
-                else if (src_size == 4)
-                    panic("Bug in add_int_register_move_rules()");
-            }
-        }
+    // If the size is staying the same or going down, then a straight move will do.
+    // The upper bits may contain garbage, but that's ok.
+    if (dst_size <= src_size) {
+        int size = src_size >= dst_size ? src_size : dst_size;
+        char *template = size < 4 ? "mov %vdw, %v1w" : "mov %vdx, %v1x";
+        r = add_rule(dst,  IR_MOVE, src, 0, 1);
+        add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, template);
+        return;
     }
+
+    // Implicit else: dst_size > src_size
+    int src_is_unsigned = src >= RU1;
+    int dst_is_32_bit = dst_size < 4;
+
+    // If both arguments are signed, then the move must be sign extended
+    if (!src_is_unsigned) {
+        if (src_size == 1) {
+            r = add_rule(dst, IR_MOVE, src, 0, 1);
+            add_convert_move_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, dst_is_32_bit ? "sxtb %vdw, %v1w" : "sxtb %vdx, %v1w");
+        }
+        else if (src_size == 2) {
+            r = add_rule(dst, IR_MOVE, src, 0, 1);
+            add_convert_move_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, dst_is_32_bit ? "sxth %vdw, %v1w" : "sxth %vdx, %v1w");
+        }
+        else if (src_size == 3) {
+            r = add_rule(dst, IR_MOVE, src, 0, 1);
+            add_convert_move_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, dst_is_32_bit ? "sxtw %vdw, %v1w" : "sxtw %vdx, %v1w");
+
+        }
+        else if (src_size == 4)
+            panic("Bug in add_int_register_move_rules()");
+    }
+
+    // Truncate the destination to the src size
+    else {
+        if (src_size == 1) {
+            r = add_rule(dst, IR_MOVE, src, 0, 1);
+            add_convert_move_op(r, AARCH64_OP_BAND,  DST, SRC1, 0, dst_is_32_bit ? "and %vdw, %v1w, 255" : "and %vdx, %v1x, 255");
+        }
+        else if (src_size == 2) {
+            r = add_rule(dst, IR_MOVE, src, 0, 1);
+            add_convert_move_op(r, AARCH64_OP_BAND,  DST, SRC1, 0, dst_is_32_bit ? "and %vdw, %v1w, 65535" : "and %vdx, %v1x, 65535");
+        }
+        else if (src_size == 3) {
+            r = add_rule(dst, IR_MOVE, src, 0, 1);
+            add_convert_move_op(r, AARCH64_OP_BAND,  DST, SRC1, 0, dst_is_32_bit ? "mov %vdw, %v1w" : "mov %vdw, %v1w");
+
+        }
+        else if (src_size == 4)
+            panic("Bug in add_int_register_move_rules()");
+    }
+}
+
+static void add_int_register_move_rules(void) {
+    for (int dst = RI1; dst <= RU4; dst++)
+        for (int src = RI1; src <= RU4; src++) add_int_register_move_rule(dst, src);
 }
 
 // In practice, these rules deal with assignment of constants to memory.
@@ -680,8 +681,18 @@ static void add_pointer_rules() {
     for (int dst = RP1; dst <= RP5; dst++) for (int src = RP1; src <= RP5; src++) add_pointer_move_rule(dst, src, 0);
     for (int dst = RI1; dst <= RI4; dst++) for (int src = RP1; src <= RP5; src++) add_pointer_move_rule(dst, src, 0);
     for (int dst = RU1; dst <= RU4; dst++) for (int src = RP1; src <= RP5; src++) add_pointer_move_rule(dst, src, 0);
-    for (int dst = RP1; dst <= RP5; dst++) for (int src = RI1; src <= RI4; src++) add_pointer_move_rule(dst, src, 0);
-    for (int dst = RP1; dst <= RP5; dst++) for (int src = RU1; src <= RU4; src++) add_pointer_move_rule(dst, src, 0);
+
+    // Some of these need sign extension or truncation
+    for (int dst = RP1; dst <= RP5; dst++) {
+        add_int_register_move_rule(dst, RI1);
+        add_int_register_move_rule(dst, RI2);
+        add_int_register_move_rule(dst, RI3);
+        add_int_register_move_rule(dst, RI4);
+        add_int_register_move_rule(dst, RU1);
+        add_int_register_move_rule(dst, RU2);
+        add_int_register_move_rule(dst, RU3);
+        add_int_register_move_rule(dst, RU4);
+    }
 
     // Memory -> register rules
     add_stack_memory_into_register_rule (XRP, MSPV, "ldr %vdx, [%v1x]");

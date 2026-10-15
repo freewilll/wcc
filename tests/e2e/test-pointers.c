@@ -123,6 +123,52 @@ void test_pointer_to_char() {
     assert_int('o', *pc, "pointer to char 1"); *pc++;
 }
 
+void test_pointer_assignment_from_const() {
+    signed char  *sc;
+    signed short *ss;
+    signed int   *si;
+    signed long  *sl;
+
+    sc = (signed char)  -1; assert_long(-1, sc, "Pointer to signed char  = (signed char)  -1");
+    sc = (signed short) -2; assert_long(-2, sc, "Pointer to signed char  = (signed short) -2");
+    sc = (signed long)  -3; assert_long(-3, sc, "Pointer to signed char  = (signed long)  -3");
+    sc = (signed int)   -4; assert_long(-4, sc, "Pointer to signed char  = (signed int)   -4");
+    ss = (signed char)  -1; assert_long(-1, ss, "Pointer to signed short = (signed char)  -1");
+    ss = (signed short) -2; assert_long(-2, ss, "Pointer to signed short = (signed short) -2");
+    ss = (signed long)  -3; assert_long(-3, ss, "Pointer to signed short = (signed long)  -3");
+    ss = (signed int)   -4; assert_long(-4, ss, "Pointer to signed short = (signed int)   -4");
+    si = (signed char)  -1; assert_long(-1, si, "Pointer to signed int   = (signed char)  -1");
+    si = (signed short) -2; assert_long(-2, si, "Pointer to signed int   = (signed short) -2");
+    si = (signed long)  -3; assert_long(-3, si, "Pointer to signed int   = (signed long)  -3");
+    si = (signed int)   -4; assert_long(-4, si, "Pointer to signed int   = (signed int)   -4");
+    sl = (signed char)  -1; assert_long(-1, sl, "Pointer to signed long  = (signed char)  -1");
+    sl = (signed short) -2; assert_long(-2, sl, "Pointer to signed long  = (signed short) -2");
+    sl = (signed long)  -3; assert_long(-3, sl, "Pointer to signed long  = (signed long)  -3");
+    sl = (signed int)   -4; assert_long(-4, sl, "Pointer to signed long  = (signed int)   -4");
+
+    unsigned char  *uc;
+    unsigned short *us;
+    unsigned int   *ui;
+    unsigned long  *ul;
+
+    uc = (signed char)  -1; assert_long(-1, uc, "Pointer to unsigned char  = (signed char)  -1");
+    uc = (signed short) -2; assert_long(-2, uc, "Pointer to unsigned char  = (signed short) -2");
+    uc = (signed long)  -3; assert_long(-3, uc, "Pointer to unsigned char  = (signed long)  -3");
+    uc = (signed int)   -4; assert_long(-4, uc, "Pointer to unsigned char  = (signed int)   -4");
+    us = (signed char)  -1; assert_long(-1, us, "Pointer to unsigned short = (signed char)  -1");
+    us = (signed short) -2; assert_long(-2, us, "Pointer to unsigned short = (signed short) -2");
+    us = (signed long)  -3; assert_long(-3, us, "Pointer to unsigned short = (signed long)  -3");
+    us = (signed int)   -4; assert_long(-4, us, "Pointer to unsigned short = (signed int)   -4");
+    ui = (signed char)  -1; assert_long(-1, ui, "Pointer to unsigned int   = (signed char)  -1");
+    ui = (signed short) -2; assert_long(-2, ui, "Pointer to unsigned int   = (signed short) -2");
+    ui = (signed long)  -3; assert_long(-3, ui, "Pointer to unsigned int   = (signed long)  -3");
+    ui = (signed int)   -4; assert_long(-4, ui, "Pointer to unsigned int   = (signed int)   -4");
+    ul = (signed char)  -1; assert_long(-1, ul, "Pointer to unsigned long  = (signed char)  -1");
+    ul = (signed short) -2; assert_long(-2, ul, "Pointer to unsigned long  = (signed short) -2");
+    ul = (signed long)  -3; assert_long(-3, ul, "Pointer to unsigned long  = (signed long)  -3");
+    ul = (signed int)   -4; assert_long(-4, ul, "Pointer to unsigned long  = (signed int)   -4");
+}
+
 int *aopta() {
     return malloc(sizeof(int));
 }
@@ -613,6 +659,7 @@ int main(int argc, char **argv) {
     test_pointer_to_int5();
     test_pointer_to_int6();
     test_pointer_to_char();
+    test_pointer_assignment_from_const();
     test_assignment_of_pointer_to_array();
     test_double_dereference1();
     test_double_dereference2();

@@ -14,34 +14,53 @@ int *is_sse;
 int *is_ptr;
 char **format_str;
 char **asserts;
-char **sized_outcomes;
+char **negative_sized_outcomes;
 
 enum {
     INTS = 8,
     COUNT = 22,
 };
 
-// What is the result of casting src -> dst -> unsigned long
-char *get_outcome(int dst, int src) {
+// What is the result of casting a positive value src -> dst -> unsigned long
+char *get_positive_outcome(int dst, int src) {
+    if (is_float[dst] && is_float[src])
+        return "1.1";
+    else
+        return "1";
+}
+
+// Should a converstion from a positive value be skipped?
+int skip_positive(int dst, int src) {
+    if (is_ptr[dst] && is_float[src]) return 1;
+    if (is_ptr[src] && is_float[dst]) return 1;
+
+    return 0;
+}
+
+// What is the result of casting a negative value src -> dst -> unsigned long
+char *get_negative_outcome(int dst, int src) {
     int src_size, dst_size;
 
     src_size = sizes[src];
     dst_size = sizes[dst];
 
     if (is_float[dst] && !is_float[src] && is_signed[src]) return "-1";
-    if (is_float[dst] && !is_float[src] && !is_signed[src]) return sized_outcomes[src_size - 1];
+    if (is_float[dst] && !is_float[src] && !is_signed[src]) return negative_sized_outcomes[src_size - 1];
     else if (is_float[dst] && is_float[src]) return "-1.1";
-    else if (is_signed[src] && is_signed[dst]) return sized_outcomes[3];
-    else if (!is_signed[src] && is_signed[dst] && src_size >= dst_size) return sized_outcomes[3];
-    else if (is_signed[src] && !is_signed[dst] && src_size <= dst_size) return sized_outcomes[dst_size - 1];
-    else if (dst_size <= src_size) return sized_outcomes[dst_size - 1];
-    else return sized_outcomes[src_size - 1];
+    else if (is_signed[src] && is_signed[dst]) return negative_sized_outcomes[3];
+    else if (!is_signed[src] && is_signed[dst] && src_size >= dst_size) return negative_sized_outcomes[3];
+    else if (is_signed[src] && !is_signed[dst] && src_size <= dst_size) return negative_sized_outcomes[dst_size - 1];
+    else if (dst_size <= src_size) return negative_sized_outcomes[dst_size - 1];
+    else return negative_sized_outcomes[src_size - 1];
 }
 
-int skip(int dst, int src) {
+// Should a converstion from a negative value be skipped?
+int skip_negative(int dst, int src) {
     if (is_ptr[dst] && is_float[src]) return 1;
     if (is_ptr[src] && is_float[dst]) return 1;
     if (is_signed[src] && !is_signed[dst]) return 1;
+    if (is_signed[src] && is_ptr[dst]) return 1;
+    if (!is_ptr[src] && is_ptr[dst]) return 1;
 
     return 0;
 }
@@ -97,11 +116,11 @@ int main() {
         asprintf(&vars[i + COUNT], "g%s", vars[i]);
     }
 
-    sized_outcomes = malloc(sizeof(unsigned long) * 4);
-    sized_outcomes[0] = "0xff";
-    sized_outcomes[1] = "0xffff";
-    sized_outcomes[2] = "0xffffffff";
-    sized_outcomes[3] = "0xffffffffffffffff";
+    negative_sized_outcomes = malloc(sizeof(unsigned long) * 4);
+    negative_sized_outcomes[0] = "0xff";
+    negative_sized_outcomes[1] = "0xffff";
+    negative_sized_outcomes[2] = "0xffffffff";
+    negative_sized_outcomes[3] = "0xffffffffffffffff";
 
     f = fopen("test-arithmetic-types-move-torture.c", "w");
 
@@ -123,15 +142,28 @@ int main() {
 
     for (int src = 0; src < COUNT * 2; src++) // src
         for (int dst = 0; dst < COUNT * 2; dst++) { // dst
-            if (skip(dst, src)) continue;
-            fprintf(f, "static void func_%s_to_%s() {\n", vars[src], vars[dst]);
+            // Positive
+            if (skip_positive(dst, src)) continue;
+            fprintf(f, "static void func_positive_%s_to_%s() {\n", vars[src], vars[dst]);
+            if (is_float[src])
+                fprintf(f, "    %s %s = 1.1;\n", types[src], vars[src]);
+            else
+                fprintf(f, "    %s %s = 1;\n", types[src], vars[src]);
+
+            char *outcome = get_positive_outcome(dst, src);
+            fprintf(f, "    %s(%s, (%s) %s, \"Conversion positive %s (%s) -> %s (%s)\");\n", asserts[dst], outcome, types[dst], vars[src], types[src], vars[src], types[dst], vars[dst]);
+            fprintf(f, "}\n\n");
+
+            // Negative
+            if (skip_negative(dst, src)) continue;
+            fprintf(f, "static void func_negative_%s_to_%s() {\n", vars[src], vars[dst]);
             if (is_float[src])
                 fprintf(f, "    %s %s = -1.1;\n", types[src], vars[src]);
             else
                 fprintf(f, "    %s %s = -1;\n", types[src], vars[src]);
 
-            char *outcome = get_outcome(dst, src);
-            fprintf(f, "    %s(%s, (%s) %s, \"Conversion %s (%s) -> %s (%s)\");\n", asserts[dst], outcome, types[dst], vars[src], types[src], vars[src], types[dst], vars[dst]);
+            outcome = get_negative_outcome(dst, src);
+            fprintf(f, "    %s(%s, (%s) %s, \"Conversion negative %s (%s) -> %s (%s)\");\n", asserts[dst], outcome, types[dst], vars[src], types[src], vars[src], types[dst], vars[dst]);
             fprintf(f, "}\n\n");
         }
 
@@ -146,8 +178,11 @@ int main() {
 
     for (int src = 0; src < COUNT * 2; src++) // src
         for (int dst = 0; dst < COUNT * 2; dst++) { // dst
-            if (skip(dst, src)) continue;
-            fprintf(f, "    func_%s_to_%s();\n", vars[src], vars[dst]);
+            if (skip_positive(dst, src)) continue;
+            fprintf(f, "    func_positive_%s_to_%s();\n", vars[src], vars[dst]);
+
+            if (skip_negative(dst, src)) continue;
+            fprintf(f, "    func_negative_%s_to_%s();\n", vars[src], vars[dst]);
         }
 
     fprintf(f, "\n");
