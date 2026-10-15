@@ -8,7 +8,6 @@ GCC ?= gcc
 AS ?= as
 TEST_BUILD_DIR = ${BUILD_DIR}/tests/e2e
 
-ifeq ($(TARGET),x86_64)
 WCC_TESTS=\
 	expr \
 	comma \
@@ -36,37 +35,6 @@ WCC_TESTS=\
 	initializers \
 	extension-keyword \
 	int128
-else ifeq ($(TARGET),aarch64)
-# TODO aarch64 run all e2e tests
-WCC_TESTS=\
-	expr \
-	comma \
-	function-call-args \
-	func-calls \
-	pointers \
-	arrays \
-	memory-functions \
-	inc-dec \
-	conditionals \
-	structs \
-	pointer-arithmetic \
-	loops \
-	enums \
-	regressions \
-	arithmetic-types-move-torture \
-	arithmetic-torture \
-	ifdef \
-	long-doubles \
-	floats-and-doubles \
-	typedefs \
-	switch \
-	character-and-string-literals \
-	varargs \
-	initializers \
-	extension-keyword \
-	int128
-endif
-
 
 WCC_RUN_FLAGS = -I ${SRC_DIR}/include
 WCC_E2E_FLAGS := ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --sanity-check-ir --rule-coverage-file ${BUILD_DIR}/tests/e2e/wcc-tests.rulecov
