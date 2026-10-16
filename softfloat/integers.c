@@ -32,7 +32,13 @@ FpValue __wcc_sf_convert_common_int64_to_fpv(uint64_t i, int is_signed) {
     // Shift it over enough so that the leading zero is shifted off
     int shift_amount = SIGNIFICAND_BITS + leading_bits - 63;
     fpv.significand = i;
-    if (shift_amount < SIGNIFICAND_BITS) fpv.significand <<= shift_amount;
+
+    // Shift the integer over, unless it completely vanishes,
+    // in which case the significand becomes zero.
+    if (shift_amount < SIGNIFICAND_BITS)
+        fpv.significand <<= shift_amount;
+    else
+        fpv.significand = 0;
 
     #ifdef DEBUG_LOAD
     printf("Loaded                      ");

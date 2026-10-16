@@ -725,6 +725,10 @@ void test_convert_uint32_to_ld() {
     assert_long_double(100.0,         __wcc_sf_convert_uint32_to_ld(100),            "uint32 to ld: 100.0");
     assert_long_double(4294967294.0L, __wcc_sf_convert_uint32_to_ld(UINT32_MAX - 1), "uint32 to ld: UINT32_MAX - 1");
     assert_long_double(4294967295.0L, __wcc_sf_convert_uint32_to_ld(UINT32_MAX),     "uint32 to ld: UINT32_MAX");
+
+    // Test edge case where the whole significand disappears
+    long double ld = __wcc_sf_convert_uint32_to_ld(1);
+    ASSERT_INT128(0x03fff000000000000, 0, *((__int128 *) &ld), "x");
 }
 
 void test_convert_int64_to_ld() {
