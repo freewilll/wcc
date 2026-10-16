@@ -913,6 +913,7 @@ int *allocate_vregs_for_cvl(Function *function, Tac *ir, CallValueLocations *cvl
     return live_range_pregs;
 }
 
+// Replace a param move to a register with a move to the stack
 static int add_param_move_to_register_tac(Function *function, Tac *ir, Type *type, int stack_index, int is_high) {
     Tac *tac = make_param_move_to_register_tac(function, type, 0, -1);
     tac->src1->function_call.function_param_original_stack.index = stack_index + is_high;

@@ -826,6 +826,9 @@ void add_type_to_cva(CallValueAllocation *cva, Type *type) {
     }
 }
 
+// In aarch64, there are no instructions which originally move a param to a register that are
+// rewritten to move them to the stack. See add_param_move_to_register_tac().
+// Therefore, aarch64 has no original stack indexes.
 int *make_original_stack_indexes(Function *function) {
     int *result = wcalloc(function->vreg_count + 1, sizeof(int *));
     return result;
