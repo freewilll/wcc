@@ -1545,6 +1545,7 @@ Value *new_preg_value(int preg);
 void remove_nops(Function *function);
 int function_is_main(Function *function);
 int open_output_file(char *input_filename, char *output_filename);
+void output_debug_loc(Tac *tac);
 void output_code(char *input_filename, char *output_filename);
 SizedSavedRegisters *make_saved_registers(Function *function, int preg_class);
 void free_sized_saved_registers(SizedSavedRegisters *ssr);
@@ -1552,6 +1553,7 @@ void check_floating_point_literal_max(void);
 int add_float_literal(Value *value);
 int add_double_literal(Value *value);
 int add_long_double_literal(Value *value);
+void output_debug_sections(char *input_filename);
 void init_codegen(void);
 void free_codegen(void);
 
@@ -1700,7 +1702,6 @@ void add_final_instructions(Function *function);
 void optimize_final_instructions(Function *function);
 void output_function_body_code(Symbol *symbol);
 void merge_rsp_func_call_add_subs(Function *function);
-void output_debug_sections(char *input_filename);
 void init_output_target_code();
 void output_target_code();
 

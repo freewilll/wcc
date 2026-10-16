@@ -577,14 +577,10 @@ void output_function_body_code(Symbol *symbol) {
     for (Tac *tac = symbol->function->ir; tac; tac = tac->next) {
         if (tac->label) fprintf(output_file, ".L%d:\n", tac->label);
         if (tac->operation.id != IR_NOP) {
-            // output_debug_loc(tac); // TODO aarch64
+            output_debug_loc(tac);
             output_aarch64_operation(tac, function_pc);
         }
     }
-}
-
-// TODO aarch64
-void output_debug_sections(char *input_filename) {
 }
 
 // Init target code outputting for the translation unit

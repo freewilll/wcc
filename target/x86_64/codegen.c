@@ -7,27 +7,6 @@
 #include "wcc.h"
 #include "x86_64.h"
 
-// DWARF constants taken from dwarf.h
-#define DWARF_VERSION       4
-
-#define DW_LANG_C89         0x0001
-
-#define DW_TAG_compile_unit 0x11
-
-#define DW_AT_name          0x03
-#define DW_AT_stmt_list     0x10
-#define DW_AT_low_pc        0x11
-#define DW_AT_high_pc       0x12
-#define DW_AT_language      0x13
-#define DW_AT_comp_dir      0x1b
-#define DW_AT_producer      0x25
-
-#define DW_FORM_addr        0x01
-#define DW_FORM_data8       0x07
-#define DW_FORM_data1       0x0b
-#define DW_FORM_strp        0x0e
-#define DW_FORM_sec_offset  0x17
-
 static int need_ru4_to_ld_symbol;
 static int need_ld_to_ru4_symbol;
 
@@ -547,25 +526,6 @@ void optimize_final_instructions(Function *function) {
     merge_rsp_func_call_add_subs(function);
 }
 
-// Add a ".loc" line with an integer identifying the filename and the line number.
-// The debug_strings map has the mapping from filename to id.
-static void output_debug_loc(Tac *tac) {
-    if (opt_debug_symbols && tac->origin && tac->origin->filename) {
-        int id = (long) strmap_get(debug_strings, tac->origin->filename);
-        if (!id) {
-            id = ++debug_string_counter;
-            strmap_put(debug_strings, wstrdup(tac->origin->filename), (void *) (long) id);
-            fprintf(output_file, "    .file       %d \"%s\"\n", id, tac->origin->filename);
-        }
-
-        if (id != last_outputted_filename_id || tac->origin->line_number != last_outputted_filename_line_number) {
-            fprintf(output_file, "    .loc        %d %d\n", id, tac->origin->line_number);
-            last_outputted_filename_id = id;
-            last_outputted_filename_line_number = tac->origin->line_number;
-        }
-    }
-}
-
 // Output code from the IR of a function
 void output_function_body_code(Symbol *symbol) {
     int function_pc = symbol->function->type->function->param_count;
@@ -577,76 +537,6 @@ void output_function_body_code(Symbol *symbol) {
             output_x86_operation(tac, function_pc);
         }
     }
-}
-
-// Output a debug_info section with only a DW_TAG_compile_unit with a corresponding
-// debug_abbrev section. debug_str contains debug strings. This is enough information
-// to have the source filename, directory, function names and line numbers.
-void output_debug_sections(char *input_filename) {
-    char *cwd = wmalloc(1024);
-    if (!getcwd(cwd, 1024)) panic("Unable to get cwd");
-
-    // Output debug_info section
-    fprintf(output_file, "    .section .debug_info,\"\",@progbits\n\n");
-
-    fprintf(output_file, ".Ldebug_info0:\n");
-    fprintf(output_file, "    .long   .Ldebug_info_end - .Ldebug_info_start\n"); // Size
-
-    fprintf(output_file, ".Ldebug_info_start:\n");
-    fprintf(output_file, "    .value  %d\n", DWARF_VERSION);
-    fprintf(output_file, "    .long   .debug_abbrev\n");      // Pointer to debug_abbrev section
-    fprintf(output_file, "    .byte   0x8\n");                // Pointer size
-
-    // Output DW_TAG_compile_unit
-    fprintf(output_file, "    .uleb128 0x1\n");                               // DW_TAG_compile_unit
-    fprintf(output_file, "    .long   .Ldebug_info.producer\n");              // DW_AT_producer
-    fprintf(output_file, "    .byte   %d\n", DW_LANG_C89);                    // DW_AT_language
-    fprintf(output_file, "    .long   .Ldebug_info.filename\n");              // DW_AT_name
-    fprintf(output_file, "    .long   .debug_info.cwd\n");                    // DW_AT_comp_dir
-    fprintf(output_file, "    .quad   .Lall.code.start\n");                   // DW_AT_low_pc (start of code)
-    fprintf(output_file, "    .quad   .Lall.code.end-.Lall.code.start \n");   // DW_AT_high_pc (size of code)
-    fprintf(output_file, "    .long   .Lline_table_start\n");                 // DW_AT_stmt_list (pointer to line number table)
-    fprintf(output_file, ".Ldebug_info_end:\n\n");
-
-    // Output debug_abbrev section. All lines with DW are pairs of a key & data type
-    fprintf(output_file, "    .section    .debug_abbrev,\"\",@progbits\n");
-
-    fprintf(output_file, "    .uleb128 0x1\n");                       // type number 1
-    fprintf(output_file, "    .uleb128 %d\n", DW_TAG_compile_unit);   // tag: DW_TAG_compile_unit
-    fprintf(output_file, "    .byte   0\n");                          // has children 0
-    fprintf(output_file, "    .uleb128 %d\n", DW_AT_producer);        // DW_AT_producer / DW_FORM_strp
-    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_strp);
-    fprintf(output_file, "    .uleb128 %d\n", DW_AT_language);        // DW_AT_language / DW_FORM_data1
-    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_data1);
-    fprintf(output_file, "    .uleb128 %d\n", DW_AT_name);            // DW_AT_name / DW_FORM_strp
-    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_strp);
-    fprintf(output_file, "    .uleb128 %d\n", DW_AT_comp_dir);        // DW_AT_comp_dir / DW_FORM_strp
-    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_strp);
-    fprintf(output_file, "    .uleb128 %d\n", DW_AT_low_pc);          // DW_AT_low_pc / DW_FORM_addr
-    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_addr);
-    fprintf(output_file, "    .uleb128 %d\n", DW_AT_high_pc);         // DW_AT_high_pc / DW_FORM_data8
-    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_data8);
-    fprintf(output_file, "    .uleb128 %d\n", DW_AT_stmt_list);       // DW_AT_stmt_list / DW_FORM_sec_offset
-    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_sec_offset);
-    fprintf(output_file, "    .byte   0\n");                          // End
-    fprintf(output_file, "    .byte   0\n");
-    fprintf(output_file, "    .byte   0\n");
-
-    // Output debug_str section
-    fprintf(output_file, "\n    .section    .debug_str,\"MS\",@progbits,1\n");
-    fprintf(output_file, ".Ldebug_info.producer:\n");
-    fprintf(output_file, "    .string  \"wcc\"\n");
-    fprintf(output_file, ".Ldebug_info.filename:\n");
-    fprintf(output_file, "    .string  \"%s\"\n", input_filename);
-    fprintf(output_file, ".debug_info.cwd:\n");
-    fprintf(output_file, "    .string  \"%s\"\n", cwd);
-
-    // Output debug_line section. There's nothing much here, the assembler populates
-    // this with information from the .loc lines.
-    fprintf(output_file, "\n    .section    .debug_line,\"\",@progbits\n");
-    fprintf(output_file, "\n.Lline_table_start:\n");
-
-    wfree(cwd);
 }
 
 static void output_ru4_ld_symbols(void) {
