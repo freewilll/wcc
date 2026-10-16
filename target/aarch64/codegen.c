@@ -265,7 +265,6 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
             else if (v->is_string_literal)
                 sprintf(buffer, ".LS%d", v->string_literal_index);
             else if (v->global_symbol) {
-                // TODO aarch64 long double
                 if (v->offset) {
                     // This code normally has been called after offsets have been removed.
                     // However, debug prints can lead to this codepath being run.
@@ -521,7 +520,6 @@ void add_final_instructions(Function *function) {
                 break;
 
             case AARCH64_OP_CALL: {
-                // TODO aarch64 dedupe code with x86
                 ir->operation.id = IR_NOP;
 
                 Tac *orig_ir = ir;
@@ -568,9 +566,7 @@ void add_final_instructions(Function *function) {
     free_sized_saved_registers(saved_registers_fp);
 }
 
-void optimize_final_instructions(Function *function) {} // TODO aarch64
-
-void merge_rsp_func_call_add_subs(Function *function) {} // TODO aarch64
+void optimize_final_instructions(Function *function) {}
 
 // Output code from the IR of a function
 static void output_function_body_code(Symbol *symbol) {

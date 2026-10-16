@@ -1224,6 +1224,7 @@ Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int s
 void convert_enums(Function *function);
 void add_PIC_load_and_saves(Function *function);
 void convert_functions_address_of(Function *function);
+void remove_stack_self_moves(Function *function, int move_operation);
 
 extern int live_range_reserved_pregs_offset;
 

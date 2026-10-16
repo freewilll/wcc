@@ -167,8 +167,6 @@ static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, 
     target_op->operation.is_conditional_jump = (operation == AARCH64_OP_COND_B);
     target_op->operation.is_unconditional_jump = (operation == AARCH64_OP_B);
 
-    // TODO aarch64, other tags, e.g.
-
     target_op->dst = dst;
     target_op->v1 = v1;
     target_op->v2 = v2;

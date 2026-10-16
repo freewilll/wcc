@@ -722,7 +722,7 @@ void transform_long_double_instructions(Function *function) {
 }
 
 void perform_peephole_optimization(Function *function) {
-    // remove_stack_self_moves(function); // TODO aarch64
+    remove_stack_self_moves(function, AARCH64_OP_MOV);
     remove_self_register_copies(function);
 }
 

@@ -650,11 +650,10 @@ void allocate_value_vregs(Function *function) {
     wfree(on_stack);
 }
 
-// IR_JZ and IR_JNZ aren't implemented in the target for SSE & long doubles.
+// IR_JZ and IR_JNZ aren't implemented in the target for FP values
 // Convert:
 // - IR_JZ  => IR_EQ with 0.0 & IR_JNZ
 // - IR_JNZ => IR_NE with 0.0 & IR_JNZ
-// TODO aarch64 is this only x86_64 specific?
 void convert_long_doubles_jz_and_jnz(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation.id == IR_JZ || ir->operation.id == IR_JNZ) && is_floating_point_type(ir->src1->type)) {
@@ -1337,6 +1336,19 @@ void convert_functions_address_of(Function *function) {
                 tac->operation.id = IR_ADDRESS_OF_FROM_GOT;
                 tac->src1->load_from_got = 1;
             }
+        }
+    }
+}
+
+// This removes instructions that copy a stack location to itself by replacing them with noops.
+void remove_stack_self_moves(Function *function, int move_operation) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id == move_operation && tac->dst && tac->dst->stack.index && tac->src1 && tac->src1->stack.index && tac->dst->stack.index == tac->src1->stack.index) {
+            tac->operation.id = IR_NOP;
+            tac->dst = 0;
+            tac->src1 = 0;
+            tac->src2 = 0;
+            tac->target_template = 0;
         }
     }
 }
