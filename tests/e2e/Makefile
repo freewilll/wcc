@@ -195,7 +195,6 @@ run-test-shlib:
 	# TODO aarch64 shlib tests
 endif
 
-ifeq ($(TARGET),x86_64)
 # Includes
 ${BUILD_DIR}/tests/e2e/test-include/test-include: ${BUILD_DIR}/wcc ${SRC_DIR}/tests/e2e/test-include/include.h ${SRC_DIR}/tests/e2e/test-include/main.c ${SRC_DIR}/tests/e2e/test-include/foo.c
 	@mkdir -p $(@D)
@@ -203,12 +202,7 @@ ${BUILD_DIR}/tests/e2e/test-include/test-include: ${BUILD_DIR}/wcc ${SRC_DIR}/te
 
 run-test-include: ${BUILD_DIR}/tests/e2e/test-include/test-include
 	$<
-else
-run-test-include:
-	# TODO aarch64 include tests
-endif
 
-ifeq ($(TARGET),x86_64)
 # -fcommon
 ${BUILD_DIR}/tests/e2e/test-fcommon: ${BUILD_DIR}/wcc ${SRC_DIR}/tests/e2e/test-fcommon-main.c ${SRC_DIR}/tests/e2e/test-fcommon-lib.c
 	@mkdir -p $(@D)
@@ -216,10 +210,6 @@ ${BUILD_DIR}/tests/e2e/test-fcommon: ${BUILD_DIR}/wcc ${SRC_DIR}/tests/e2e/test-
 
 run-test-fcommon: ${BUILD_DIR}/tests/e2e/test-fcommon
 	$<
-else
-run-test-fcommon:
-	# TODO aarch64 -fcommon tests
-endif
 
 clean:
 	@rm -f ${BUILD_DIR}/tests/e2e/*.o
