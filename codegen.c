@@ -128,67 +128,8 @@ int open_output_file(char *input_filename, char *output_filename) {
     fprintf(output_file, "    .section .note.GNU-stack,\"\",@progbits\n\n");
 }
 
-static void output_object_symbol(Symbol *symbol) {
-    if (symbol->linkage == LINKAGE_INTERNAL && !symbol->initializers) {
-        if (elf_section != SEC_TEXT) { fprintf(output_file, "    .text\n"); elf_section = SEC_TEXT; }
-        fprintf(output_file, "    .local  %s\n", symbol->global_identifier);
-    }
-
-    if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && symbol->definition_status == DEFINITION_STATUS_TENTATIVE) {
-        if (elf_section != SEC_TEXT) { fprintf(output_file, "    .text\n"); elf_section = SEC_TEXT; }
-
-        // opt_enable_common_symbols applies to symbols with external linkage.
-        // For symbols with internal linkage, a .comm section will do just fine.
-        if (symbol->linkage == LINKAGE_INTERNAL || opt_enable_common_symbols) {
-            fprintf(output_file, "    .comm   %s,%d,%d\n",
-                symbol->global_identifier,
-                get_type_size(symbol->type),
-                get_type_alignment(symbol->type));
-        }
-        else {
-            int size = get_type_size(symbol->type);
-
-            if (symbol->linkage == LINKAGE_EXTERNAL)
-                fprintf(output_file, "    .globl   %s\n", symbol->global_identifier);
-
-            if (elf_section != SEC_BSS) { fprintf(output_file, "    .bss\n"); elf_section = SEC_BSS; }
-
-            fprintf(output_file, "    .align   %d\n", get_type_alignment(symbol->type));
-            fprintf(output_file, "    .type    %s, @object\n", symbol->global_identifier);
-            fprintf(output_file, "    .size    %s, %d\n", symbol->global_identifier, size);
-            fprintf(output_file, "%s:\n", symbol->global_identifier);
-            fprintf(output_file, "    .zero    %d\n", size);
-        }
-    }
-
-    else if (symbol->definition_status == DEFINITION_STATUS_DEFINED) {
-        output_defined_object_symbol(symbol);
-    }
-}
-
-void output_object_symbols(void) {
-    // Output symbols
-    elf_section = SEC_NONE;
-    for (int i = 0; i < global_scope->symbol_list->length; i++) {
-        Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value)
-            output_object_symbol(symbol);
-    }
-
-    // Output static local symbols
-    for (int i = 0; i < global_scope->symbol_list->length; i++) {
-        Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
-            Function *function = symbol->function;
-            for (int j = 0; j < function->static_symbols->length; j++)
-                output_object_symbol(function->static_symbols->elements[j]);
-        }
-        symbol++;
-    }
-}
-
 // Output data for a defined object symbol
-void output_defined_object_symbol(Symbol *symbol) {
+static void output_defined_object_symbol(Symbol *symbol) {
     if (!symbol->initializers) panic("Expected initializers for a symbol with definition status defined");
 
     int size = get_type_size(symbol->type);
@@ -252,6 +193,153 @@ void output_defined_object_symbol(Symbol *symbol) {
 
     if (size) fprintf(output_file,"    .zero    %d\n", size);
 }
+
+static void output_object_symbol(Symbol *symbol) {
+    if (symbol->linkage == LINKAGE_INTERNAL && !symbol->initializers) {
+        if (elf_section != SEC_TEXT) { fprintf(output_file, "    .text\n"); elf_section = SEC_TEXT; }
+        fprintf(output_file, "    .local  %s\n", symbol->global_identifier);
+    }
+
+    if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && symbol->definition_status == DEFINITION_STATUS_TENTATIVE) {
+        if (elf_section != SEC_TEXT) { fprintf(output_file, "    .text\n"); elf_section = SEC_TEXT; }
+
+        // opt_enable_common_symbols applies to symbols with external linkage.
+        // For symbols with internal linkage, a .comm section will do just fine.
+        if (symbol->linkage == LINKAGE_INTERNAL || opt_enable_common_symbols) {
+            fprintf(output_file, "    .comm   %s,%d,%d\n",
+                symbol->global_identifier,
+                get_type_size(symbol->type),
+                get_type_alignment(symbol->type));
+        }
+        else {
+            int size = get_type_size(symbol->type);
+
+            if (symbol->linkage == LINKAGE_EXTERNAL)
+                fprintf(output_file, "    .globl   %s\n", symbol->global_identifier);
+
+            if (elf_section != SEC_BSS) { fprintf(output_file, "    .bss\n"); elf_section = SEC_BSS; }
+
+            fprintf(output_file, "    .align   %d\n", get_type_alignment(symbol->type));
+            fprintf(output_file, "    .type    %s, @object\n", symbol->global_identifier);
+            fprintf(output_file, "    .size    %s, %d\n", symbol->global_identifier, size);
+            fprintf(output_file, "%s:\n", symbol->global_identifier);
+            fprintf(output_file, "    .zero    %d\n", size);
+        }
+    }
+
+    else if (symbol->definition_status == DEFINITION_STATUS_DEFINED) {
+        output_defined_object_symbol(symbol);
+    }
+}
+
+static void output_object_symbols(void) {
+    // Output symbols
+    elf_section = SEC_NONE;
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
+        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value)
+            output_object_symbol(symbol);
+    }
+
+    // Output static local symbols
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
+            Function *function = symbol->function;
+            for (int j = 0; j < function->static_symbols->length; j++)
+                output_object_symbol(function->static_symbols->elements[j]);
+        }
+        symbol++;
+    }
+}
+
+static void output_string_literals(void) {
+    // Output string literals
+    if (string_literal_count > 0) {
+        fprintf(output_file, "\n    .section .rodata\n\n");
+        fprintf(output_file, ".Ltext0:\n\n");
+
+        for (int i = 0; i < string_literal_count; i++) {
+            StringLiteral *sl = &(string_literals[i]);
+            if (sl->is_wide_char) fprintf(output_file, "    .align   4\n");
+            fprintf(output_file, ".LS%d:\n", i);
+            fprintf_escaped_string_literal(output_file, sl, 1);
+        }
+        fprintf(output_file, "\n");
+    }
+}
+
+static void output_function_declarations(void) {
+    fprintf(output_file, "    .text\n");
+
+    // Output symbols for all functions that are defined and have external linkage
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
+            if (symbol->linkage == LINKAGE_EXTERNAL)
+                fprintf(output_file, "    .globl  %s\n", symbol->identifier);
+            fprintf(output_file, "    .type   %s, %s\n", symbol->global_identifier, function_keyword);
+        }
+    }
+
+    fprintf(output_file, "\n");
+}
+
+static void output_functions_code(void) {
+    fprintf(output_file, ".Lall.code.start:\n");
+
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
+            fprintf(output_file, "%s:\n", symbol->identifier);
+            fprintf(output_file, ".L%s.start:\n", symbol->identifier);
+            output_function_body_code(symbol);
+            fprintf(output_file, "    .size       %s, .-%s\n", symbol->global_identifier, symbol->global_identifier);
+            fprintf(output_file, ".L%s.end:\n", symbol->identifier);
+            fprintf(output_file, "\n");
+        }
+    }
+
+    fprintf(output_file, ".Lall.code.end:\n\n");
+}
+
+static void output_floating_point_literals(void) {
+    // Output floating point literals
+    if (floating_point_literal_count > 0) {
+        for (int i = 0; i < floating_point_literal_count; i++) {
+            // The zero and & is to be compatible with gcc
+            fprintf(output_file, ".LFP%d:\n", i);
+
+            if (floating_point_literals[i].type == TYPE_FLOAT) {
+                float fl = floating_point_literals[i].f;
+                fprintf(output_file, "    .long   %d\n", *((int *) &fl));
+            }
+            else if (floating_point_literals[i].type == TYPE_DOUBLE) {
+                double d = floating_point_literals[i].d;
+                fprintf(output_file, "    .long   %d\n", *((int *) &d));
+                fprintf(output_file, "    .long   %d\n", *((int *) &d + 1));
+            }
+            else {
+                long double ld = floating_point_literals[i].ld;
+
+                if (long_double_format == LD_FORMAT_BINARY128) {
+                    fprintf(output_file, "    .long   %d\n", ((int *) &ld)[0]);
+                    fprintf(output_file, "    .long   %d\n", ((int *) &ld)[1]);
+                    fprintf(output_file, "    .long   %d\n", ((int *) &ld)[2]);
+                    fprintf(output_file, "    .long   %d\n", ((int *) &ld)[3]);
+                }
+                else if (long_double_format == LD_FORMAT_X87_EXTENDED80) {
+                    fprintf(output_file, "    .long   %d\n", ((int *) &ld)[0]);
+                    fprintf(output_file, "    .long   %d\n", ((int *) &ld)[1]);
+                    fprintf(output_file, "    .long   %d\n", ((int *) &ld)[2] & 0xffff);
+                    fprintf(output_file, "    .long   0\n");
+                }
+
+            }
+        }
+    }
+}
+
 
 #define ADD_SAVED_REGISTER(v) \
     if (v && v->preg != -1 && v->preg_class == preg_class && callee_saved_registers[v->preg]) { \
@@ -409,6 +497,31 @@ int add_long_double_literal(Value *value) {
     floating_point_literals[floating_point_literal_count].ld = value->fp_value;
     floating_point_literals[floating_point_literal_count].type = TYPE_LONG_DOUBLE;
     return floating_point_literal_count++;
+}
+
+// Output code for the translation unit
+void output_code(char *input_filename, char *output_filename) {
+    init_output_target_code();
+
+    label_count = 0; // Used in label renumbering
+
+    open_output_file(input_filename, output_filename);
+
+    if (target_arch_name)
+        fprintf(output_file, "    .arch %s\n\n", target_arch_name);
+
+    output_object_symbols();
+    output_string_literals();
+    output_function_declarations();
+    string_literal_count = 0;
+    output_functions_code();
+    output_floating_point_literals();
+
+    if (opt_debug_symbols) output_debug_sections(input_filename);
+
+    output_target_code();
+
+    fclose(output_file);
 }
 
 void init_codegen(void) {

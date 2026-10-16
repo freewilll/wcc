@@ -33,7 +33,9 @@ static int need_ld_to_ru4_symbol;
 
 static int cur_stack_push_count; // Used in codegen to keep track of stack position
 
+const char *target_arch_name = NULL;
 char *data_keywords[] = {NULL, "byte ", "word ", "long ", "quad "};
+const char *function_keyword = "@function";
 
 static void check_preg(int preg, int preg_class) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
@@ -565,7 +567,7 @@ static void output_debug_loc(Tac *tac) {
 }
 
 // Output code from the IR of a function
-static void output_function_body_code(Symbol *symbol) {
+void output_function_body_code(Symbol *symbol) {
     int function_pc = symbol->function->type->function->param_count;
 
     for (Tac *tac = symbol->function->ir; tac; tac = tac->next) {
@@ -647,89 +649,7 @@ void output_debug_sections(char *input_filename) {
     wfree(cwd);
 }
 
-static void output_floating_point_literals(void) {
-    // Output floating point literals
-    if (floating_point_literal_count > 0) {
-        for (int i = 0; i < floating_point_literal_count; i++) {
-            // The zero and & is to be compatible with gcc
-            fprintf(output_file, ".LFP%d:\n", i);
-
-            if (floating_point_literals[i].type == TYPE_FLOAT) {
-                float fl = floating_point_literals[i].f;
-                fprintf(output_file, "    .long   %d\n", *((int *) &fl));
-            }
-            else if (floating_point_literals[i].type == TYPE_DOUBLE) {
-                double d = floating_point_literals[i].d;
-                fprintf(output_file, "    .long   %d\n", *((int *) &d));
-                fprintf(output_file, "    .long   %d\n", *((int *) &d + 1));
-            }
-            else {
-                long double ld = floating_point_literals[i].ld;
-                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[0]);
-                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[1]);
-                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[2] & 0xffff);
-                fprintf(output_file, "    .long   0\n");
-            }
-        }
-    }
-}
-
-// Output code for the translation unit
-void output_code(char *input_filename, char *output_filename) {
-    open_output_file(input_filename, output_filename);
-    output_object_symbols();
-
-    // Output string literals
-    if (string_literal_count > 0) {
-        fprintf(output_file, "\n    .section .rodata\n\n");
-        fprintf(output_file, ".Ltext0:\n\n");
-        for (int i = 0; i < string_literal_count; i++) {
-            StringLiteral *sl = &(string_literals[i]);
-            if (sl->is_wide_char) fprintf(output_file, "    .align   4\n");
-            fprintf(output_file, ".LS%d:\n", i);
-            fprintf_escaped_string_literal(output_file, sl, 1);
-        }
-        fprintf(output_file, "\n");
-    }
-
-    // Output code
-    fprintf(output_file, "    .text\n");
-
-    // Output symbols for all functions that are defined and have external linkage
-    for (int i = 0; i < global_scope->symbol_list->length; i++) {
-        Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
-            if (symbol->linkage == LINKAGE_EXTERNAL)
-                fprintf(output_file, "    .globl  %s\n", symbol->identifier);
-            fprintf(output_file, "    .type   %s, @function\n", symbol->global_identifier);
-        }
-    }
-
-    fprintf(output_file, "\n");
-
-    label_count = 0; // Used in label renumbering
-
-    string_literal_count = 0;
-
-    // Output functions code
-    need_ru4_to_ld_symbol = 0;
-    need_ld_to_ru4_symbol = 0;
-    fprintf(output_file, ".Lall.code.start:\n");
-    for (int i = 0; i < global_scope->symbol_list->length; i++) {
-        Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
-            fprintf(output_file, "%s:\n", symbol->identifier);
-            fprintf(output_file, ".L%s.start:\n", symbol->identifier);
-            output_function_body_code(symbol);
-            fprintf(output_file, "    .size       %s, .-%s\n", symbol->global_identifier, symbol->global_identifier);
-            fprintf(output_file, ".L%s.end:\n", symbol->identifier);
-            fprintf(output_file, "\n");
-        }
-    }
-    fprintf(output_file, ".Lall.code.end:\n\n");
-
-    output_floating_point_literals();
-
+static void output_ru4_ld_symbols(void) {
     if (need_ru4_to_ld_symbol) {
         fprintf(output_file, ".RU4TOLD:\n");
         fprintf(output_file, "    .long   0\n");
@@ -741,8 +661,15 @@ void output_code(char *input_filename, char *output_filename) {
         fprintf(output_file, ".LDTORU4:\n");
         fprintf(output_file, "     .long   1593835520 # 9223372036854775808\n");
     }
+}
 
-    if (opt_debug_symbols) output_debug_sections(input_filename);
+// Init target code outputting for the translation unit
+void init_output_target_code() {
+    need_ru4_to_ld_symbol = 0;
+    need_ld_to_ru4_symbol = 0;
+}
 
-    fclose(output_file);
+// Output target specific for the translation unit
+void output_target_code() {
+    output_ru4_ld_symbols();
 }

@@ -1545,8 +1545,7 @@ Value *new_preg_value(int preg);
 void remove_nops(Function *function);
 int function_is_main(Function *function);
 int open_output_file(char *input_filename, char *output_filename);
-void output_object_symbols(void);
-void output_defined_object_symbol(Symbol *symbol);
+void output_code(char *input_filename, char *output_filename);
 SizedSavedRegisters *make_saved_registers(Function *function, int preg_class);
 void free_sized_saved_registers(SizedSavedRegisters *ssr);
 void check_floating_point_literal_max(void);
@@ -1650,7 +1649,9 @@ extern int total_function_stack_size_alignment; // The amount to align the total
 
 extern int long_doubles_are_in_the_stack;
 
+extern const char *target_arch_name;
 extern char *data_keywords[]; // Output keywords for global symbol definitions with data
+extern const char *function_keyword;
 
 extern LongDoubleFormat long_double_format;
 
@@ -1697,8 +1698,11 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg);
 void make_stack_offsets(Function *function);
 void add_final_instructions(Function *function);
 void optimize_final_instructions(Function *function);
+void output_function_body_code(Symbol *symbol);
 void merge_rsp_func_call_add_subs(Function *function);
-void output_defined_object_symbol(Symbol *symbol);
-void output_code(char *input_filename, char *output_filename);
+void output_debug_sections(char *input_filename);
+void init_output_target_code();
+void output_target_code();
+
 
 #endif
