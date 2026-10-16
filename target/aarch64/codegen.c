@@ -623,12 +623,7 @@ void output_code(char *input_filename, char *output_filename) {
 
         for (int i = 0; i < string_literal_count; i++) {
             StringLiteral *sl = &(string_literals[i]);
-
-            if (sl->is_wide_char)
-                fprintf(output_file, "    .align   4\n");
-            else
-                fprintf(output_file, "    .align   2\n");
-
+            if (sl->is_wide_char) fprintf(output_file, "    .align   4\n");
             fprintf(output_file, ".LS%d:\n", i);
             fprintf_escaped_string_literal(output_file, sl, 1);
         }
