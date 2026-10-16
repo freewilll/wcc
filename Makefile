@@ -191,8 +191,8 @@ test-self-compilation: wcc2 wcc3
 test: test-self-compilation test-all test-softfloat test-target-all
 	@echo All tests passed
 
-.PHONY: test-aarch64 # TODO aarch64 remove
-test-aarch64: test-target-all test-e2e test-softfloat test-unit
+.PHONY: test-aarch64
+test-aarch64: test-target-all test-e2e test-softfloat test-unit test-self-compilation
 
 .PHONY: ${BUILD_DIR}/tests/test-lib.o
 ${BUILD_DIR}/tests/test-lib.o:
