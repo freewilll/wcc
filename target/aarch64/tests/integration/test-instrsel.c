@@ -1009,8 +1009,6 @@ void test_spilling() {
     finish_spill_ir(function);
     assert_preg_op("ldr         x15, [sp]");
 
-    // src1c spill TODO aarch64 offsets in a spilled vreg
-
     // dst, src1 and src2 spill
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_INT), v(1), v(2));

@@ -273,10 +273,7 @@ static Tac *add_spill_store(Tac *tac) {
         after_tac->target_template = templates[size - 1];
     }
 
-    if (tac->dst->offset) {
-        panic("TODO aarch64 offsets in a spilled vreg store: %d", tac->dst->offset);
-        tac->dst->offset = 0;
-    }
+    if (tac->dst->offset) panic("Got an unexpected offset in a spilled vreg store: %d", tac->dst->offset);
 
     // Modify original value
     tac->dst->stack.offset = 0;
