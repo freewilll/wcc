@@ -65,7 +65,6 @@ OBJ(a)
 __STDC__
 __FILE__
 __LINE__
-__x86_64__
 __LP64__
 __linux__
 __GNUC__
