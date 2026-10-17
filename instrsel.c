@@ -1008,6 +1008,7 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (tac->src1) printf("Want src1 %s\n", value_to_non_terminal_string(tac->src1));
         if (tac->src2) printf("Want src2 %s\n", value_to_non_terminal_string(tac->src2));
 
+        printf("In file %s, line %d\n", tac->origin->filename, tac->origin->line_number);
         print_instruction(stdout, tac, 0);
         dump_igraph(igraph, 0);
         exit(1);
