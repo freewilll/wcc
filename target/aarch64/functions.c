@@ -832,7 +832,7 @@ void add_type_to_cva(CallValueAllocation *cva, Type *type) {
 int *make_original_stack_indexes(Function *function) {
     int *result = wcalloc(function->vreg_count + 1, sizeof(int *));
     return result;
-} // TODO aarch64
+}
 
 // Move floats/doubles from ABI encoded HFA in registers to the struct members in the stack
 static int make_struct_or_union_to_abi_hfa_registers_move_instructions(Function *function, Tac *ir, Value *arg, int preg_class, int register_index,
