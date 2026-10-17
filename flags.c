@@ -1,6 +1,7 @@
 #include "wcc.h"
 
 int print_parser_symbols = 0;               // Print symbols after parser phase
+int print_function_names = 0;               // Print function names during compilation
 int print_ir1 = 0;                          // Print IR after parsing
 int print_ir2 = 0;                          // Print IR before register allocation
 int print_ir3 = 0;                          // Print IR after register allocation

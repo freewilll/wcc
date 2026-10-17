@@ -224,6 +224,9 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
         Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
             Function *function = symbol->function;
+
+            if (print_function_names) printf("Compiling %s\n", function->identifier);
+
             if (print_ir1) print_ir(function, 0);
 
             run_compiler_phases(function, symbol->identifier, PH_BEGIN, PH_END);

@@ -162,6 +162,7 @@ static void add_library(char *library, List *cli_libraries, List *linker_inputs)
 }
 
 int main(int argc, char **argv) {
+    print_function_names = 0;
     print_ir1 = 0;
     print_ir2 = 0;
     print_ir3 = 0;
@@ -224,6 +225,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-static"                           )) { is_static = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_stack_register_count = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--log-compiler-phase-durations"    )) { log_compiler_phase_durations = 1;         argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--print-function-names"            )) { print_function_names = 1;                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir3"                             )) { print_ir3 = 1;                            argc--; argv++; }
@@ -443,6 +445,7 @@ int main(int argc, char **argv) {
         printf("--libc glibc|musl                           Select the C library configuration\n");
         printf("--prc                                       Output spilled register count\n");
         printf("--log-compiler-phase-durations              Log durations of each compiler phase\n");
+        printf("--print-function-names                      Output function names during compilation\n");
         printf("--ir1                                       Output intermediate representation after parsing\n");
         printf("--ir2                                       Output intermediate representation before register allocation\n");
         printf("--ir3                                       Output intermediate representation before codegen\n");
