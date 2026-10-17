@@ -91,19 +91,19 @@ void test_global_loads(void) {
 
     // IR_MOVE v << g
     si(function, 0, IR_MOVE, vsz(3, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
-    assert_target_op("adrp        r3x, g1");
+    assert_target_op("dummy       adrp of template r3x, g1");
     assert_target_op("ldrsb       r2w, [r3x]");
 
     si(function, 0, IR_MOVE, vsz(3, TYPE_SHORT), gsz(1, TYPE_SHORT), 0);
-    assert_target_op("adrp        r3x, g1");
+    assert_target_op("dummy       adrp of template r3x, g1");
     assert_target_op("ldrsh       r2w, [r3x]");
 
     si(function, 0, IR_MOVE, vsz(3, TYPE_INT), gsz(1, TYPE_INT), 0);
-    assert_target_op("adrp        r3x, g1");
+    assert_target_op("dummy       adrp of template r3x, g1");
     assert_target_op("ldr         r2w, [r3x]");
 
     si(function, 0, IR_MOVE, vsz(3, TYPE_LONG), gsz(1, TYPE_LONG), 0);
-    assert_target_op("adrp        r3x, g1");
+    assert_target_op("dummy       adrp of template r3x, g1");
     assert_target_op("ldr         r2x, [r3x]");
 
     // IR_MOVE v << g with a small offset
@@ -112,7 +112,7 @@ void test_global_loads(void) {
     tac->src1->offset = 8;
     finish_ir(function);
     add_some_final_instructions(function);
-    assert_target_op("adrp        r3x, g1");
+    assert_target_op("dummy       adrp of template r3x, g1");
     assert_target_op("add         r3x, r3x, 8");
     assert_target_op("ldrsb       r2w, [r3x]");
 
@@ -121,7 +121,7 @@ void test_global_loads(void) {
     tac = i(0, IR_MOVE, vsz(3, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
     tac->src1->offset = 5000;
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("adrp        x0, g1");
+    assert_preg_op("dummy       adrp of template x0, g1");
     assert_preg_op("movz        x16, 5000");
     assert_preg_op("add         x0, x0, x16");
     assert_preg_op("ldrsb       w0, [x0]");
@@ -215,14 +215,14 @@ void test_global_address_of(void) {
     start_ir();
     i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("adrp        x0, g1");
+    assert_preg_op("dummy       adrp of template x0, g1");
 
     // IR_ADDRESS_OF v = &g with a small offset
     start_ir();
     tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
     tac->src1->offset = 8;
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("adrp        x0, g1");
+    assert_preg_op("dummy       adrp of template x0, g1");
     assert_preg_op("add         x0, x0, 8");
 
     // IR_ADDRESS_OF v = &g with a large offset
@@ -230,7 +230,7 @@ void test_global_address_of(void) {
     tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
     tac->src1->offset = 5000;
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("adrp        x0, g1");
+    assert_preg_op("dummy       adrp of template x0, g1");
     assert_preg_op("movz        x16, 5000");
     assert_preg_op("add         x0, x0, x16");
 
@@ -240,7 +240,7 @@ void test_global_address_of(void) {
     start_ir();
     i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("adrp        x14, g1");
+    assert_preg_op("dummy       adrp of template x14, g1");
     assert_preg_op("str         x14, [sp, 8]");
 
     // IR_ADDRESS_OF v = &g with a small offset and everything spilled
@@ -248,7 +248,7 @@ void test_global_address_of(void) {
     tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
     tac->src1->offset = 8;
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("adrp        x14, g1");
+    assert_preg_op("dummy       adrp of template x14, g1");
     assert_preg_op("add         x14, x14, 8");
     assert_preg_op("str         x14, [sp, 8]");
 
@@ -257,7 +257,7 @@ void test_global_address_of(void) {
     tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
     tac->src1->offset = 5000;
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("adrp        x14, g1");
+    assert_preg_op("dummy       adrp of template x14, g1");
     assert_preg_op("movz        x16, 5000");
     assert_preg_op("add         x14, x14, x16");
     assert_preg_op("str         x14, [sp, 8]");

@@ -273,10 +273,7 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                     sprintf(buffer, "%s + offset %d", v->global_symbol->global_identifier, v->offset);
                 }
                 else {
-                    if (v->load_from_got)
-                        panic("TODO aarch64 load from GOT");
-                    else
-                        sprintf(buffer, "%s", v->global_symbol->global_identifier);
+                    sprintf(buffer, "%s", v->global_symbol->global_identifier);
                 }
             }
             else if (v->label)

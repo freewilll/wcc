@@ -103,8 +103,7 @@ static CompilerPhase compiler_phases[] = {
     { process_target_functions,                    PH_NONE,  PH_PARAM, "Process target function calls, args, params and return values" },
 
     // Misc IR conversions
-    { add_PIC_load_and_saves,                      PH_NONE,  PH_NONE,  "Adding PIC loads & saves" },
-    { convert_functions_address_of,                PH_NONE,  PH_NONE,  "Converting & functions to loads" },
+    { transform_PIC_code,                          PH_NONE,  PH_NONE,  "Transform PIC code" },
     { rewrite_lvalue_reg_assignments,              PH_NONE,  PH_NONE,  "Converting lvalue assignments" },
 
     // Coalesce live ranges

@@ -170,30 +170,25 @@ ${BUILD_DIR}/tests/e2e/test-shlib-main-no-pic-wcc.o: test-shlib-main.c test-shli
 	${BUILD_DIR}/wcc ${WCC_E2E_FLAGS} -c $< -o $@
 
 ${BUILD_DIR}/tests/e2e/test-shlib-gcc-gcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-gcc.so
-	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-gcc ${BUILD_DIR}/tests/test-lib.o -o $@
+	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-gcc -L ${BUILD_DIR} -lwcc ${BUILD_DIR}/tests/test-lib.o -o $@
 
 ${BUILD_DIR}/tests/e2e/test-shlib-wcc-gcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-gcc.so
-	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-gcc ${BUILD_DIR}/tests/test-lib.o -o $@
+	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-gcc -L ${BUILD_DIR} -lwcc ${BUILD_DIR}/tests/test-lib.o -o $@
 
 ${BUILD_DIR}/tests/e2e/test-shlib-gcc-wcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so
-	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-wcc ${BUILD_DIR}/tests/test-lib.o -o $@
+	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-wcc -L ${BUILD_DIR} -lwcc ${BUILD_DIR}/tests/test-lib.o -o $@
 
 ${BUILD_DIR}/tests/e2e/test-shlib-wcc-wcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so
-	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-wcc ${BUILD_DIR}/tests/test-lib.o -o $@
+	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-wcc -L ${BUILD_DIR} -lwcc ${BUILD_DIR}/tests/test-lib.o -o $@
 
 ${BUILD_DIR}/tests/e2e/test-shlib-mixed-pic-wcc-wcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-no-pic-wcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so
 	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-no-pic-wcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so ${BUILD_DIR}/tests/test-lib.o -o $@
 
-ifeq ($(TARGET),x86_64)
 run-test-shlib: ${BUILD_DIR}/tests/e2e/test-shlib-gcc-gcc ${BUILD_DIR}/tests/e2e/test-shlib-wcc-gcc ${BUILD_DIR}/tests/e2e/test-shlib-gcc-wcc ${BUILD_DIR}/tests/e2e/test-shlib-wcc-wcc
 	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-gcc-gcc
 	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-wcc-gcc
 	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-gcc-wcc
 	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-wcc-wcc
-else
-run-test-shlib:
-	# TODO aarch64 shlib tests
-endif
 
 # Includes
 ${BUILD_DIR}/tests/e2e/test-include/test-include: ${BUILD_DIR}/wcc ${SRC_DIR}/tests/e2e/test-include/include.h ${SRC_DIR}/tests/e2e/test-include/main.c ${SRC_DIR}/tests/e2e/test-include/foo.c

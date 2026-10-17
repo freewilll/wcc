@@ -581,10 +581,14 @@ void add_address_of_instructions(Function *function) {
 void expand_adrp_instructions(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation.id == AARCH64_OP_ADRP) {
-            if (tac->src1->load_from_got)
-                panic("TODO aarch64 load from GOT");
-            else
+            if (tac->src1->load_from_got) {
+                tac->target_template = "adrp %vdx, :got:%v1";
+                insert_target_instruction(tac, AARCH64_OP_ADD, tac->dst, tac->dst, tac->src1, "ldr %vdx, [%v1x, :got_lo12:%v2]");
+            }
+            else {
+                tac->target_template = "adrp %vdx, %v1";
                 insert_target_instruction(tac, AARCH64_OP_ADD_LO12, tac->dst, tac->dst, tac->src1, "add %vdx, %v1x, :lo12:%v2");
+            }
         }
     }
 }
@@ -719,6 +723,27 @@ void transform_long_double_instructions(Function *function) {
             }
         }
     }
+}
+
+// Flag globals with load_from_got so later phases know what global access instructions
+// to emit.
+static void add_PIC_load_and_saves(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        check_PIC_instruction_sanity(tac);
+
+        if (tac->dst && tac->dst->global_symbol && tac->operation.id == IR_MOVE)
+            tac->dst->load_from_got = 1;
+
+        if (tac->src1 && tac->src1->global_symbol && (tac->operation.id == IR_MOVE || tac->operation.id == IR_ADDRESS_OF))
+            tac->src1->load_from_got = 1;
+    }
+}
+
+// Prepare or transform instructions when creating PIC code.
+void transform_PIC_code(Function *function) {
+    if (!opt_PIC) return;
+
+    add_PIC_load_and_saves(function);
 }
 
 void perform_peephole_optimization(Function *function) {

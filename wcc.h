@@ -1222,9 +1222,8 @@ Value *make_pointer_to_void_in_vreg_value(Function *function);
 Tac *add_memory_copy_with_registers(Function *function, Tac *ir, Value *dst, Value *src1, int size, int splay_offsets);
 Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);
 void convert_enums(Function *function);
-void add_PIC_load_and_saves(Function *function);
-void convert_functions_address_of(Function *function);
 void remove_stack_self_moves(Function *function, int move_operation);
+void check_PIC_instruction_sanity(Tac *tac);
 
 extern int live_range_reserved_pregs_offset;
 
@@ -1662,6 +1661,7 @@ void print_target_instruction(void *f, Tac *tac);
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index);
 int get_preg_class_for_scalar_type(Type *type);
 void transform_long_double_instructions(Function *function);
+void transform_PIC_code(Function *function);
 void perform_peephole_optimization(Function *function);
 
 // Target functions related code

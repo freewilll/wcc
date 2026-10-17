@@ -170,6 +170,95 @@ static void remove_self_register_copies(Function *function) {
             if (tac->operation.id == X86_OP_MOV) tac->operation.id = IR_NOP;
 }
 
+// Add an instruction to load a value from the GOT. The result is a pointer to the
+// value.
+static Value *add_load_from_got(Function *function, Tac *tac, Value *src) {
+    Value *dst = new_value();
+    dst->vreg = ++function->vreg_count;
+    dst->type = make_pointer(src->type);
+    Value *got_src = dup_value(src);
+    got_src->type = dst->type;
+    got_src->load_from_got = 1;
+
+    new_tac_before(tac, IR_LOAD_FROM_GOT, dst, got_src, 0, 0);
+
+    dst->offset = src->offset;
+    got_src->offset = 0;
+
+    return dst;
+}
+
+// When compiled with Position Independent Code (PIC), all accesses to global objects
+// go through a Global Offset Table (GOT). The GOT table has pointers to the globals.
+// Any load/save must first load a pointer to the global object from the GOT and use
+// that rather than going directly to memory.
+static void add_PIC_load_and_saves(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        check_PIC_instruction_sanity(tac);
+
+        // Convert a save of a global to a mov from the GOT followed by a store to a pointer in a register
+        if (tac->dst && tac->dst->global_symbol && tac->operation.id == IR_MOVE) {
+            Value *dst = add_load_from_got(function, tac, tac->dst);
+
+            // Convert to a move to an lvalue in a register
+            Type *type = tac->dst->type;
+            tac->dst = dup_value(dst);
+            tac->dst->is_lvalue = 1;
+            tac->dst->type = type;
+        }
+
+        // Convert a load of a global to a mov from the GOT followed by an indirect
+        if (tac->src1 && tac->src1->global_symbol && tac->operation.id == IR_MOVE) {
+            Value *dst = add_load_from_got(function, tac, tac->src1);
+
+            // Convert to an indirect unless it's a pointer to a function
+            tac->src1 = dst;
+            if (!is_pointer_to_function_type(tac->src1->type))
+                tac->operation.id = IR_INDIRECT;
+        }
+
+        else if (tac->src1 && tac->src1->global_symbol && tac->operation.id == IR_ADDRESS_OF) {
+            tac->operation.id = IR_ADDRESS_OF_FROM_GOT;
+            tac->src1->load_from_got = 1;
+            if (tac->src1->offset) {
+                int offset = tac->src1->offset;
+                tac->src1->offset = 0;
+                Value *dst_with_offset = dup_value(tac->dst);
+                tac->dst = dup_value(tac->dst);
+                tac->dst->vreg = ++function->vreg_count;
+                tac = new_tac_after(tac, IR_ADD, dst_with_offset, tac->dst, new_integral_constant(TYPE_INT, offset));
+            }
+        }
+    }
+}
+
+// Convert and loads of address to functions to a load the GOT, unless the
+// function has been defined.
+static void convert_functions_address_of(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id == IR_ADDRESS_OF && tac->src1->global_symbol && tac->src1->type->type == TYPE_FUNCTION) {
+
+            FunctionCallValue *fcv = &tac->src1->function_call;
+            int is_defined = fcv->function_symbol && fcv->function_symbol->function && fcv->function_symbol->function->is_defined;
+
+            if (!is_defined) {
+                tac->operation.id = IR_ADDRESS_OF_FROM_GOT;
+                tac->src1->load_from_got = 1;
+            }
+        }
+    }
+}
+
+
+
+// Prepare or transform instructions when creating PIC code.
+void transform_PIC_code(Function *function) {
+    if (!opt_PIC) return;
+
+    add_PIC_load_and_saves(function);
+    convert_functions_address_of(function);
+}
+
 // Not used in x86_64
 void transform_long_double_instructions(Function *function) {}
 

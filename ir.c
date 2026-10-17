@@ -1246,100 +1246,6 @@ void add_zero_memory_instructions(Function *function) {
     }
 }
 
-// Add an instruction to load a value from the GOT. The result is a pointer to the
-// value.
-static Value *add_load_from_got(Function *function, Tac *tac, Value *src) {
-    Value *dst = new_value();
-    dst->vreg = ++function->vreg_count;
-    dst->type = make_pointer(src->type);
-    Value *got_src = dup_value(src);
-    got_src->type = dst->type;
-    got_src->load_from_got = 1;
-
-    new_tac_before(tac, IR_LOAD_FROM_GOT, dst, got_src, 0, 0);
-
-    dst->offset = src->offset;
-    got_src->offset = 0;
-
-    return dst;
-}
-
-// When compiled with Position Independent Code (PIC), all accesses to global objects
-// go through a Global Offset Table (GOT). The GOT table has pointers to the globals.
-// Any load/save must first load a pointer to the global object from the GOT and use
-// that rather than going directly to memory.
-void add_PIC_load_and_saves(Function *function) {
-    if (!opt_PIC) return;
-
-    for (Tac *tac = function->ir; tac; tac = tac->next) {
-        // Ensure all global values are only ever loaded or saved
-
-        if (tac->dst && tac->dst->global_symbol && tac->operation.id != IR_MOVE)
-            panic("Unexpected global_symbol in dst");
-        if (tac->src1 && tac->src1->global_symbol
-                && tac->operation.id != IR_MOVE
-                && tac->operation.id != IR_CALL
-                && tac->operation.id != IR_ADDRESS_OF
-                && tac->operation.id != IR_DECL_LOCAL_COMP_OBJ)
-            panic("Unexpected operation for global_symbol in src1: %s", operation_string(tac->operation.id));
-        if (tac->src2 && tac->src2->global_symbol)
-            panic("Unexpected operation for global_symbol in src2: %s", operation_string(tac->operation.id));
-
-        // Convert a save of a global to a mov from the GOT followed by a store to a pointer in a register
-        if (tac->dst && tac->dst->global_symbol && tac->operation.id == IR_MOVE) {
-            Value *dst = add_load_from_got(function, tac, tac->dst);
-
-            // Convert to a move to an lvalue in a register
-            Type *type = tac->dst->type;
-            tac->dst = dup_value(dst);
-            tac->dst->is_lvalue = 1;
-            tac->dst->type = type;
-        }
-
-        // Convert a load of a global to a mov from the GOT followed by an indirect
-        if (tac->src1 && tac->src1->global_symbol && tac->operation.id == IR_MOVE) {
-            Value *dst = add_load_from_got(function, tac, tac->src1);
-
-            // Convert to an indirect unless it's a pointer to a function
-            tac->src1 = dst;
-            if (!is_pointer_to_function_type(tac->src1->type))
-                tac->operation.id = IR_INDIRECT;
-        }
-
-        else if (tac->src1 && tac->src1->global_symbol && tac->operation.id == IR_ADDRESS_OF) {
-            tac->operation.id = IR_ADDRESS_OF_FROM_GOT;
-            tac->src1->load_from_got = 1;
-            if (tac->src1->offset) {
-                int offset = tac->src1->offset;
-                tac->src1->offset = 0;
-                Value *dst_with_offset = dup_value(tac->dst);
-                tac->dst = dup_value(tac->dst);
-                tac->dst->vreg = ++function->vreg_count;
-                tac = new_tac_after(tac, IR_ADD, dst_with_offset, tac->dst, new_integral_constant(TYPE_INT, offset));
-            }
-        }
-    }
-}
-
-// Convert and loads of address to functions to a load the GOT, unless the
-// function has been defined.
-void convert_functions_address_of(Function *function) {
-    if (!opt_PIC) return;
-
-    for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation.id == IR_ADDRESS_OF && tac->src1->global_symbol && tac->src1->type->type == TYPE_FUNCTION) {
-
-            FunctionCallValue *fcv = &tac->src1->function_call;
-            int is_defined = fcv->function_symbol && fcv->function_symbol->function && fcv->function_symbol->function->is_defined;
-
-            if (!is_defined) {
-                tac->operation.id = IR_ADDRESS_OF_FROM_GOT;
-                tac->src1->load_from_got = 1;
-            }
-        }
-    }
-}
-
 // This removes instructions that copy a stack location to itself by replacing them with noops.
 void remove_stack_self_moves(Function *function, int move_operation) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -1351,4 +1257,20 @@ void remove_stack_self_moves(Function *function, int move_operation) {
             tac->target_template = 0;
         }
     }
+}
+
+// Ensure all global values are only ever loaded or saved
+void check_PIC_instruction_sanity(Tac *tac) {
+    if (tac->dst && tac->dst->global_symbol && tac->operation.id != IR_MOVE) //
+        panic("Unexpected global_symbol in dst");
+
+    if (tac->src1 && tac->src1->global_symbol
+            && tac->operation.id != IR_MOVE
+            && tac->operation.id != IR_CALL
+            && tac->operation.id != IR_ADDRESS_OF
+            && tac->operation.id != IR_DECL_LOCAL_COMP_OBJ)
+        panic("Unexpected operation for global_symbol in src1: %s", operation_string(tac->operation.id));
+
+    if (tac->src2 && tac->src2->global_symbol)
+        panic("Unexpected operation for global_symbol in src2: %s", operation_string(tac->operation.id));
 }
