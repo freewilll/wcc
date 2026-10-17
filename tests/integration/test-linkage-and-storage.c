@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     // Read a test cases file that contains .c and expected .s code and assert the output is what is expected
-    const char *test_cases_filename = SRC_DIR "/tests/integration/test-linkage-and-storage.cases";
+    const char *test_cases_filename = SRC_DIR "/target/" TARGET "/tests/integration/test-linkage-and-storage.cases";
     FILE *f = fopen(test_cases_filename, "r");
     if (!f) {
         printf("Unable to read %s\n", test_cases_filename);

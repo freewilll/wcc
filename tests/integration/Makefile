@@ -12,7 +12,7 @@ ${TEST_BUILD_DIR}/test-errors: test-errors.c ${BUILD_DIR}/wcc ${BUILD_DIR}/tests
 
 ${TEST_BUILD_DIR}/test-linkage-and-storage: test-linkage-and-storage.c ${BUILD_DIR}/wcc ${BUILD_DIR}/tests/test-lib.o
 	@mkdir -p $(@D)
-	${GCC} ${INTEGRATION_TEST_FLAGS} -D WCC='"${BUILD_DIR}/wcc -I ${SRC_DIR}/include"' -D SRC_DIR='"${SRC_DIR}"' $< ${BUILD_DIR}/tests/test-lib.o -o $@
+	${GCC} ${INTEGRATION_TEST_FLAGS} -D WCC='"${BUILD_DIR}/wcc -I ${SRC_DIR}/include"' -D SRC_DIR='"${SRC_DIR}"' -D TARGET='"${TARGET}"' $< ${BUILD_DIR}/tests/test-lib.o -o $@
 
 run-%: ${TEST_BUILD_DIR}/%
 	cd ${TEST_BUILD_DIR} && ./$(notdir $<)
