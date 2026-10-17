@@ -749,6 +749,7 @@ static void add_pointer_rules() {
     add_load_global_address_rule(RP2, MGPV, IR_ADDRESS_OF);
     add_load_global_address_rule(RP3, MGPV, IR_ADDRESS_OF);
     add_load_global_address_rule(RP4, MGPV, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP4, MGPF, IR_ADDRESS_OF);
 
     add_load_global_address_rule(RP1, MGSA, IR_ADDRESS_OF);
     add_load_global_address_rule(RP2, MGSA, IR_ADDRESS_OF);
