@@ -397,3 +397,11 @@ Value *make_arg_src1() {
 
     return arg_src1;
 }
+
+Function *new_function_with_type(void) {
+    Function *result = new_function("test");
+    result->type = new_type(TYPE_FUNCTION);
+    result->type->function = wcalloc(1, sizeof(FunctionType));
+    result->type->target = new_type(TYPE_INT);
+    return result;
+}

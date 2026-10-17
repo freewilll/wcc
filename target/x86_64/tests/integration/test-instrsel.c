@@ -23,14 +23,6 @@ void nop() {
     global_ir_start = global_ir_start->next;
 }
 
-Function *new_function_with_type(void) {
-    Function *result = new_function("test");
-    result->type = new_type(TYPE_FUNCTION);
-    result->type->function = wcalloc(1, sizeof(FunctionType));
-    result->type->target = new_type(TYPE_INT);
-    return result;
-}
-
 void assert_rx86_preg_op_with_function_pc(int function_param_count, char *expected) {
     char *got;
 

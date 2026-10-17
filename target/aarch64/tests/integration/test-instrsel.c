@@ -1019,6 +1019,16 @@ void test_spilling() {
     assert_preg_op("cset        w14, eq");
     assert_preg_op("str         w14, [sp, 12]");    // Store the result
 
+    // A function pointer in a register
+    start_ir();
+    i(0, IR_START_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
+    tac = i(0, IR_CALL, 0, fu(1), 0); tac->src1->vreg = 1;
+    i(0, IR_END_CALL,   0, c(0),  0);
+    finish_spill_ir(function);
+    assert_preg_op("movz        x14, 15");
+    assert_preg_op("add         x14, sp, x14");
+    assert_preg_op("ldr         x14, [x14]");
+
     init_allocate_registers(); // Enable register allocation again
 }
 

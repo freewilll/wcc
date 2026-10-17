@@ -35,14 +35,6 @@ void assert_longset(LongSet *got, int v1, int v2, int v3, int v4, int v5) {
     assert(1, longset_eq(expected, got));
 }
 
-Function *new_function_with_type(void) {
-    Function *result = new_function("test");
-    result->type = new_type(TYPE_FUNCTION);
-    result->type->function = wcalloc(1, sizeof(FunctionType));
-    result->type->target = new_type(TYPE_INT);
-    return result;
-}
-
 void run_arithmetic_optimization(int operation, Value *dst, Value *src1, Value *src2) {
     Function *function;
     Tac *tac;
