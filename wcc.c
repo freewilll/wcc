@@ -220,12 +220,14 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     init_codegen();
 
     // Compile all functions
-    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+    int function_count = global_scope->symbol_list->length;
+    for (int i = 0; i < function_count; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
             Function *function = symbol->function;
 
-            if (print_function_names) printf("Compiling %s\n", function->identifier);
+            if (print_function_names)
+                printf("Compiling function %d/%d: %s\n", i + 1, function_count, function->identifier);
 
             if (print_ir1) print_ir(function, 0);
 
@@ -236,7 +238,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
 
     output_code(original_input_filename, output_filename);
 
-    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+    for (int i = 0; i < function_count; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined)
             free_function(symbol->function, 1);

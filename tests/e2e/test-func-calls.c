@@ -273,9 +273,9 @@ pfi return_pfi() { return &return_1; }
 
 void *return_pfi2() { return &return_1; }
 
-void (*pf1)(int);
+void (*pf2)(int);
 
-void mylog(int i) {
+void mypf2(int i) {
     assert_int(1, i, "Calling a function assigned to a global through *&");
 }
 
@@ -448,9 +448,8 @@ void test_function_pointers() {
     pl = &return_1; (*(void(*)(void)) (pl)) ();
 
     // Assigning to a global through a *&
-    *(&pf1) = mylog;
-    pf1(1);
-
+    *(&pf2) = mypf2;
+    pf2(1);
 }
 
 void test_sizeof_function_pointer() {
