@@ -222,7 +222,7 @@ int get_preg_class_for_scalar_type(Type *type) {
 // This mechanism can generate 5334 unique 64-bit patterns as 2667 pairs of pattern and their bitwise inverse.
 int is_logical_immediate(unsigned long l, int is_32bit) {
     // All ones or all zeroes cannot be encoded
-    if (!l || (!is_32bit && l == -1) || (is_32bit && l == 0xffffffff))
+    if (!l || l == -1 || (is_32bit && l == 0xffffffff))
         return 0;
 
     int repeat_size = is_32bit ? 32 : 64;
@@ -254,14 +254,14 @@ int is_logical_immediate(unsigned long l, int is_32bit) {
 
     // The shifted right binary string must consist entirely bit_count ones,
     // e.g. 000111, 0001, 0011111, but not 0101.
-    unsigned long expected_value = (1UL << bit_count) - 1;
+    unsigned long expected_value = ~0UL >> (64 - bit_count);
     ok = right_shifted_repeat_value == expected_value;
 
     // The repeat pattern may be something like 110...01
     // Check if there is a middle chunk of consecutive zeroes
     // This can be done by inverting everything and using the same test as above.
     if (!ok && (repeat_value & 1) && (repeat_value & (1UL << (repeat_size - 1)))) {
-        unsigned long mask = (1UL << repeat_size) - 1;
+        unsigned long mask = ~0UL >> (64 - repeat_size);
         repeat_value = l | ~mask;
         repeat_value = ~repeat_value;
 

@@ -690,6 +690,7 @@ int test_is_logical_immediate_32_bit() {
     // All zeros or all ones
     CHECK_32_BIT_LOGICAL_IMMEDIATE(0, 0x00000000U);
     CHECK_32_BIT_LOGICAL_IMMEDIATE(0, 0xffffffffU);
+    CHECK_32_BIT_LOGICAL_IMMEDIATE(0, 0xffffffffffffffffU);
 
     // Simple patterns
     CHECK_32_BIT_LOGICAL_IMMEDIATE(1, 0x00000001U);
@@ -778,35 +779,35 @@ int test_is_logical_immediate_64_bit() {
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xf000000000000000ULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xffff000000000000ULL);
 
-    // // Sepeated 2-bit patterns
+    // Sepeated 2-bit patterns
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0x5555555555555555ULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xaaaaaaaaaaaaaaaaULL);
 
-    // // Repeated 4-bit patterns
+    // Repeated 4-bit patterns
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0x1111111111111111ULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0x3333333333333333ULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0x0f0f0f0f0f0f0f0fULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xf0f0f0f0f0f0f0f0ULL);
 
-    // // Repeated 8-bit patterns
+    // Repeated 8-bit patterns
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0x1f1f1f1f1f1f1f1fULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xf8f8f8f8f8f8f8f8ULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xff00ff00ff00ff00ULL);
 
-    // // Repeated 16-bit patterns
+    // Repeated 16-bit patterns
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0x00ff00ff00ff00ffULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xff0000ffff0000ffULL);
 
-    // // Repeated 32-bit patterns
+    // Repeated 32-bit patterns
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0x0000ffff0000ffffULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xffff0000ffff0000ULL);
 
-    // // Full 64-bit masks
+    // Full 64-bit masks
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0x00000000ffffffffULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xffffffff00000000ULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0x0000ffffffff0000ULL);
 
-    // // Wrapped runs (rotation required)
+    // Wrapped runs (rotation required)
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xc000000000000001ULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xe000000000000003ULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(1, 0xf00000000000000fULL);
@@ -817,6 +818,7 @@ int test_is_logical_immediate_64_bit() {
     CHECK_64_BIT_LOGICAL_IMMEDIATE(0, 0x00000000deadbeefULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(0, 0x0123456789abcdefULL);
     CHECK_64_BIT_LOGICAL_IMMEDIATE(0, 0x13579bdf2468ace0ULL);
+    CHECK_64_BIT_LOGICAL_IMMEDIATE(0, 0xffffffffefffafffULL);
 
     // Almost right but not contiguous
     CHECK_64_BIT_LOGICAL_IMMEDIATE(0, 0x0000000000000005ULL); // 0101
