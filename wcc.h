@@ -1446,7 +1446,8 @@ typedef struct target_operation {
     char allocate_stack_index_in_slot; // Allocate a stack index and put in slot
     char allocate_register_in_slot;    // Allocate a register and put in slot
     char allocate_label_in_slot;       // Allocate a label and put in slot
-    char allocated_type;               // Type to use to determine the allocated stack size
+    char allocated_type;               // Type to use for a slot value
+    char allocated_type_is_ptr;        // If the slot value type is a pointer
     char arg;                          // The argument (src1 or src2) to load/save
 } TargetOperation;
 
@@ -1493,7 +1494,7 @@ TargetOperation *add_target_op_to_rule(Rule *r, TargetOperation *target_op);
 void fin_rule(Rule *r);
 void add_save_value(Rule *r, int arg, int slot);
 void add_allocate_stack_index_in_slot(Rule *r, int slot, int type);
-void add_allocate_register_in_slot(Rule *r, int slot, int type);
+TargetOperation *add_allocate_register_in_slot(Rule *r, int slot, int type);
 void add_allocate_label_in_slot(Rule *r, int slot);
 void write_rule_coverage_file(void);
 

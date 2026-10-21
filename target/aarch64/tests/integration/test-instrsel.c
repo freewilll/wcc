@@ -524,6 +524,34 @@ void test_stack_address_of() {
     init_allocate_registers(); // Enable register allocation again
 }
 
+void test_load_from_pointer_in_register(void) {
+    Tac *tac;
+
+    remove_reserved_physical_registers = 1;
+
+    // IR_MOVE v << ptr with a large offset
+    start_ir();
+    tac = i(0, IR_INDIRECT, vsz(2, TYPE_CHAR), asz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("movz        x16, 5000");
+    assert_preg_op("ldrb        w0, [x0, x16]");
+}
+
+void test_store_to_pointer_in_register(void) {
+    Tac *tac;
+
+    remove_reserved_physical_registers = 1;
+
+    // IR_MOVE ptr << v with a large offset
+    start_ir();
+    tac = i(0, IR_MOVE_TO_PTR, 0, asz(1, TYPE_CHAR), vsz(2, TYPE_CHAR));
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("movz        x16, 5000");
+    assert_preg_op("strb        w0, [x0, x16]");
+}
+
 void test_indirects(void) {
     Tac *tac;
 
@@ -1119,6 +1147,8 @@ int main() {
     if (verbose) printf("Running instrsel test_stack_stores\n");                                test_stack_stores();
     if (verbose) printf("Running instrsel test_stack_address_of\n");                            test_stack_address_of();
     if (verbose) printf("Running instrsel test_indirects\n");                                   test_indirects();
+    if (verbose) printf("Running instrsel test_load_from_pointer_in_register\n");               test_load_from_pointer_in_register();
+    if (verbose) printf("Running instrsel test_store_to_pointer_in_register\n");                test_store_to_pointer_in_register();
     if (verbose) printf("Running instrsel test_instrsel_constant_bitshift\n");                  test_instrsel_constant_bitshift();
     if (verbose) printf("Running instrsel test_instrsel_add_sub_constant\n");                   test_instrsel_add_sub_constant();
     if (verbose) printf("Running instrsel test_is_logical_immediate_32_bit\n");                 test_is_logical_immediate_32_bit();

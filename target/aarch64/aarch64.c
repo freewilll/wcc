@@ -447,7 +447,7 @@ static void insert_store_global_instructions(Function *function, Tac *tac) {
     tac->src1->offset = 0;
 
     Value *r17 = new_value();
-    r17->type = new_type(TYPE_LONG);
+    r17->type = make_pointer_to_void();
     r17->target_size = 4;
     r17->preg = REG_R17;
 
@@ -599,18 +599,52 @@ void expand_adrp_instructions(Function *function) {
 // mov x16, offset   # Constant encoding omitted for brevity
 // ldr* foo, [preg, x16]
 void expand_indirect_offsets(Function *function) {
-    char *templates[] = {"ldrb %vdw, [%v1x, %v2x]", "ldrh %vdw, [%v1x, %v2x]", "ldr %vdw, [%v1x, %v2x]", "ldr %vdx, [%v1x, %v2x]"};
+    char *load_templates[] =  {
+        "ldrb %vdw, [%v1x, %v2x]",
+        "ldrh %vdw, [%v1x, %v2x]",
+        "ldr %vdw, [%v1x, %v2x]",
+        "ldr %vdx, [%v1x, %v2x]",
+        "ldr %vdx, [%v1x, %v2x]"
+    };
+    char *store_templates[] = {
+        "strb %v2w, [%v1x, %vdx]",
+        "strh %v2w, [%v1x, %vdx]",
+        "str %v2w, [%v1x, %vdx]",
+        "str %v2x, [%v1x, %vdx]",
+        "str %v2x, [%v1x, %vdx]"
+    };
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation.id != AARCH64_OP_LDR) continue;
+        int is_load = tac->operation.id == AARCH64_OP_LDR;
+        int is_store = tac->operation.id == AARCH64_OP_STR;
+        if (!is_load && !is_store) continue;
+
         int is_stack_register = tac->src1->preg == REG_SP || tac->src1->preg == REG_R29;
         if (is_stack_register) continue;
-        if (is_ldr_str_immediate_offset(tac->dst->target_size, tac->src1->offset)) continue;
+        if (tac->src1->stack.index) continue;
 
-        int size = tac->dst->target_size;
+        if (!tac->src1->type->target) {
+            print_instruction(stdout, tac, 1);
+            print_type(stdout, tac->src1->type);
+            printf("\n");
+            panic("Trying to load/store from/to a non-pointer in %s", function->identifier);
+        }
 
-        if (size < 1 || size > 4)
-            panic("Unknown size in is_ldr_str_immediate_offset: %d", size);
+        // Convert the logarithmic size from the full type size
+        int size = get_type_size(tac->src1->type->target);
+        switch(size) {
+            case 1:  size = 1; break;
+            case 2:  size = 2; break;
+            case 4:  size = 3; break;
+            case 8:  size = 4; break;
+            case 16: size = 5; break;
+            default: panic("Unable to convert size %d  for a ldr/str instruction", size);
+        }
+
+        if (is_ldr_str_immediate_offset(size, tac->src1->offset)) continue;
+
+        char **templates = is_load ? load_templates : store_templates;
+        char *template = templates[size - 1];
 
         Value *r16 = new_value();
         r16->type = new_type(TYPE_LONG);
@@ -627,9 +661,16 @@ void expand_indirect_offsets(Function *function) {
         Value *src1_copy = dup_value(tac->src1);
         src1_copy->offset = 0;
 
-        tac->src1 = src1_copy;
-        tac->src2 = r16;
-        tac->target_template = templates[size - 1];
+        tac->target_template = template;
+
+        if (is_load) {
+            tac->src1 = src1_copy;
+            tac->src2 = r16;
+        }
+        else {
+            tac->src1 = src1_copy;
+            tac->dst = r16;
+        }
     }
 }
 

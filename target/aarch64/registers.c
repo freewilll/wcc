@@ -168,7 +168,7 @@ static void add_spill_load(Tac *tac, Value *value, int temp_preg) {
 
     // Make a value for the temp_preg register
     Value *temp_preg_value = new_value();
-    temp_preg_value->type = new_type(TYPE_LONG);
+    temp_preg_value->type = make_pointer(dup_type(value->type));
     temp_preg_value->target_size = 4;
     temp_preg_value->preg = temp_preg;
 
@@ -239,7 +239,7 @@ static Tac *add_spill_store(Tac *tac) {
 
     // Make a value for the r15 register, which holds the pointer to the dst
     Value *r15_value = new_value();
-    r15_value->type = new_type(TYPE_LONG);
+    r15_value->type = make_pointer(dup_type(tac->dst->type));
     r15_value->target_size = 4;
     r15_value->preg = REG_R15;
 

@@ -1098,6 +1098,18 @@ static Tac *add_target_instruction(TargetOperation *target_op, Value *dst, Value
     return tac;
 }
 
+// Make a slot value from a target op
+static Value *make_slot_value(TargetOperation *target_op) {
+    Value *value = new_value();
+
+    if (target_op->allocated_type_is_ptr)
+        value->type = make_pointer(new_type(target_op->allocated_type));
+    else
+        value->type = new_type(target_op->allocated_type);
+
+    return value;
+}
+
 static Value *generate_instructions(Function *function, IGraphNode *ign, int is_root, Rule *rule, Value *src1, Value *src2) {
     if (debug_instsel_tiling) {
         printf("Generating instructions for rule %-4d: ", rule->index);
@@ -1202,8 +1214,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
         }
         else if (target_op->allocate_stack_index_in_slot) {
             int stack_index = -(++function->stack_register_count);
-            Value *slot_value = new_value();
-            slot_value->type = new_type(target_op->allocated_type);
+            Value *slot_value = make_slot_value(target_op);
             slot_value->stack.index = stack_index;
 
             saved_values[target_op->allocate_stack_index_in_slot] = slot_value;
@@ -1212,8 +1223,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
         }
         else if (target_op->allocate_register_in_slot) {
             int vreg = ++function->vreg_count;
-            Value *slot_value = new_value();
-            slot_value->type = new_type(target_op->allocated_type);
+            Value *slot_value = make_slot_value(target_op);
             slot_value->vreg = vreg;
 
             saved_values[target_op->allocate_register_in_slot] = slot_value;

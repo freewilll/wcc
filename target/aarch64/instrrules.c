@@ -611,16 +611,57 @@ static void add_load_global_address_rule(int dst, int src1, int operation) {
     add_op(r, AARCH64_OP_ADRP, DST, SRC1, 0, "dummy adrp of template %vdx, %v1");
 }
 
-static void add_load_global_address_to_rule_into_sv1(Rule *r, int src1) {
-    add_allocate_register_in_slot(r, 1, TYPE_LONG);
+static void add_load_global_address_to_rule_into_sv1(Rule *r, int src1, int type) {
+    TargetOperation *target_op = add_allocate_register_in_slot(r, 1, type);
+    target_op->allocated_type_is_ptr = 1;
     add_op(r, AARCH64_OP_ADRP, SV1, SRC1, 0, "dummy adrp of template %vdx, %v1");
 }
 
 // In aarch64, memory moves into a register are done on the leaf nodes
 static void add_global_memory_into_register_rule(int dst, int src1, char *template) {
     Rule *r = add_rule(dst, 0, src1, 0, 2);
-    add_load_global_address_to_rule_into_sv1(r, src1);
-    add_op(r, AARCH64_OP_LDR,  DST, SV1,  0, template);
+
+
+    int type;
+    switch (dst) {
+        case RI1:
+        case RU1:
+            type = TYPE_CHAR;
+            break;
+
+        case RI2:
+        case RU2:
+            type = TYPE_SHORT;
+            break;
+
+        case RI3:
+        case RU3:
+        case RO3:
+            type = TYPE_INT;
+            break;
+
+        case RI4:
+        case RU4:
+        case RO4:
+        case RP1:
+        case RP2:
+        case RP3:
+        case RP4:
+        case RP5:
+        case RPF:
+            type = TYPE_LONG;
+            break;
+
+        case RO5:
+            type = TYPE_LONG_DOUBLE;
+            break;
+
+        default:
+            panic("Cannot determine type of operand %s to add_global_memory_into_register_rule()", non_terminal_string(dst));
+    }
+
+    add_load_global_address_to_rule_into_sv1(r, src1, type);
+    add_op(r, AARCH64_OP_LDR, DST, SV1,  0, template);
     fin_rule(r);
 }
 
@@ -695,7 +736,10 @@ static void add_pointer_rules() {
     // Memory -> register rules
     add_stack_memory_into_register_rule (XRP, MSPV, "ldr %vdx, [%v1x]");
     add_stack_memory_into_register_rule (RP5, MSPV, "ldr %vdx, [%v1x]");
-    add_global_memory_into_register_rule(XRP, MGPV, "ldr %vdx, [%v1x]");
+    add_global_memory_into_register_rule(RP1, MGPV, "ldr %vdx, [%v1x]");
+    add_global_memory_into_register_rule(RP2, MGPV, "ldr %vdx, [%v1x]");
+    add_global_memory_into_register_rule(RP3, MGPV, "ldr %vdx, [%v1x]");
+    add_global_memory_into_register_rule(RP4, MGPV, "ldr %vdx, [%v1x]");
     add_global_memory_into_register_rule(RP5, MGPV, "ldr %vdx, [%v1x]");
 
     // Register -> Memory rules

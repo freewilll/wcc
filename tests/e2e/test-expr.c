@@ -858,7 +858,20 @@ static void test_integer_constant_assignments() {
     ul = 0xffffffffffff1234; assert_long(0xffffUL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0x1234UL, ul, "ul = 0xffffffffffff1234");
     ul = 0x1234ffffffffffff; assert_long(0x1234UL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0xffffUL, ul, "ul = 0x1234ffffffffffff");
     ul = 0xffff12345678ffff; assert_long(0xffffUL << 48 | 0x1234UL << 32 | 0x5678UL << 16 | 0xffffUL, ul, "ul = 0xffff12345678ffff");
+}
 
+// An offset of 4317 is outside of the range chat can be read/written with a ldr/str
+void test_assignment_with_unencodable_aarch64_offset() {
+    struct s{
+        char c1[4317];
+        char c2;
+    } s= {{0}, 1};
+
+    struct s *ps = &s;
+
+    assert_uchar(1, ps->c2, "aarch64 ldr with big offset 1");
+    ps->c2 = 2;
+    assert_uchar(2, ps->c2, "aarch64 ldr/str with big offset 2");
 }
 
 void test_integer_constant_assignments_with_casts() {
@@ -2055,6 +2068,7 @@ int main(int argc, char **argv) {
     test_conditional_jumps();
     test_pointer_comparisons();
     test_integer_constant_assignments();
+    test_assignment_with_unencodable_aarch64_offset();
     test_integer_constant_assignments_with_casts();
     test_integer_constant_sizes();
     test_hex_and_octal_constants();

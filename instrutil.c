@@ -465,11 +465,12 @@ void add_allocate_stack_index_in_slot(Rule *r, int slot, int type) {
     add_target_op_to_rule(r, target_op);
 }
 
-void add_allocate_register_in_slot(Rule *r, int slot, int type) {
+TargetOperation *add_allocate_register_in_slot(Rule *r, int slot, int type) {
     TargetOperation *target_op = wcalloc(1, sizeof(TargetOperation));
     target_op->allocate_register_in_slot = slot;
     target_op->allocated_type = type;
-    add_target_op_to_rule(r, target_op);
+    target_op = add_target_op_to_rule(r, target_op);
+    return target_op;
 }
 
 void add_allocate_label_in_slot(Rule *r, int slot) {
