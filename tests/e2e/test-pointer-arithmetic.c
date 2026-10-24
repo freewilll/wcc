@@ -11,7 +11,7 @@ struct s1 {
     int i;
 };
 
-struct sl { long  i, j; long  k; };
+struct sl { long  i, j, k; };
 
 struct sas {
     long i, j;
@@ -37,13 +37,23 @@ void test_pointer_addition_with_constant() {
     assert_long(4, pi1 + l, "Pointer addition long");
 }
 
+typedef struct {
+    char *ptr;
+    int i;
+} StringBuffer;
+
+// Test adding an integer in a pointer to a pointer in a pointer
+void test_pointer_pointer_add_in_struct(StringBuffer *sb) {
+    assert_long(sb->ptr, sb->ptr + sb->i, "Test adding an integer in a pointer to a pointer in a pointer");
+}
+
 void test_pointer_addition_with_register() {
     unsigned char *puc;
 
-    char c;
-    short s;
-    int i;
-    long l;
+    signed char c;
+    signed short s;
+    signed int i;
+    signed long l;
     unsigned char uc;
     unsigned short us;
     unsigned int ui;
@@ -60,6 +70,19 @@ void test_pointer_addition_with_register() {
     puc = puc + us; assert_long(puc, 6, "Pointer addition with register us");
     puc = puc + ui; assert_long(puc, 7, "Pointer addition with register ui");
     puc = puc + ul; assert_long(puc, 8, "Pointer addition with register ul");
+
+    c = s = i = l = -1;
+
+    puc = 16;
+
+    puc = puc +  c; assert_long(puc, 16 - 1, "Pointer addition with negative register c");
+    puc = puc +  s; assert_long(puc, 16 - 2, "Pointer addition with negative register s");
+    puc = puc +  i; assert_long(puc, 16 - 3, "Pointer addition with negative register i");
+    puc = puc +  l; assert_long(puc, 16 - 4, "Pointer addition with negative register l");
+
+    StringBuffer sb = {0};
+    sb.ptr = malloc(1);
+    test_pointer_pointer_add_in_struct(&sb);
 }
 
 void test_brutal_pointer_arithmetic() {

@@ -250,7 +250,13 @@ static void push_integral_constant(int type_type, long value) {
     push(new_integral_constant(type_type, value));
 }
 
+// Create a new typed constant value and push it to the stack.
+// type doesn't have to be dupped
+static void push_unsigned_integral_constant(int type_type, long value) {
+    push(new_unsigned_integral_constant(type_type, value));
+}
 // Push cur_long, using the lexer determined type cur_lexer_type
+
 static void push_cur_long(void) {
     Value *v = new_integral_constant(cur_lexer_type->type, cur_long);
     v->type->is_unsigned = cur_lexer_type->is_unsigned;
@@ -2225,6 +2231,18 @@ static void finish_comp_assign(Value *v1) {
     add_parser_instruction(IR_MOVE, v1, vtop(), 0);
 }
 
+static void ensure_vtop_is_unsigned_long(void) {
+    Value *v = vtop();
+    if (v->type->type == TYPE_LONG && v->type->is_unsigned) return;
+
+    Value *converted = new_value();
+    converted->vreg = new_vreg();
+    converted->type = new_type(TYPE_LONG);
+    converted->type->is_unsigned = 1;
+    add_parser_instruction(IR_MOVE, converted, pl(), 0);
+    push(converted);
+}
+
 static void parse_addition(int level, int for_array_subscript) {
     if (vtop()->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
     Value *src1 = vtop();
@@ -2242,10 +2260,15 @@ static void parse_addition(int level, int for_array_subscript) {
         Value *tmp = vs[0];
         vs[0] = vs[1];
         vs[1] = tmp;
+        src2 = src1;
         src1 = tmp;
 
+        src1_is_pointer = 1;
         src2_is_pointer = 0;
     }
+
+    // Pointer arithmetic must all happen on 64-bit values
+    if (src1_is_pointer) ensure_vtop_is_unsigned_long();
 
     int factor = get_type_inc_dec_size(vs[1]->type);
 
@@ -2267,7 +2290,11 @@ static void parse_subtraction(int level) {
 
     check_minus_operation_type(src1, src2);
 
+    int src1_is_pointer = is_pointer_to_object_type(src1->type);
     int src2_is_pointer = is_pointer_to_object_type(src2->type);
+
+    // Pointer arithmetic must all happen on 64-bit values
+    if (src1_is_pointer && !src2_is_pointer) ensure_vtop_is_unsigned_long();
 
     if (factor > 1) {
         if (!src2_is_pointer) {
@@ -2968,7 +2995,7 @@ static void parse_expression(int level) {
                 if (src1->offset && src1->vreg) {
                     // Non-vreg offsets are outputted by codegen. For addresses in registers, it
                     // needs to be calculated.
-                    push_integral_constant(TYPE_INT, src1->offset);
+                    push_unsigned_integral_constant(TYPE_LONG, src1->offset);
                     arithmetic_operation(IR_ADD, 0);
                     src1->offset = 0;
                 }

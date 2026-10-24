@@ -1183,25 +1183,15 @@ static void add_commutative_operation_rules(char *x86_operand, int operation, in
     // For simplicity, no rules are present for quads & constants, forcing the constant into a register.
 }
 
-static void add_pointer_plus_int_rule(int dst, int src, int cost, int x86_operation, char *sign_extend_template) {
+static void add_pointer_plus_int_rule(int dst, int src, int cost, int x86_operation) {
     Rule *r = add_rule(dst, IR_ADD, dst, src, cost);
     add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-    if (sign_extend_template) add_op(r, X86_OP_MOVS, SRC2, SRC2, 0, sign_extend_template);
     add_op(r, x86_operation, DST,  SRC2, DST, "addq %v1q, %v2q");
 }
 
 static void add_pointer_add_rules(void) {
-    for (int i = RP1; i <= RP5; i++) {
-        add_pointer_plus_int_rule(i, RI1, 11, X86_OP_ADD, "movsbq %v1b, %vdq");
-        add_pointer_plus_int_rule(i, RI2, 11, X86_OP_ADD, "movswq %v1w, %vdq");
-        add_pointer_plus_int_rule(i, RI3, 11, X86_OP_ADD, "movslq %v1l, %vdq");
-        add_pointer_plus_int_rule(i, RI4, 10, X86_OP_ADD, 0);
-
-        add_pointer_plus_int_rule(i, RU1, 11, X86_OP_ADD, "movzbq %v1b, %vdq");
-        add_pointer_plus_int_rule(i, RU2, 11, X86_OP_ADD, "movzwq %v1w, %vdq");
-        add_pointer_plus_int_rule(i, RU3, 11, X86_OP_ADD, "movl %v1l, %vdl");
-        add_pointer_plus_int_rule(i, RU4, 10, X86_OP_ADD, 0);
-    }
+    for (int i = RP1; i <= RP5; i++)
+        add_pointer_plus_int_rule(i, RU4, 10, X86_OP_ADD);
 
     for (int i = CI1; i <= CI4; i++)
         add_bi_directional_commutative_operation_rules(IR_ADD, X86_OP_MOV, X86_OP_ADD, XRP, i, XRP, 10, "movq %v1q, %vdq", "addq $%v1q, %v2q");
@@ -1239,17 +1229,9 @@ static void add_sub_rules(void) {
     add_sub_rule(XR, XM, XR,  11, "mov%s %v1, %vd",  0, "sub%s %v1, %vd");
 
     // Pointer - int subtraction
-    for (int i = RP1; i <= RP5; i++) {
-        add_sub_rule(i, i, RI1, 11, "movq %v1q, %vdq", "movsbq %v1b, %v1q", "subq %v1q, %vdq");
-        add_sub_rule(i, i, RI2, 11, "movq %v1q, %vdq", "movswq %v1w, %v1q", "subq %v1q, %vdq");
-        add_sub_rule(i, i, RI3, 11, "movq %v1q, %vdq", "movslq %v1l, %v1q", "subq %v1q, %vdq");
-        add_sub_rule(i, i, RI4, 10, "movq %v1q, %vdq", 0,                   "subq %v1q, %vdq");
+    for (int i = RP1; i <= RP5; i++)
+        add_sub_rule(i, i, RU4, 10, "movq %v1q, %vdq", 0, "subq %v1q, %vdq");
 
-        add_sub_rule(i, i, RU1, 11, "movq %v1q, %vdq", "movzbq %v1b, %v1q", "subq %v1q, %vdq");
-        add_sub_rule(i, i, RU2, 11, "movq %v1q, %vdq", "movzwq %v1w, %v1q", "subq %v1q, %vdq");
-        add_sub_rule(i, i, RU3, 11, "movq %v1q, %vdq", "movl   %v1l, %v1l", "subq %v1q, %vdq");
-        add_sub_rule(i, i, RU4, 10, "movq %v1q, %vdq", 0,                   "subq %v1q, %vdq");
-    }
 
     // Pointer - pointer subtraction
     // The result of a pointer-pointer subtraction is always a signed long: RI4.

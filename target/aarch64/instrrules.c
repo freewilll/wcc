@@ -424,14 +424,7 @@ static void add_pointer_plus_int_rule(int dst, int src) {
 static void add_pointer_add_rules(void) {
     for (int i = RP1; i <= RP5; i++) {
         add_pointer_plus_int_rule(i, CADDSUB);
-        add_pointer_plus_int_rule(i, RI1);
-        add_pointer_plus_int_rule(i, RU1);
-        add_pointer_plus_int_rule(i, RI2);
-        add_pointer_plus_int_rule(i, RU2);
-        add_pointer_plus_int_rule(i, RI3);
-        add_pointer_plus_int_rule(i, RU3);
-        add_pointer_plus_int_rule(i, RI4);
-        add_pointer_plus_int_rule(i, RU4);
+        add_pointer_plus_int_rule(i, RU4); // Pointer arithmetic with an integer always happens on RU4
     }
 }
 
@@ -442,30 +435,18 @@ static Rule *add_sub_rule(int dst, int src1, int src2) {
 }
 
 static void add_pointer_sub_rules(void) {
-    Rule *r;
-
     // pointer - int
     for (int i = RP1; i <= RP5; i++) {
         add_sub_rule(i, i, XRI);
         add_sub_rule(i, i, XRU);
     }
 
-    r = add_sub_rule(XRP, XRP, RI1); fin_rule(r);
-    r = add_sub_rule(XRP, XRP, RU1); fin_rule(r);
-    r = add_sub_rule(XRP, XRP, RI2); fin_rule(r);
-    r = add_sub_rule(XRP, XRP, RU2); fin_rule(r);
-    r = add_sub_rule(XRP, XRP, RI3); fin_rule(r);
-    r = add_sub_rule(XRP, XRP, RU3); fin_rule(r);
-    r = add_sub_rule(XRP, XRP, RI4); fin_rule(r);
-    r = add_sub_rule(XRP, XRP, RU4); fin_rule(r);
-    r = add_sub_rule(RP5, RP5, RI3); fin_rule(r);
-    r = add_sub_rule(RP5, RP5, RU3); fin_rule(r);
-    r = add_sub_rule(RP5, RP5, RI4); fin_rule(r);
-    r = add_sub_rule(RP5, RP5, RU4); fin_rule(r);
-    r = add_sub_rule(RI4, XRP, RI4); fin_rule(r);
-    r = add_sub_rule(RI4, XRP, RU4); fin_rule(r);
+    for (int i = RP1; i <= RP5; i++) {
+        add_sub_rule(i, i, CADDSUB);
+        add_sub_rule(i, i, RU4); // Pointer arithmetic with an integer always happens on RU4
+    }
 
-    add_sub_rule(XRP, XRP, CADDSUB);
+    Rule *r = add_sub_rule(RI4, XRP, RU4); fin_rule(r);
 
     // Pointer - pointer subtraction
     // The result of a pointer-pointer subtraction is always a signed long: RI4.

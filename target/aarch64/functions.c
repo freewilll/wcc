@@ -341,7 +341,12 @@ static Tac *make_address_of_va_register_save_area(Function *function, Tac *ir, V
     *param_address = new_value();
     (*param_address)->type = make_pointer(dst_type);
     (*param_address)->vreg = ++function->vreg_count;
-    ir = new_tac_after(ir, IR_ADD, *param_address, top, offs);
+
+    Value *long_offs = dup_value(offs);
+    long_offs->type->type = TYPE_LONG;
+    long_offs->type->is_unsigned = 1;
+
+    ir = new_tac_after(ir, IR_ADD, *param_address, top, long_offs);
 
     return ir;
 }

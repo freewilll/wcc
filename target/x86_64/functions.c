@@ -455,7 +455,13 @@ static Tac *add_function_va_arg_register_save_area_read(Function *function, Tac 
     Value *ptr = new_value();
     ptr->type = make_pointer(dst->type);
     ptr->vreg = ++function->vreg_count;
-    ir = new_tac_after(ir, IR_ADD, ptr, register_save_area, gp_fp_offset);
+
+    // Pointer addition with has to be done with an unsigned long
+    Value *long_gp_fp_offset = dup_value(gp_fp_offset);
+    long_gp_fp_offset->type->type = TYPE_LONG;
+    long_gp_fp_offset->type->is_unsigned = 1;
+
+    ir = new_tac_after(ir, IR_ADD, ptr, register_save_area, long_gp_fp_offset);
 
     if (type->type == TYPE_STRUCT_OR_UNION) {
         // Copy memory for struct/union
