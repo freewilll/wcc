@@ -1080,8 +1080,22 @@ static void add_single_register_arg_move_to_stack(Function *function, Tac *tac) 
     if (cvl->count != 1) panic("Unexpected int128 to stack move with locations->count != 1");
     int stack_offset = cvl->locations[0].stack_offset;
 
+    FunctionType *called_function = arg->function_call.function_type->function;
+    int arg_index = arg->function_call.function_call_arg_index;
+
+    // Similar to what's done in add_function_call_arg_moves
+    Type *type;
+    if (arg_index >= 0 && arg_index < called_function->param_count) {
+        // Use the type from the function parameter
+        type = called_function->param_types->elements[arg_index];
+    }
+    else {
+        // Promote a variadic argument
+        type = apply_default_function_call_argument_promotions(tac->src2->type);
+    }
+
     Value *dst = new_value();
-    dst->type = dup_type(tac->src2->type);
+    dst->type = dup_type(type);
     dst->stack.index = stack_offset / 8 + 1; // Conventionally the first stack_index entry starts at 1
     dst->stack.area = SA_FUNCTION_ARGS;
 

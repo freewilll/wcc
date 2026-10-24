@@ -558,9 +558,15 @@ static void test_default_argument_promotions() {
     sprintf(buffer, "%d", (char) 1);
     assert_string("1", buffer, "Default argument promotion in ... for char -> int");
 
+    sprintf(buffer, "%d %d %d %d %d %d %d %d %d %d", (char) 1, (char) 2, (char) 3, (char) 4, (char) 5, (char) 6, (char) 7, (char) 8, (char) 9, (char) 10);
+    assert_string("1 2 3 4 5 6 7 8 9 10", buffer, "Default argument promotion in ... for char -> int for 10 args");
+
     float f = 1.1;
-    sprintf(buffer, "%f", (float) 1.1);
-    assert_string("1.100000", buffer, "Default argument promotion in ... for float -> double");
+    sprintf(buffer, "%0.1f", (float) 1.1);
+    assert_string("1.1", buffer, "Default argument promotion in ... for float -> double");
+
+    sprintf(buffer, "%0.1f %0.1f %0.1f %0.1f %0.1f %0.1f %0.1f %0.1f %0.1f %0.1f", (float) 1.1, (float) 2.1, (float) 3.1, (float) 4.1, (float) 5.1, (float) 6.1, (float) 7.1, (float) 8.1, (float) 9.1, (float) 10.1);
+    assert_string("1.1 2.1 3.1 4.1 5.1 6.1 7.1 8.1 9.1 10.1", buffer, "Default argument promotion in ... for float -> double for 10 args");
 }
 
 struct ld3 { long double ld1, ld2, ld3; } ld3 = { 1.1, 1.2, 1.3 };

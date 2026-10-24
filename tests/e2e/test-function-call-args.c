@@ -63,6 +63,10 @@ void fc_int_in_stack10(int i1, int i2, int i3, int i4, int i5, int i6, int i7, i
     assert_int(1234567891, 1000000000 * i1 + 100000000 * i2 + 10000000 * i3 + 1000000 * i4 + 100000 * i5 + 10000 * i6 + 1000 * i7 + 100 * i8 + 10 * i9 + i10, "function call with 10 int args in local stack");
 }
 
+void test_long_in_stack(int i0, int i1, int i2, int i3, int i4, int i5, int i6, int i7, long l) {
+    assert_long(1, l, "Test long in stack");
+}
+
 void test_int_args() {
     fc_int0();
     fc_int1(1);
@@ -91,6 +95,9 @@ void test_int_args() {
 
     // Test passing an global int to a ABI stack
     fc_int_in_stack10(1, 2, 3, 4, 5, 6, 7, 8, 9, gi1);
+
+    // Test aarch64 case where a one is passed on the stack
+    test_long_in_stack(0, 0, 0, 0, 0, 0, 0, 0, 1);
 }
 
 void fc_float0() {

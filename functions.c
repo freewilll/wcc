@@ -583,9 +583,10 @@ static void add_function_call_arg_move(Function *function, Tac *ir, FunctionType
         // Use the type from the function parameter
         type = called_function->param_types->elements[arg_index];
     }
-    else
+    else {
         // Promote a variadic argument
         type = apply_default_function_call_argument_promotions(ad->call_arg->type);
+    }
 
     int function_call_vreg;
     Type *function_call_vreg_type;
