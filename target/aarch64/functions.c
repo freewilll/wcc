@@ -429,8 +429,6 @@ static Tac *prepare_read_from_va_stack(Function *function, Tac *ir, Type *type, 
 // First, check the offs pointer to see if the data is in the register save area.
 // Otherwise, it's on the stack.
 static Tac *add_function_va_arg_scalar_read(Function *function, Tac *ir, Type *type, Value *va_list, int is_int, Value *dst) {
-    int alignment = get_type_alignment(type);
-
     // Make jump labels
     Value *lfetch_from_stack = new_label_dst();
     Value *ldone = new_label_dst();
@@ -441,9 +439,6 @@ static Tac *add_function_va_arg_scalar_read(Function *function, Tac *ir, Type *t
 
     // Check if offs >= 0, and if so jump to the stack fetching code
     ir = check_va_offs_ge_zero(function, ir, offs, lfetch_from_stack);
-
-    if (is_int && alignment == 16)
-        printf("Types with 16 byte alignment in a vararg are not implemented\n");
 
     // Increase offs by 8 for integers and 16 for FP values
     Value *new_offs;
