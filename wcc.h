@@ -1225,6 +1225,7 @@ Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int s
 void convert_enums(Function *function);
 void remove_stack_self_moves(Function *function, int move_operation);
 void check_PIC_instruction_sanity(Tac *tac);
+int is_global_symbol_with_external_linkage(Value *v);
 
 extern int live_range_reserved_pregs_offset;
 

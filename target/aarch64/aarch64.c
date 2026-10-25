@@ -772,10 +772,10 @@ static void add_PIC_load_and_saves(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         check_PIC_instruction_sanity(tac);
 
-        if (tac->dst && tac->dst->global_symbol && tac->operation.id == IR_MOVE)
+        if (tac->dst && is_global_symbol_with_external_linkage(tac->dst) && tac->operation.id == IR_MOVE)
             tac->dst->load_from_got = 1;
 
-        if (tac->src1 && tac->src1->global_symbol && (tac->operation.id == IR_MOVE || tac->operation.id == IR_ADDRESS_OF))
+        if (tac->src1 && is_global_symbol_with_external_linkage(tac->src1) && (tac->operation.id == IR_MOVE || tac->operation.id == IR_ADDRESS_OF))
             tac->src1->load_from_got = 1;
     }
 }

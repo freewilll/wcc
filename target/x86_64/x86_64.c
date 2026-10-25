@@ -197,7 +197,7 @@ static void add_PIC_load_and_saves(Function *function) {
         check_PIC_instruction_sanity(tac);
 
         // Convert a save of a global to a mov from the GOT followed by a store to a pointer in a register
-        if (tac->dst && tac->dst->global_symbol && tac->operation.id == IR_MOVE) {
+        if (tac->dst && is_global_symbol_with_external_linkage(tac->dst) && tac->operation.id == IR_MOVE) {
             Value *dst = add_load_from_got(function, tac, tac->dst);
 
             // Convert to a move to an lvalue in a register
@@ -208,7 +208,7 @@ static void add_PIC_load_and_saves(Function *function) {
         }
 
         // Convert a load of a global to a mov from the GOT followed by an indirect
-        if (tac->src1 && tac->src1->global_symbol && tac->operation.id == IR_MOVE) {
+        if (tac->src1 && is_global_symbol_with_external_linkage(tac->src1) && tac->operation.id == IR_MOVE) {
             Value *dst = add_load_from_got(function, tac, tac->src1);
 
             // Convert to an indirect unless it's a pointer to a function
@@ -217,7 +217,7 @@ static void add_PIC_load_and_saves(Function *function) {
                 tac->operation.id = IR_INDIRECT;
         }
 
-        else if (tac->src1 && tac->src1->global_symbol && tac->operation.id == IR_ADDRESS_OF) {
+        else if (tac->src1 && is_global_symbol_with_external_linkage(tac->src1) && tac->operation.id == IR_ADDRESS_OF) {
             tac->operation.id = IR_ADDRESS_OF_FROM_GOT;
             tac->src1->load_from_got = 1;
             if (tac->src1->offset) {
@@ -236,7 +236,7 @@ static void add_PIC_load_and_saves(Function *function) {
 // function has been defined.
 static void convert_functions_address_of(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation.id == IR_ADDRESS_OF && tac->src1->global_symbol && tac->src1->type->type == TYPE_FUNCTION) {
+        if (tac->operation.id == IR_ADDRESS_OF && is_global_symbol_with_external_linkage(tac->src1) && tac->src1->type->type == TYPE_FUNCTION) {
 
             FunctionCallValue *fcv = &tac->src1->function_call;
             int is_defined = fcv->function_symbol && fcv->function_symbol->function && fcv->function_symbol->function->is_defined;

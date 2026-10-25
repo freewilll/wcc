@@ -1274,3 +1274,7 @@ void check_PIC_instruction_sanity(Tac *tac) {
     if (tac->src2 && tac->src2->global_symbol)
         panic("Unexpected operation for global_symbol in src2: %s", operation_string(tac->operation.id));
 }
+
+int is_global_symbol_with_external_linkage(Value *v) {
+    return v->global_symbol && v->global_symbol->linkage == LINKAGE_EXTERNAL;
+}

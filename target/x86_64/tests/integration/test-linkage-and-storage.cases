@@ -256,3 +256,268 @@ f:
 .Lall.code.end:
 
 ------------------------
+
+% void f() {} No PIC, address of function with external linkage
+void f(); void g() { &f; }
+------------------------
+    .text
+    .globl  g
+    .type   g, @function
+
+.Lall.code.start:
+g:
+.Lg.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    leaq        f(%rip), %rax
+    leaveq
+    retq
+    .size       g, .-g
+.Lg.end:
+
+.Lall.code.end:
+
+------------------------
+
+%p void f() {} PIC, address of function with external linkage
+void f(); void g() { &f; }
+------------------------
+    .text
+    .globl  g
+    .type   g, @function
+
+.Lall.code.start:
+g:
+.Lg.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    movq        f@GOTPCREL(%rip), %rax
+    leaveq
+    retq
+    .size       g, .-g
+.Lg.end:
+
+.Lall.code.end:
+
+------------------------
+
+% static int i; void f() { i; } No PIC, static global read
+static int i; int f() { return i; }
+------------------------
+    .text
+    .local  i
+    .comm   i,4,4
+    .text
+    .globl  f
+    .type   f, @function
+
+.Lall.code.start:
+f:
+.Lf.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    movl        i(%rip), %eax
+    leaveq
+    retq
+    .size       f, .-f
+.Lf.end:
+
+.Lall.code.end:
+
+------------------------
+
+% static int i; void f() { i; } No PIC, static global write
+static int i; void f() { i = 1; }
+------------------------
+    .text
+    .local  i
+    .comm   i,4,4
+    .text
+    .globl  f
+    .type   f, @function
+
+.Lall.code.start:
+f:
+.Lf.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    movl        $1, i(%rip)
+    leaveq
+    retq
+    .size       f, .-f
+.Lf.end:
+
+.Lall.code.end:
+
+------------------------
+
+%p static int i; void f() { i; } PIC, static global read
+static int i; int f() { return i; }
+------------------------
+    .text
+    .local  i
+    .comm   i,4,4
+    .text
+    .globl  f
+    .type   f, @function
+
+.Lall.code.start:
+f:
+.Lf.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    movl        i(%rip), %eax
+    leaveq
+    retq
+    .size       f, .-f
+.Lf.end:
+
+.Lall.code.end:
+
+------------------------
+
+%p static int i; void f() { i; } PIC, static global write
+static int i; void f() { i = 1; }
+------------------------
+    .text
+    .local  i
+    .comm   i,4,4
+    .text
+    .globl  f
+    .type   f, @function
+
+.Lall.code.start:
+f:
+.Lf.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    movl        $1, i(%rip)
+    leaveq
+    retq
+    .size       f, .-f
+.Lf.end:
+
+.Lall.code.end:
+
+------------------------
+
+% int i; void f() { i; } No PIC, global read
+int i; int f() { return i; }
+------------------------
+    .text
+    .globl   i
+    .bss
+    .align   4
+    .type    i, @object
+    .size    i, 4
+i:
+    .zero    4
+    .text
+    .globl  f
+    .type   f, @function
+
+.Lall.code.start:
+f:
+.Lf.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    movl        i(%rip), %eax
+    leaveq
+    retq
+    .size       f, .-f
+.Lf.end:
+
+.Lall.code.end:
+
+------------------------
+
+% int i; void f() { i; } No PIC, global write
+int i; void f() { i = 1; }
+------------------------
+    .text
+    .globl   i
+    .bss
+    .align   4
+    .type    i, @object
+    .size    i, 4
+i:
+    .zero    4
+    .text
+    .globl  f
+    .type   f, @function
+
+.Lall.code.start:
+f:
+.Lf.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    movl        $1, i(%rip)
+    leaveq
+    retq
+    .size       f, .-f
+.Lf.end:
+
+.Lall.code.end:
+
+------------------------
+%p int i; void f() { i; } PIC, global read
+int i; int f() { return i; }
+------------------------
+    .text
+    .globl   i
+    .bss
+    .align   4
+    .type    i, @object
+    .size    i, 4
+i:
+    .zero    4
+    .text
+    .globl  f
+    .type   f, @function
+
+.Lall.code.start:
+f:
+.Lf.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    movq        i@GOTPCREL(%rip), %rax
+    movl        (%rax), %eax
+    leaveq
+    retq
+    .size       f, .-f
+.Lf.end:
+
+.Lall.code.end:
+
+------------------------
+
+%p int i; void f() { i; } PIC, global write
+int i; void f() { i = 1; }
+------------------------
+    .text
+    .globl   i
+    .bss
+    .align   4
+    .type    i, @object
+    .size    i, 4
+i:
+    .zero    4
+    .text
+    .globl  f
+    .type   f, @function
+
+.Lall.code.start:
+f:
+.Lf.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    movq        i@GOTPCREL(%rip), %rax
+    movl        $1, (%rax)
+    leaveq
+    retq
+    .size       f, .-f
+.Lf.end:
+
+.Lall.code.end:
+
+------------------------

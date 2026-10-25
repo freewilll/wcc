@@ -13,14 +13,19 @@ int passes;
 int failures;
 
 // Run wcc and assert the assembly matches the expectation
-static void check_output(char *code, char *expected, char *message) {
+static void check_output(char *code, char *expected, int make_position_independent_code, char *message) {
     char *input_filename = write_temp_c_file(code);
 
     char *output_filename = strdup("/tmp/test-XXXXXX.s");
     int fd = mkstemps(input_filename, 2);
 
     char command[128];
-    sprintf(command, WCC " %s -I ../../include -Wno-extern-initializer -c -S -o %s", input_filename, output_filename);
+    sprintf(
+        command,
+        WCC " %s -I ../../include -Wno-extern-initializer -c -S -o %s%s",
+        input_filename, output_filename,
+        make_position_independent_code ? " -fPIC" : ""
+    );
 
     int result = system(command);
     if (result != 0) exit(result >> 8);
@@ -80,6 +85,7 @@ int main(int argc, char **argv) {
     char *s_code = malloc(BUFFER_SIZE);
     int c_code_pos = 0;
     int s_code_pos = 0;
+    int make_position_independent_code = 0;
     int reading_c_code = 0;
     int reading_s_code = 0;
 
@@ -91,7 +97,8 @@ int main(int argc, char **argv) {
         int len = strlen(line);
 
         if (line[0] == '%') {
-            message = strdup(&line[2]);
+            make_position_independent_code = line[1] == 'p';
+            message = strdup(&line[make_position_independent_code ? 3 : 2]);
             reading_c_code = 1;
             c_code_pos = 0;
             s_code_pos = 0;
@@ -111,7 +118,7 @@ int main(int argc, char **argv) {
                 reading_s_code = 0;
 
                 // Run a test
-                check_output(c_code, s_code, message);
+                check_output(c_code, s_code, make_position_independent_code, message);
             }
         }
         else {
