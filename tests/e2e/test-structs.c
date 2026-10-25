@@ -500,6 +500,23 @@ void test_struct_alignment_bug2() {
     assert_int(16, (void *) &(gsab2.i) - (void *) &gsab2, "struct alignment bug 2 2");
 }
 
+void test_struct_alignment_bug3() {
+    struct s1 {long la[1000];};
+    struct s2 {struct s1 i, j;} s2 = {{1, 2}, {3, 4}};
+    struct s2 *ps = &s2;
+
+    assert_long(1, ps->i.la[0], "Test large struct copy through indirect 1 before");
+    assert_long(2, ps->i.la[1], "Test large struct copy through indirect 2 before");
+    assert_long(3, ps->j.la[0], "Test large struct copy through indirect 3 before");
+    assert_long(4, ps->j.la[1], "Test large struct copy through indirect 4 before");
+
+    ps->i = ps->j;
+    assert_long(3, ps->i.la[0], "Test large struct copy through indirect 1 after");
+    assert_long(4, ps->i.la[1], "Test large struct copy through indirect 2 after");
+    assert_long(3, ps->j.la[0], "Test large struct copy through indirect 3 after");
+    assert_long(4, ps->j.la[1], "Test large struct copy through indirect 4 after");
+}
+
 void test_struct_member_size_lookup_bug() {
     struct s2 *s;
 
@@ -1439,6 +1456,7 @@ int main(int argc, char **argv) {
     test_struct_indirect_sizes();
     test_struct_alignment_bug();
     test_struct_alignment_bug2();
+    test_struct_alignment_bug3();
     test_struct_member_size_lookup_bug();
     test_nested_struct();
     test_packed_struct();

@@ -205,7 +205,7 @@ static Value *load(Value *src1) {
             if (src1->vreg && src1->offset) {
                 Value *tmp = dup_value(dst);
                 tmp->vreg = new_vreg();
-                add_parser_instruction(IR_ADD, tmp, dst, new_integral_constant(TYPE_INT, src1->offset));
+                add_parser_instruction(IR_ADD, tmp, dst, new_unsigned_integral_constant(TYPE_LONG, src1->offset));
                 dst = tmp;
                 src1->offset = 0; // Ensure downstream code doesn't deal with the offset again.
             }

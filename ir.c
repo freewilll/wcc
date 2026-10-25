@@ -901,7 +901,7 @@ Value *make_pointer_to_void_in_vreg_value(Function *function) {
 // This happens for structs inside structs and arrays of structs.
 static Value *add_memcpy_offset_add_instructions(Tac *ir, Value *v) {
     Value *result = dup_value(v);
-    Value *offset_value = new_integral_constant(TYPE_LONG, v->offset);
+    Value *offset_value = new_unsigned_integral_constant(TYPE_LONG, v->offset);
     new_tac_before(ir, IR_ADD, result, v, offset_value, 1);
     return result;
 }
